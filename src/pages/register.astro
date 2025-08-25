@@ -1,15 +1,56 @@
 ---
+// src/pages/register.astro
 import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="Register">
   <h1>Register</h1>
-  <p>Already have an account? <a href="/signin">Sign in</a></p>
-  <form action="/api/auth/register" method="post">
+  <p>
+    Already have an account?
+    <a href="/signin">Sign in</a>
+  </p>
+
+  <form id="register-form" novalidate>
     <label for="email">Email</label>
-    <input type="email" name="email" id="email" />
+    <input type="email" name="email" id="email" required />
+
     <label for="password">Password</label>
-    <input type="password" name="password" id="password" />
+    <input type="password" name="password" id="password" required />
+
     <button type="submit">Register</button>
   </form>
+
+  <script>
+    const form = document.getElementById("register-form") as HTMLFormElement | null;
+
+    form?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(form);
+      const email = formData.get("email")?.toString().trim();
+      const password = formData.get("password")?.toString();
+
+      if (!email || !password) {
+        alert("Please fill in both fields.");
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+
+        if (res.ok) {
+          window.location.href = "/signin";
+        } else {
+          const errMsg = await res.text();
+          alert("Signup failed: " + errMsg);
+        }
+      } catch {
+        alert("Something went wrong. Please try again.");
+      }
+    });
+  </script>
 </Layout>
