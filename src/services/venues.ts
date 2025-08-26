@@ -1,5 +1,5 @@
 // src/services/venues.ts
-import { supabase } from "../../lib/supabase";
+import { supabase } from "../lib/supabase";
 
 // Get all venues
 export async function getVenues() {

@@ -1,5 +1,5 @@
 // src/services/bookings.ts
-import { supabase } from "../../../lib/supabase";
+import { supabase } from "../lib/supabase";
 
 // User: make booking
 export async function createBooking(booking: any) {

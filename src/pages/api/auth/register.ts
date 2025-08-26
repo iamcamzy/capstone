@@ -1,11 +1,11 @@
 import type { APIRoute } from "astro";
-import { supabase } from "../../../lib/supabase";
+import { signUp } from "../../../services/auth";
 
 export const prerender = false;
 
 export const POST: APIRoute = async ({ request, redirect }) => {
     try {
-        const { email, password } = await request.json();
+        const { email, password, firstName, lastName } = await request.json();
 
         if (!email || !password) {
             return new Response("Email and password are required", {
@@ -13,7 +13,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
             });
         }
 
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await signUp(email, password, firstName, lastName);
 
         if (error) {
             console.error("Supabase signup failed:", error.message);
@@ -22,7 +22,10 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 
         return redirect("/signin");
     } catch (err) {
-        console.error("Invalid request body:", err);
+        console.error(
+            "Invalid request body:",
+            err instanceof Error ? err.message : err
+        );
         return new Response("Invalid request body", { status: 400 });
     }
 };

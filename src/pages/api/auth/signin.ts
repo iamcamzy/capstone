@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { supabase } from "../../../lib/supabase";
+import { signIn } from "../../../services/auth";
 
 export const prerender = false;
 
@@ -13,27 +13,22 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
             return new Response("Missing email or password", { status: 400 });
         }
 
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
+        const { data, error } = await signIn(email, password);
+        const session = data?.session;
 
-        if (error || !data.session) {
+        if (error || !session) {
             return new Response(error?.message ?? "Invalid credentials", {
                 status: 401,
             });
         }
 
-        const { access_token, refresh_token } = data.session;
-
-        // Persist session via cookies
-        cookies.set("sb-access-token", access_token, {
+        cookies.set("sb-access-token", session.access_token, {
             path: "/",
             httpOnly: true,
             sameSite: "strict",
             secure: import.meta.env.PROD,
         });
-        cookies.set("sb-refresh-token", refresh_token, {
+        cookies.set("sb-refresh-token", session.refresh_token, {
             path: "/",
             httpOnly: true,
             sameSite: "strict",
@@ -42,7 +37,10 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
         return redirect("/dashboard");
     } catch (err) {
-        console.error("Signin failed:", err);
+        console.error(
+            "Signin failed:",
+            err instanceof Error ? err.message : err
+        );
         return new Response("Unexpected server error", { status: 500 });
     }
 };
