@@ -1,5 +1,5 @@
 // src/services/reviews.ts
-import { supabase } from "../lib/supabase";
+import { supabase } from "../../../lib/supabase";
 
 // Create review
 export async function createReview(review: any) {
