@@ -33,9 +33,16 @@ export async function addReview(
     return { data, error };
 }
 
-// Get reviews for a venue
-export async function getVenueReviews(venueId: string) {
-    const { data, error } = await supabase
+// Get reviews for a venue (with pagination)
+export async function getVenueReviews(
+    venueId: string,
+    page: number = 1,
+    limit: number = 10
+) {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data, error, count } = await supabase
         .from("reviews")
         .select(
             `
@@ -44,15 +51,26 @@ export async function getVenueReviews(venueId: string) {
                 user_id,
                 users(first_name, last_name)
             )
-        `
+        `,
+            { count: "exact" }
         )
-        .eq("bookings.venue_id", venueId);
-    return { data, error };
+        .eq("bookings.venue_id", venueId)
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+    return { data, error, count, page, limit };
 }
 
-// Get reviews by a user
-export async function getUserReviews(userId: string) {
-    const { data, error } = await supabase
+// Get reviews by a user (with pagination)
+export async function getUserReviews(
+    userId: string,
+    page: number = 1,
+    limit: number = 10
+) {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data, error, count } = await supabase
         .from("reviews")
         .select(
             `
@@ -61,8 +79,12 @@ export async function getUserReviews(userId: string) {
                 venue_id,
                 venues(name)
             )
-        `
+        `,
+            { count: "exact" }
         )
-        .eq("bookings.user_id", userId);
-    return { data, error };
+        .eq("bookings.user_id", userId)
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+    return { data, error, count, page, limit };
 }
