@@ -1,4 +1,3 @@
-// src/services/venues.ts
 import { supabase } from "../lib/supabase";
 
 // Get all venues

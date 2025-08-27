@@ -1,4 +1,3 @@
-// src/services/bookings.ts
 import { supabase } from "../lib/supabase";
 
 // User: make booking
