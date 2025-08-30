@@ -1,6 +1,6 @@
 import { supabase } from "../lib/supabase";
 
-// User: make booking
+// Make booking (User)
 export async function createBooking(booking: any) {
     const { data, error } = await supabase
         .from("bookings")
@@ -24,7 +24,7 @@ export async function getUserBookings(userId: string) {
         status,
         created_at,
         updated_at,
-        venues ( name, location )  -- optional join if you want venue info
+        venues
         `
         )
         .eq("user_id", userId);

@@ -35,7 +35,7 @@ export const POST: APIRoute = async ({ request }) => {
             );
         }
 
-        return new Response(JSON.stringify(review.data), { status: 201 }); // 201 Created
+        return new Response(JSON.stringify(review.data), { status: 201 });
     } catch (err: any) {
         return new Response(JSON.stringify({ error: err.message }), {
             status: 500,
