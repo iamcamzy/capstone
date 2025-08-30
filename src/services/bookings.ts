@@ -11,37 +11,59 @@ export async function createBooking(booking: any) {
 
 // User: get their bookings
 export async function getUserBookings(userId: string) {
-    const { data, error } = await supabase
+    return await supabase
         .from("bookings")
-        .select("*, venues(*)")
+        .select(
+            `
+        id,
+        user_id,
+        venue_id,
+        start_date,
+        end_date,
+        event_type,
+        status,
+        created_at,
+        updated_at,
+        venues ( name, location )  -- optional join if you want venue info
+        `
+        )
         .eq("user_id", userId);
-    return { data, error };
 }
 
 // Owner/Admin: get all bookings
 export async function getAllBookings() {
-    const { data, error } = await supabase
+    return await supabase
         .from("bookings")
-        .select("*, users(*), venues(*)");
-    return { data, error };
+        .select(
+            `
+            id,
+            user_id,
+            venue_id,
+            start_date,
+            end_date,
+            event_type,
+            status,
+            created_at,
+            updated_at,
+            users ( email ),
+            venues ( name, location )
+        `
+        )
+        .order("created_at", { ascending: false });
 }
 
-// Update booking status (owner/admin)
-export async function updateBookingStatus(id: string, status: string) {
-    const { data, error } = await supabase
-        .from("bookings")
-        .update({ status })
-        .eq("id", id)
-        .select();
-    return { data, error };
+// Update booking status (owner)
+export async function confirmBooking(bookingId: string, userId: string) {
+    return await supabase.rpc("confirm_booking", {
+        p_booking_id: bookingId,
+        p_user_id: userId,
+    });
 }
 
 // Cancel booking (user)
-export async function cancelBooking(id: string) {
-    const { data, error } = await supabase
-        .from("bookings")
-        .update({ status: "cancelled" })
-        .eq("id", id)
-        .select();
-    return { data, error };
+export async function cancelBooking(bookingId: string, userId: string) {
+    return await supabase.rpc("cancel_booking", {
+        p_booking_id: bookingId,
+        p_user_id: userId,
+    });
 }
