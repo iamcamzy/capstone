@@ -1,0 +1,29 @@
+<form id="cancelBookingForm">
+  <input name="bookingId" placeholder="Booking ID" />
+  <input name="userId" placeholder="User ID (user or owner)" />
+  <button type="submit">Cancel Booking</button>
+</form>
+
+<script>
+  document.getElementById("cancelBookingForm")
+    ?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const form = e.target as HTMLFormElement;
+      if (!form) {
+        alert("Form not found.");
+        return;
+      }
+      const bookingId = (form.elements.namedItem("bookingId") as HTMLInputElement)?.value.trim();
+      const userId = (form.elements.namedItem("userId") as HTMLInputElement)?.value.trim();
+
+      const res = await fetch("/api/bookings/CancelBookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId, userId }),
+      });
+
+      const data = await res.json();
+      alert(JSON.stringify(data, null, 2));
+    });
+</script>

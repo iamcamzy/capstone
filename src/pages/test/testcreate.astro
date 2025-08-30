@@ -1,0 +1,51 @@
+<html lang="en">
+    <head>
+    <meta charset="UTF-8" />
+    <title>Test Booking API</title>
+    </head>
+<body>
+    <h1>Test Booking API</h1>
+
+<form id="bookingForm">
+    <input name="userId" value="userId" />
+    <input name="venueId" value="venueId" />
+    <input name="startDate" value="startDate" />
+    <input name="endDate" value="endDate" />
+    <input name="eventType" value="eventType" />
+    <button type="submit">Create Booking</button>
+</form>
+
+<script>
+    document.getElementById("bookingForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const form = e.target as HTMLFormElement;
+    const userId = (form.elements.namedItem("userId") as HTMLInputElement)?.value || "";
+    const venueId = (form.elements.namedItem("venueId") as HTMLInputElement)?.value || "";
+    const startDate = (form.elements.namedItem("startDate") as HTMLInputElement)?.value || "";
+    const endDate = (form.elements.namedItem("endDate") as HTMLInputElement)?.value || "";
+    const eventType = (form.elements.namedItem("eventType") as HTMLInputElement)?.value || "";
+
+    const body = {
+        userId,
+        venueId,
+        startDate,
+        endDate,
+        eventType,
+    };
+
+    const res = await fetch("/api/bookings/CreateBookings", {
+        method: "POST",
+        headers: {
+        "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+    });
+
+    const data = await res.json();
+    alert(JSON.stringify(data, null, 2));
+    });
+</script>
+
+    </body>
+</html>

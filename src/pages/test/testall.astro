@@ -1,0 +1,11 @@
+<h1>Test Get All Bookings</h1>
+<button id="fetchAllBookings">Get All Bookings</button>
+
+<script>
+  document.getElementById("fetchAllBookings")
+    ?.addEventListener("click", async () => {
+      const res = await fetch("/api/bookings/GetAllBookings");
+      const data = await res.json();
+      alert(JSON.stringify(data, null, 2));
+    });
+</script>
