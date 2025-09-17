@@ -15,16 +15,11 @@ export async function getUserBookings(userId: string) {
         .from("bookings")
         .select(
             `
-        id,
-        user_id,
-        venue_id,
         start_date,
         end_date,
         event_type,
-        status,
         created_at,
-        updated_at,
-        venues
+        status
         `
         )
         .eq("user_id", userId);
@@ -44,9 +39,7 @@ export async function getAllBookings() {
             event_type,
             status,
             created_at,
-            updated_at,
-            users ( email ),
-            venues ( name, location )
+            updated_at
         `
         )
         .order("created_at", { ascending: false });

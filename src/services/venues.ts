@@ -1,7 +1,7 @@
 import { supabase } from "../lib/supabase";
 
 // Get all venues
-export async function getVenues() {
+export async function getAllVenues() {
     const { data, error } = await supabase.from("venues").select("*");
     return { data, error };
 }
