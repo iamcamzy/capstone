@@ -15,7 +15,7 @@ export const GET: APIRoute = async () => {
 
         return new Response(
             JSON.stringify({
-                message: "📋 All bookings fetched successfully",
+                message: "All bookings show kekw",
                 bookings: data,
             }),
             { status: 200 }

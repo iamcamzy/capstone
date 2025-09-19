@@ -24,7 +24,7 @@ export const POST: APIRoute = async ({ request }) => {
 
         return new Response(
             JSON.stringify({
-                message: "❌ Booking cancelled successfully",
+                message: "Booking is cancelled successfully",
                 booking: data,
             }),
             { status: 200 }
