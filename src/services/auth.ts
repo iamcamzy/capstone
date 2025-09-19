@@ -19,11 +19,12 @@ export async function signUp(
         password,
         options: {
             data: {
-                first_name: firstName,
-                last_name: lastName,
+                first_name: firstName ?? null,
+                last_name: lastName ?? null,
             },
         },
     });
+
     return { data, error };
 }
 
