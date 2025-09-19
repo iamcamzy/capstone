@@ -10,6 +10,12 @@ import Layout from "../layouts/Layout.astro";
   </p>
 
   <form id="register-form" novalidate>
+    <label for="firstName">First Name</label>
+    <input type="text" name="firstName" id="firstName" required />
+
+    <label for="lastName">Last Name</label>
+    <input type="text" name="lastName" id="lastName" required />
+
     <label for="email">Email</label>
     <input type="email" name="email" id="email" required />
 
@@ -26,11 +32,13 @@ import Layout from "../layouts/Layout.astro";
       e.preventDefault();
 
       const formData = new FormData(form);
+      const firstName = formData.get("firstName")?.toString().trim();
+      const lastName = formData.get("lastName")?.toString().trim();
       const email = formData.get("email")?.toString().trim();
       const password = formData.get("password")?.toString();
 
-      if (!email || !password) {
-        alert("Please fill in both fields.");
+      if (!firstName || !lastName || !email || !password) {
+        alert("Please fill in all fields.");
         return;
       }
 
@@ -38,7 +46,7 @@ import Layout from "../layouts/Layout.astro";
         const res = await fetch("/api/auth/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, firstName, lastName }),
         });
 
         if (res.ok) {
