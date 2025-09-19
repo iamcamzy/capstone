@@ -22,18 +22,15 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
             });
         }
 
-        cookies.set("sb-access-token", session.access_token, {
+        const cookieOptions = {
             path: "/",
             httpOnly: true,
-            sameSite: "strict",
+            sameSite: "strict" as const,
             secure: import.meta.env.PROD,
-        });
-        cookies.set("sb-refresh-token", session.refresh_token, {
-            path: "/",
-            httpOnly: true,
-            sameSite: "strict",
-            secure: import.meta.env.PROD,
-        });
+        };
+
+        cookies.set("sb-access-token", session.access_token, cookieOptions);
+        cookies.set("sb-refresh-token", session.refresh_token, cookieOptions);
 
         return redirect("/dashboard");
     } catch (err) {

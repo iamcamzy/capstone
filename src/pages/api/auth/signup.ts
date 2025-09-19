@@ -3,9 +3,17 @@ import { signUp } from "../../../services/auth";
 
 export const prerender = false;
 
+interface SignUpBody {
+    email: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+}
+
 export const POST: APIRoute = async ({ request, redirect }) => {
     try {
-        const { email, password, firstName, lastName } = await request.json();
+        const body = (await request.json()) as Partial<SignUpBody>;
+        const { email, password, firstName, lastName } = body;
 
         if (!email || !password) {
             return new Response("Email and password are required", {
@@ -22,10 +30,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 
         return redirect("/signin");
     } catch (err) {
-        console.error(
-            "Invalid request body:",
-            err instanceof Error ? err.message : err
-        );
+        console.error("Invalid request body:", err);
         return new Response("Invalid request body", { status: 400 });
     }
 };

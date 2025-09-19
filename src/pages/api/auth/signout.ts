@@ -4,27 +4,28 @@ import { signOut } from "../../../services/auth";
 export const prerender = false;
 
 export const GET: APIRoute = async ({ cookies, redirect }) => {
+    let errorMessage: string | undefined;
+
     try {
-        // Tell Supabase to invalidate the session server-side
+        // Ask Supabase to invalidate the session server-side
         const { error } = await signOut();
         if (error) {
-            console.error("Supabase signout failed:", error.message);
+            console.error("Supabase signout error:", error.message);
+            errorMessage = error.message;
         }
-
-        // Clear local cookies
-        cookies.delete("sb-access-token", { path: "/" });
-        cookies.delete("sb-refresh-token", { path: "/" });
-
-        return redirect("/signin");
     } catch (err) {
-        console.error(
-            "Signout failed:",
-            err instanceof Error ? err.message : err
-        );
-        // Still clear cookies even on unexpected errors
-        cookies.delete("sb-access-token", { path: "/" });
-        cookies.delete("sb-refresh-token", { path: "/" });
-
-        return redirect("/signin");
+        console.error("Unexpected signout failure:", err);
+        errorMessage = err instanceof Error ? err.message : String(err);
     }
+
+    // Always clear cookies
+    cookies.delete("sb-access-token", { path: "/" });
+    cookies.delete("sb-refresh-token", { path: "/" });
+
+    // Logs a warning if there was error in signout
+    if (errorMessage) {
+        console.warn("User redirected to /signin despite signout issues.");
+    }
+
+    return redirect("/signin");
 };
