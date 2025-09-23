@@ -1,36 +1,45 @@
 import type { APIRoute } from "astro";
-import { getUserReviews } from "../../../services/reviews";
+import { supabase } from "../../../lib/supabase";
+export const prerender = false;
 
 export const GET: APIRoute = async ({ request }) => {
-    const url = new URL(request.url);
-    const userId = url.searchParams.get("userId");
-
-    if (!userId) {
-        return new Response(JSON.stringify({ error: "Missing userId" }), {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-        });
-    }
-
     try {
-        const { data, error } = await getUserReviews(userId);
+        const url = new URL(request.url);
+        const userId = url.searchParams.get("userId");
 
-        if (error) {
-            return new Response(JSON.stringify({ error }), {
+        if (!userId) {
+            return new Response(JSON.stringify({ error: "Missing userId" }), {
                 status: 400,
                 headers: { "Content-Type": "application/json" },
             });
         }
 
-        return new Response(JSON.stringify(data), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-        });
-    } catch (e) {
-        console.error("GET /api/reviews failed:", e);
-        return new Response(JSON.stringify({ error: "Server error" }), {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-        });
+        const { data, error } = await supabase
+            .from("reviews")
+            .select("*")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false });
+
+        if (error) {
+            console.error("Error fetching user reviews:", error.message);
+            return new Response(JSON.stringify({ error: error.message }), {
+                status: 500,
+                headers: { "Content-Type": "application/json" },
+            });
+        }
+
+        return new Response(
+            JSON.stringify({
+                message: "User reviews fetched successfully",
+                reviews: data,
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+    } catch (err: any) {
+        console.error("API ERROR (getUserReviews):", err);
+        return new Response(
+            JSON.stringify({ error: err.message || "Unknown error" }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+        );
     }
 };

@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
-import { getVenueReviews } from "../../../services/reviews";
+import { supabase } from "../../../lib/supabase";
+export const prerender = false;
 
 export const GET: APIRoute = async ({ request }) => {
     try {
@@ -7,46 +8,53 @@ export const GET: APIRoute = async ({ request }) => {
         const venueId = url.searchParams.get("venueId");
         const page = parseInt(url.searchParams.get("page") || "1");
         const limit = parseInt(url.searchParams.get("limit") || "10");
+        const offset = (page - 1) * limit;
 
         if (!venueId) {
-            return new Response(
-                JSON.stringify({ error: "venueId is required" }),
-                { status: 400 }
-            );
+            return new Response(JSON.stringify({ error: "Missing venueId" }), {
+                status: 400,
+                headers: { "Content-Type": "application/json" },
+            });
         }
 
-        const reviews = await getVenueReviews(venueId, page, limit);
+        const { data, error, count } = await supabase
+            .from("reviews")
+            .select(
+                `
+            *, booking:bookings(*, venue:venues(*))
+        `,
+                { count: "exact" }
+            )
+            .eq("booking.venue_id", venueId)
+            .order("created_at", { ascending: false })
+            .range(offset, offset + limit - 1);
 
-        if (reviews.error) {
-            return new Response(
-                JSON.stringify({
-                    error:
-                        typeof reviews.error === "object" &&
-                        "message" in reviews.error
-                            ? reviews.error.message
-                            : reviews.error,
-                }),
-                { status: 500 }
-            );
+        if (error) {
+            console.error("Error fetching venue reviews:", error.message);
+            return new Response(JSON.stringify({ error: error.message }), {
+                status: 500,
+                headers: { "Content-Type": "application/json" },
+            });
         }
 
         return new Response(
             JSON.stringify({
-                data: reviews.data,
+                message: "Venue reviews fetched successfully",
+                data,
                 pagination: {
-                    page: reviews.page,
-                    limit: reviews.limit,
-                    total: reviews.count,
-                    totalPages: reviews.count
-                        ? Math.ceil(reviews.count / reviews.limit)
-                        : 0,
+                    page,
+                    limit,
+                    total: count || 0,
+                    totalPages: count ? Math.ceil(count / limit) : 0,
                 },
             }),
-            { status: 200 }
+            { status: 200, headers: { "Content-Type": "application/json" } }
         );
     } catch (err: any) {
-        return new Response(JSON.stringify({ error: err.message }), {
-            status: 500,
-        });
+        console.error("API ERROR (getVenueReviews):", err);
+        return new Response(
+            JSON.stringify({ error: err.message || "Unknown error" }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+        );
     }
 };
