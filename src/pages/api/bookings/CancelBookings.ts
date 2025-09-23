@@ -1,10 +1,27 @@
 import type { APIRoute } from "astro";
-import { cancelBooking } from "../../../services/bookings";
+import { supabase } from "../../../lib/supabase";
 export const prerender = false;
 
 export const POST: APIRoute = async ({ request }) => {
     try {
-        const { bookingId, userId } = await request.json();
+        const raw = await request.text();
+        console.log("RAW BODY RECEIVED:", raw);
+
+        let body: any = null;
+        try {
+            body = JSON.parse(raw);
+        } catch (err) {
+            console.error("Failed to parse JSON:", err);
+        }
+
+        if (!body) {
+            return new Response(
+                JSON.stringify({ error: "Invalid or missing JSON body", raw }),
+                { status: 400, headers: { "Content-Type": "application/json" } }
+            );
+        }
+
+        const { bookingId, userId } = body;
 
         if (!bookingId || !userId) {
             return new Response(
@@ -13,10 +30,13 @@ export const POST: APIRoute = async ({ request }) => {
             );
         }
 
-        const { data, error } = await cancelBooking(bookingId, userId);
+        const { data, error } = await supabase.rpc("cancel_booking", {
+            p_booking_id: bookingId,
+            p_user_id: userId,
+        });
 
         if (error) {
-            console.error("Cancel booking failed:", error.message);
+            console.error("Cancel booking failed:", error);
             return new Response(JSON.stringify({ error: error.message }), {
                 status: 500,
             });
@@ -24,15 +44,15 @@ export const POST: APIRoute = async ({ request }) => {
 
         return new Response(
             JSON.stringify({
-                message: "Booking is cancelled successfully",
+                message: "Booking cancelled successfully",
                 booking: data,
             }),
             { status: 200 }
         );
     } catch (err: any) {
-        console.error("Error cancelling booking:", err);
+        console.error("API ERROR:", err);
         return new Response(
-            JSON.stringify({ error: err.message || err.toString() }),
+            JSON.stringify({ error: err.message || "Unknown error" }),
             { status: 500 }
         );
     }
