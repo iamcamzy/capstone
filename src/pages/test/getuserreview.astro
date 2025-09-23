@@ -1,0 +1,46 @@
+---
+---
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test Get User Reviews API</title>
+  </head>
+  <body>
+    <h1>Test Get User Reviews</h1>
+
+    <form id="userReviewsForm">
+      <input name="userId" placeholder="User ID" value="userId-123" />
+      <button type="submit">Fetch Reviews</button>
+    </form>
+
+    <pre id="output"></pre>
+
+    <script is:inline>
+      const form = document.getElementById("userReviewsForm");
+      const output = document.getElementById("output");
+
+      form?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const userId = formData.get("userId") || "";
+
+        try {
+          const res = await fetch(`/api/reviews/user?userId=${encodeURIComponent(userId)}`);
+          const text = await res.text();
+
+          let data;
+          try {
+            data = JSON.parse(text);
+          } catch {
+            output.textContent = "❌ Invalid JSON:\n" + text;
+            return;
+          }
+
+          output.textContent = "✅ Response:\n" + JSON.stringify(data, null, 2);
+        } catch (err) {
+          output.textContent = "❌ Request failed: " + err;
+        }
+      });
+    </script>
+  </body>
+</html>

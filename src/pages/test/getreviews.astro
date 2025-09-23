@@ -1,0 +1,52 @@
+---
+---
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test Get Venue Reviews API</title>
+  </head>
+  <body>
+    <h1>Test Get Venue Reviews</h1>
+
+    <form id="venueReviewsForm">
+      <input name="venueId" placeholder="Venue ID" value="venueId-123" />
+      <input name="page" type="number" placeholder="Page" value="1" />
+      <input name="limit" type="number" placeholder="Limit" value="5" />
+      <button type="submit">Fetch Venue Reviews</button>
+    </form>
+
+    <pre id="output"></pre>
+
+    <script is:inline>
+      const form = document.getElementById("venueReviewsForm");
+      const output = document.getElementById("output");
+
+      form?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const venueId = formData.get("venueId") || "";
+        const page = formData.get("page") || "1";
+        const limit = formData.get("limit") || "5";
+
+        try {
+          const res = await fetch(
+            `/api/reviews/get?venueId=${encodeURIComponent(venueId)}&page=${page}&limit=${limit}`
+          );
+          const text = await res.text();
+
+          let data;
+          try {
+            data = JSON.parse(text);
+          } catch {
+            output.textContent = "❌ Invalid JSON:\n" + text;
+            return;
+          }
+
+          output.textContent = "✅ Response:\n" + JSON.stringify(data, null, 2);
+        } catch (err) {
+          output.textContent = "❌ Request failed: " + err;
+        }
+      });
+    </script>
+  </body>
+</html>

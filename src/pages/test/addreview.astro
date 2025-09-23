@@ -1,0 +1,67 @@
+---
+--- 
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test Add Review API</title>
+  </head>
+  <body>
+    <h1>Test Add Review API</h1>
+
+    <form id="reviewForm">
+      <input name="userId" placeholder="User ID" value="userId-123" />
+      <input name="bookingId" placeholder="Booking ID" value="bookingId-123" />
+      <input
+        name="rating"
+        type="number"
+        min="1"
+        max="5"
+        placeholder="Rating (1-5)"
+        value="5"
+      />
+      <input name="comment" placeholder="Comment" value="Great venue!" />
+      <button type="submit">Add Review</button>
+    </form>
+
+    <pre id="output"></pre>
+
+    <script is:inline>
+      const form = document.getElementById("reviewForm");
+      const output = document.getElementById("output");
+
+      form?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        const userId = formData.get("userId") || "";
+        const bookingId = formData.get("bookingId") || "";
+        const rating = parseInt(formData.get("rating") || "0", 10);
+        const comment = formData.get("comment") || "";
+
+        const body = { userId, bookingId, rating, comment };
+
+        try {
+          const res = await fetch("/api/reviews/add", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+
+          const text = await res.text();
+          let data;
+          try {
+            data = JSON.parse(text);
+          } catch {
+            output.textContent = "❌ Invalid JSON:\n" + text;
+            return;
+          }
+
+          output.textContent = "✅ Response:\n" + JSON.stringify(data, null, 2);
+        } catch (err) {
+          output.textContent = "❌ Request failed: " + err;
+        }
+      });
+    </script>
+  </body>
+</html>
