@@ -10,8 +10,10 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.56.0",
+    "@tailwindcss/vite": "^4.1.13",
     "astro": "^5.13.8",
     "dotenv": "^17.2.2",
+    "tailwindcss": "^4.1.13",
     "zod": "^3.25.76"
   },
   "devDependencies": {
