@@ -1,9 +1,12 @@
-<div class="h-[20rem] pt-10 pb-16">
-  <div class="w-full h-full grid grid-cols-12">
+---
+
+---
+
+<footer class="w-full h-[10rem] pt-10 pb-8 bg-black">
+  <div class="w-full h-full row-start-0 row-end-1 grid grid-cols-12">
     <div class="col-start-3 col-end-5 grid grid-cols-2 grid-rows-2">
       <div class="col-start-1 col-end-2 row-start-1 row-end-2 grid grid-rows-2">
         <span class="text-[1.5rem] font-bold">Baka Kami Na To</span>
-        <span class="italic">"Tambay ka na dito tol"</span>
         <span class="text-[0.90rem] font-semibold"
           >Follow our socials below:</span
         >
@@ -14,28 +17,151 @@
       <div
         class="col-start-1 col-end-3 row-start-2 row-end-3 grid grid-cols-5 gap-4 mt-4"
       >
-        <a href="#" target="_blank"><img alt="Facebook Icon" /></a>
-        <a href="#" target="_blank"><img alt="Twitter Icon" /></a>
-        <a href="#" target="_blank"><img alt="Instagram Icon" /></a>
-        <a href="#" target="_blank"><img alt="LinkedIn" /></a>
-        <a href="#" target="_blank"><img alt="TikTok" /></a>
+        <!-- FACEBOOK -->
+        <a
+          href="#"
+          target="_blank"
+          class="relative inline-block w-[25px] h-[25px] group"
+        >
+          <!-- Normal image -->
+          <img
+            src="/socials_images/facebook/fb_photo_black.png"
+            alt="Facebook Icon"
+            class="absolute inset-0 w-full h-full object-contain opacity-100 group-hover:opacity-0 transition-opacity duration-300"
+          />
+          <!-- Hover image -->
+          <img
+            src="/socials_images/facebook/fb_photo_colored.png"
+            alt="Facebook Icon"
+            class="absolute inset-0 w-full h-full object-contain opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          />
+        </a>
+        <!-- X -->
+        <a
+          href="#"
+          target="_blank"
+          class="relative inline-block w-[25px] h-[25px] group"
+        >
+          <!-- Normal image -->
+          <img
+            src="/socials_images/x/x_logo_black.png"
+            alt="X Icon"
+            class="absolute inset-0 w-full h-full object-contain opacity-100 group-hover:opacity-0 transition-opacity duration-300"
+          />
+          <!-- Hover image -->
+          <img
+            src="/socials_images/x/x_logo_white.jpg"
+            alt="X Icon"
+            class="absolute inset-0 w-full h-full object-contain opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          />
+        </a>
+        <!-- INSTAGRAM -->
+        <a
+          href="#"
+          target="_blank"
+          class="relative inline-block w-[25px] h-[25px] group"
+        >
+          <!-- Normal image -->
+          <img
+            src="/socials_images/Instagram/IG_logo_black.png"
+            alt="Instagram Icon"
+            class="absolute inset-0 w-full h-full object-contain opacity-100 group-hover:opacity-0 transition-opacity duration-300"
+          />
+          <!-- Hover image -->
+          <img
+            src="/socials_images/Instagram/IG_logo_colored.jpg"
+            alt="Instagram Icon"
+            class="absolute inset-0 w-full h-full object-contain opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          />
+        </a>
+        <!-- LINKEDIN -->
+        <a
+          href="#"
+          target="_blank"
+          class="relative inline-block w-[25px] h-[25px] group"
+        >
+          <!-- Normal image -->
+          <img
+            src="/socials_images/LinkedIn/LinkedIn_logo_black.png"
+            alt="LinkedIn Icon"
+            class="absolute inset-0 w-full h-full object-contain opacity-100 group-hover:opacity-0 transition-opacity duration-300"
+          />
+          <!-- Hover image -->
+          <img
+            src="/socials_images/LinkedIn/LinkedIn_logo_colored.png"
+            alt="LinkedIn Icon"
+            class="absolute inset-0 w-full h-full object-contain opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          />
+        </a>
+        <!-- TIKTOK -->
+        <a
+          href="#"
+          target="_blank"
+          class="relative inline-block w-[25px] h-[25px] group"
+        >
+          <!-- Normal image -->
+          <img
+            src="/socials_images/tiktok/tiktok_logo_black.jpg"
+            alt="Tiktok Icon"
+            class="absolute inset-0 w-full h-full object-contain opacity-100 group-hover:opacity-0 transition-opacity duration-300"
+          />
+          <!-- Hover image -->
+          <img
+            src="/socials_images/tiktok/tiktok_logo_colored.png"
+            alt="Tiktok Icon"
+            class="absolute inset-0 w-full h-full object-contain opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          />
+        </a>
       </div>
     </div>
-    <div class="col-start-5 col-end-6"></div>
-    <div class="col-start-6 col-end-11 grid grid-cols-12">
+    <div class="col-start-6 col-end-6 border-l-2 border-l-gray-600 mb-20"></div>
+    <div class="col-start-7 col-end-11 grid grid-cols-12">
       <div class="col-start-2 col-end-13">
-        <div>
-          <p>quick links</p>
-        </div>
-        <div>
-          <p>contacts</p>
+        <div class="grid grid-cols-2">
+          <div id="quick-links">
+            <span class="font-bold">QUICK LINKS:</span>
+            <span class="ml-5 grid grid-rows-5">
+              <a href="#hero" class="hover:text-blue-500">HOME</a>
+              <a href="#venue" class="hover:text-blue-500">VENUE</a>
+              <a href="#about-us" class="hover:text-blue-500">ABOUT</a>
+              <a href="#booking" class="hover:text-blue-500">BOOKING</a>
+              <a href="#contact-us" class="hover:text-blue-500">CONTACT US</a>
+            </span>
+          </div>
+
+          <div id="Contacts" class="">
+            <p class="font-bold">CONTACTS:</p>
+            <span class=""
+              ><!-- PHONE -->
+              <span class="flex py-1.5 hover:text-blue-500 gap-2"
+                ><img
+                  class="w-[1em] h-auto"
+                  src="/contacts/mobile-phone-logo.png"
+                /><a href="tel:">+63-XXX-XXX-XXXX</a></span
+              >
+
+              <!-- TELEPHONE -->
+              <span class="flex py-1.5 hover:text-blue-500 gap-2"
+                ><img
+                  class="w-[1em] h-auto"
+                  src="/contacts/Telephone-logo.png"
+                /><a href="tel:">+63-XXX-XXX-XXXX</a></span
+              >
+              <!-- FAX -->
+              <span class="flex py-1.5 hover:text-blue-500 gap-2"
+                ><img class="w-[1em] h-auto" src="/contacts/fax-logo.png" /><a
+                  href="tel:">+63-XXX-XXX-XXXX</a
+                ></span
+              >
+            </span>
+          </div>
         </div>
       </div>
     </div>
   </div>
-  <div class="w-full fixed bottom-0 self-center">
+  <div id="copyright" class="w-full h-[20px] flex text-center justify-center">
     <p class="text-[0.8rem] font-semibold">
-      © Baka Kami Na To. all rights reserved
+      © MILKU Beach Resort and Spa. all rights reserved
     </p>
   </div>
-</div>
+</footer>

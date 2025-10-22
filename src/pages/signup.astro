@@ -1,12 +1,12 @@
 ---
-import Layout from "../layouts/Layout.astro";
+import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="Register">
   <h1>Register</h1>
   <p>
     Already have an account?
-    <a href="/signin">Sign in</a>
+    <a href="/signIn">Sign in</a>
   </p>
 
   <form id="register-form" novalidate>
@@ -26,37 +26,39 @@ import Layout from "../layouts/Layout.astro";
   </form>
 
   <script>
-    const form = document.getElementById("register-form") as HTMLFormElement | null;
+    const form = document.getElementById(
+      'register-form'
+    ) as HTMLFormElement | null;
 
-    form?.addEventListener("submit", async (e) => {
+    form?.addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const formData = new FormData(form);
-      const firstName = formData.get("firstName")?.toString().trim();
-      const lastName = formData.get("lastName")?.toString().trim();
-      const email = formData.get("email")?.toString().trim();
-      const password = formData.get("password")?.toString();
+      const firstName = formData.get('firstName')?.toString().trim();
+      const lastName = formData.get('lastName')?.toString().trim();
+      const email = formData.get('email')?.toString().trim();
+      const password = formData.get('password')?.toString();
 
       if (!firstName || !lastName || !email || !password) {
-        alert("Please fill in all fields.");
+        alert('Please fill in all fields.');
         return;
       }
 
       try {
-        const res = await fetch("/api/auth/signup", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        const res = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password, firstName, lastName }),
         });
 
         if (res.ok) {
-          window.location.href = "/signin";
+          window.location.href = '/signin';
         } else {
           const errMsg = await res.text();
-          alert("Signup failed: " + errMsg);
+          alert('Signup failed: ' + errMsg);
         }
       } catch {
-        alert("Something went wrong. Please try again.");
+        alert('Something went wrong. Please try again.');
       }
     });
   </script>

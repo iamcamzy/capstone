@@ -1,5 +1,6 @@
 ---
---- 
+
+---
 
 <html lang="en">
   <head>
@@ -27,24 +28,24 @@
     <pre id="output"></pre>
 
     <script is:inline>
-      const form = document.getElementById("reviewForm");
-      const output = document.getElementById("output");
+      const form = document.getElementById('reviewForm');
+      const output = document.getElementById('output');
 
-      form?.addEventListener("submit", async (e) => {
+      form?.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         const formData = new FormData(form);
-        const userId = formData.get("userId") || "";
-        const bookingId = formData.get("bookingId") || "";
-        const rating = parseInt(formData.get("rating") || "0", 10);
-        const comment = formData.get("comment") || "";
+        const userId = formData.get('userId') || '';
+        const bookingId = formData.get('bookingId') || '';
+        const rating = parseInt(formData.get('rating') || '0', 10);
+        const comment = formData.get('comment') || '';
 
         const body = { userId, bookingId, rating, comment };
 
         try {
-          const res = await fetch("/api/reviews/add", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+          const res = await fetch('/api/reviews/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
           });
 
@@ -53,13 +54,13 @@
           try {
             data = JSON.parse(text);
           } catch {
-            output.textContent = "❌ Invalid JSON:\n" + text;
+            output.textContent = '❌ Invalid JSON:\n' + text;
             return;
           }
 
-          output.textContent = "✅ Response:\n" + JSON.stringify(data, null, 2);
+          output.textContent = '✅ Response:\n' + JSON.stringify(data, null, 2);
         } catch (err) {
-          output.textContent = "❌ Request failed: " + err;
+          output.textContent = '❌ Request failed: ' + err;
         }
       });
     </script>
