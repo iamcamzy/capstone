@@ -1,27 +1,39 @@
 {
   "name": "helpless-horizon",
-  "type": "module",
   "version": "0.0.1",
+  "type": "module",
   "scripts": {
-    "dev": "astro dev",
+    "astro": "astro",
     "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro"
+    "dev": "astro dev tailwindcss -i ./src/styles/global.css -o ./dist/output.css --watch",
+    "preview": "astro preview"
   },
   "dependencies": {
-    "@astrojs/react": "^4.4.1",
-    "@supabase/supabase-js": "^2.56.0",
-    "@tailwindcss/vite": "^4.1.13",
+    "@astrojs/react": "latest",
+    "@supabase/supabase-js": "latest",
+    "@tailwindcss/vite": "latest",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
-    "astro": "^5.15.3",
-    "dotenv": "^17.2.2",
+    "astro": "latest",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "dotenv": "latest",
+    "lucide-react": "^0.454.0",
+    "next": "16.0.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "tailwindcss": "^4.1.13",
+    "tailwind-merge": "^2.5.5",
+    "tailwindcss-animate": "^1.0.7",
+    "vite": "latest",
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "supabase": "^2.39.2"
+    "@tailwindcss/postcss": "^4.1.16",
+    "@types/node": "^22",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5",
+    "supabase": "^2.39.2",
+    "tailwindcss": "^4.1.16",
+    "typescript": "^5"
   }
 }

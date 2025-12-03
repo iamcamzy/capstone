@@ -1,5 +1,137 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 html {
   scroll-behavior: smooth;
+}
+
+/* Prevent padding from increasing element width */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Make sure body doesn't exceed the viewport width */
+html,
+body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: clip;
+}
+
+/* Enhanced color palette and typography */
+:root {
+  --lion-primary: #aa8f66;
+  --lion-light: #ccbba2;
+  --lion-dark: #8b724d;
+
+  --butterscotch-primary: #ed9b40;
+  --butterscotch-light: #f1b066;
+  --butterscotch-dark: #dc7f14;
+
+  --jet-primary: #363537;
+  --jet-light: #5e5c60;
+  --jet-dark: #1a1819;
+
+  --neutral-white: #fafaf8;
+  --neutral-light: #f5f3f0;
+  --neutral-gray: #8b8a88;
+  --neutral-dark: #2a2928;
+}
+
+/* Improved global typography and spacing */
+body {
+  font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--jet-primary);
+  background-color: var(--neutral-white);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--jet-primary);
+  letter-spacing: -0.5px;
+}
+
+h1 {
+  font-size: 2.5rem;
+}
+h2 {
+  font-size: 2rem;
+}
+h3 {
+  font-size: 1.5rem;
+}
+
+p {
+  color: var(--neutral-dark);
+  font-size: 1rem;
+}
+
+/* Navigation link styling with improved hover states */
+.navigation-link {
+  @apply min-w-[150px] h-full flex justify-center items-center text-[1rem] font-semibold
+         hover:cursor-pointer ease-in-out duration-300 relative;
+  color: var(--jet-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.95rem;
+}
+
+.navigation-link::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background-color: var(--butterscotch-primary);
+  transition: all 0.3s ease-in-out;
+  transform: translateX(-50%);
+}
+
+.navigation-link:hover::after {
+  width: 80%;
+}
+
+.navigation-button {
+  @apply w-full h-full flex justify-center items-center 
+         transition-transform ease-in-out duration-300 hover:scale-105;
+}
+
+/* Button styling for consistent look */
+button,
+a[role="button"] {
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  transition: all 0.3s ease-in-out;
+}
+
+/* Card and container styling */
+.card-container {
+  background-color: var(--neutral-white);
+  border: 1px solid var(--lion-light);
+  border-radius: 8px;
+  transition: all 0.3s ease-in-out;
+}
+
+.card-container:hover {
+  box-shadow: 0 8px 16px rgba(170, 143, 102, 0.15);
+  border-color: var(--butterscotch-primary);
+}
+
+/* Section spacing */
+section,
+div[id$="-us"],
+div[id$="-showcase"] {
+  padding: 3rem 1rem;
 }

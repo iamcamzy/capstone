@@ -1,0 +1,65 @@
+---
+const slides = [
+  {
+    image: '/heroSlideshow/image1.jpg',
+    text: 'Welcome to Milku!',
+  },
+  {
+    image: '/heroSlideshow/image2.jpg',
+    text: 'Discover Our Scenery',
+  },
+  {
+    image: '/heroSlideshow/image3.jpg',
+    text: 'Book With Us Today',
+  },
+];
+---
+
+<!-- Improved slideshow with better text styling and overlay -->
+<div class="relative w-full h-screen md:h-96 lg:h-[85vh] overflow-hidden z-1">
+  {
+    slides.map((slide, index) => (
+      <div
+        class="absolute inset-0 w-full h-full bg-center bg-cover opacity-0 transition-opacity duration-1000 flex items-center justify-center"
+        data-index={index}
+        data-image={slide.image}
+      >
+        <div class="absolute inset-0 bg-black/30" />
+        <h2 class="relative text-3xl text-[white]! md:text-5xl font-bold text-center px-4 py-8 rounded-lg drop-shadow-lg bg-[#363537]/30 backdrop-blur-sm border border-white/30">
+          {slide.text}
+        </h2>
+      </div>
+    ))
+  }
+</div>
+
+<script>
+  const fadeDuration = 1000;
+  const displayDuration = 4000;
+  const slides = document.querySelectorAll('div[data-index]');
+  let current = 0;
+
+  // Set background images from data attributes
+  slides.forEach((slide) => {
+    const imageUrl = slide.getAttribute('data-image');
+    if (imageUrl) {
+      slide.style.backgroundImage = `url('${imageUrl}')`;
+    }
+  });
+
+  function showNextSlide() {
+    const prev = current;
+    current = (current + 1) % slides.length;
+
+    slides[prev].classList.remove('opacity-100');
+    slides[prev].classList.add('opacity-0');
+
+    slides[current].classList.remove('opacity-0');
+    slides[current].classList.add('opacity-100');
+  }
+
+  slides[current].classList.remove('opacity-0');
+  slides[current].classList.add('opacity-100');
+
+  setInterval(showNextSlide, displayDuration + fadeDuration);
+</script>

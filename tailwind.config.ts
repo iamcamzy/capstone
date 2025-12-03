@@ -1,10 +1,10 @@
 import type { Config } from 'tailwindcss';
 
-const config: Config = {
+const config: Config & { safelist?: (string | { pattern: string })[] } = {
   darkMode: 'class',
   content: ['./src/**/*.{astro,html,js,ts,jsx,tsx}'],
   theme: {
-    extend: {
+    extend: { 
       colors: {
         lion: {
           DEFAULT: '#aa8f66',
@@ -45,6 +45,19 @@ const config: Config = {
       },
     },
   },
+  safelist: [
+    'bg-[#ed9b40]',
+    'bg-[#3d2810]',
+    'translate-x-0',
+    'translate-x-6',
+    // Dark mode variants
+    'dark:bg-[#363537]',
+    'dark:bg-white',
+    'dark:text-white',
+    'dark:text-black',
+    'dark:shadow-lg',
+    'dark:border-white',
+  ],
   plugins: [],
 };
 

@@ -1,0 +1,160 @@
+---
+
+---
+
+<div
+  id="expandedCalendar"
+  class="fixed right-5 top-37 bottom-2 left-5 inset-0 bg-white border-2 rounded-xl text-black z-10 opacity-0 pointer-events-none transition ease-in-out duration-300 backdrop-blur-sm"
+>
+  <div class="max-w-screen mx-auto my-12 p-6">
+    <div class="w-full text-center">
+      <h2 class="text-2xl font-bold">Full Calendar</h2>
+      <button
+        id="closeExpanded"
+        class="mb-4 px-3 py-1 border-b font-semibold hover:cursor-pointer transition-all opacity-50 hover:opacity-100 hover:scale-110"
+        >minimize</button
+      >
+
+      <div
+        id="expandedCalendarContent"
+        class="w-full h-auto rounded shadow-inner"
+      >
+        <div
+          id="days-of-the-week"
+          class="grid grid-cols-7 gap-1 text-center font-semibold"
+        >
+          <div>M</div>
+          <div>T</div>
+          <div>W</div>
+          <div>TH</div>
+          <div>F</div>
+          <div>S</div>
+          <div>S</div>
+        </div>
+        <div class="relative group">
+          <div class="grid grid-cols-7 grid-rows-5 gap-1 mt-2">
+            {
+              Array.from({ length: 35 }).map(() => (
+                <div class="ring shadow-sm rounded h-6" />
+              ))
+            }
+          </div>
+        </div>
+      </div>
+      <div id="legends" class="w-full h-auto px-3.75">
+        <div class="bg-lion-900 ring ring-gray-600 gap-x-2 rounded">
+          <span class="flex justify-around items-center mb-2">
+            <h3 class="font-bold">Legends</h3><p class="text-[0.75em]">
+              (hover for descriptions)
+            </p>
+          </span><div
+            class="w-full h-auto flex justify-center items-center mb-5"
+          >
+            <div
+              class="w-[80%] flex justify-around ring p-1 rounded ring-gray-400 mb-2"
+            >
+              <div class="relative
+        group
+        inline-block">
+                <!-- Colored box -->
+                <div class="w-9 h-6 bg-green-500 rounded cursor-pointer"></div>
+
+                <!-- Tooltip -->
+                <div
+                  class="absolute left-1/2 -translate-x-1/2 top-8
+           opacity-0 group-hover:opacity-100
+           pointer-events-none
+           bg-gray-900 text-white text-xs px-2 py-1 rounded
+           whitespace-nowrap transition"
+                >
+                  Available
+                </div>
+              </div>
+              <div class="relative group inline-block">
+                <!-- Colored box -->
+                <div class="w-9 h-6 bg-red-500 rounded cursor-pointer"></div>
+
+                <!-- Tooltip -->
+                <div
+                  class="absolute left-1/2 -translate-x-1/2 top-8
+           opacity-0 group-hover:opacity-100
+           pointer-events-none
+           bg-gray-900 text-white text-xs px-2 py-1 rounded
+           whitespace-nowrap transition"
+                >
+                  Closed/Fully Booked
+                </div>
+              </div>
+              <div class="relative group inline-block">
+                <!-- Colored box -->
+                <div class="w-9 h-6 bg-yellow-500 rounded cursor-pointer"></div>
+
+                <!-- Tooltip -->
+                <div
+                  class="absolute left-1/2 -translate-x-1/2 top-8
+           opacity-0 group-hover:opacity-100
+           pointer-events-none
+           bg-gray-900 text-white text-xs px-2 py-1 rounded
+           whitespace-nowrap transition"
+                >
+                  PROMO!
+                </div>
+              </div>
+              <div class="relative group inline-block">
+                <!-- Colored box -->
+                <div class="w-9 h-6 bg-pink-500 rounded cursor-pointer"></div>
+
+                <!-- Tooltip -->
+                <div
+                  class="absolute left-1/2 -translate-x-1/2 top-8
+           opacity-0 group-hover:opacity-100
+           pointer-events-none
+           bg-gray-900 text-white text-xs px-2 py-1 rounded
+           whitespace-nowrap transition"
+                >
+                  Open for a limited time
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const root = document.getElementById('expandedCalendar');
+      const closeBtn = document.getElementById('closeExpanded');
+
+      function openExpanded() {
+        root?.classList.add('opacity-100', 'pointer-events-auto');
+        root?.classList.remove('opacity-0', 'pointer-events-none');
+      }
+
+      function closeExpanded() {
+        root?.classList.add('opacity-0', 'pointer-events-none');
+        root?.classList.remove('opacity-100', 'pointer-events-auto');
+
+        // notify preview to reappear (IF it was open before)
+        document.dispatchEvent(new CustomEvent('expanded-calendar-closed'));
+      }
+
+      // Listen for open event
+      document.addEventListener('open-expanded-calendar', openExpanded);
+
+      closeBtn?.addEventListener('click', closeExpanded);
+
+      // Optional: close on outside click
+      root?.addEventListener('click', (e) => {
+        const panel = root.querySelector('.relative');
+        if (panel && !panel.contains(e.target)) closeExpanded();
+      });
+
+      // Close on Escape
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeExpanded();
+      });
+    </script>
+
+    <style></style>
+  </div>
+</div>

@@ -1,99 +1,142 @@
 ---
-import ThemeButton from './ThemeButton.astro';
-const user = true;
+import CalendarPreview from './calendarComps/calendarPreview.astro';
+import Theme from './themeButton.astro';
 ---
 
-<div
+<!-- Improved header styling with better layout and colors -->
+<header
   id="navbar"
-  class="sticky top-0 grid grid-cols-12 h-[7em] w-full bg-white overflow-hidden items-center"
+  class="fixed top-0 left-0 w-full bg-white shadow-md transition-transform duration-300 z-100 min-h-[15vh] max-w-screen grid grid-cols-12"
 >
-  <!-- Company logo -->
   <div
-    id="company"
-    class="col-start-2 col-end-5 flex justify-start items-center"
+    id="company_logo"
+    class="flex justify-center items-center col-start-1 col-end-4 px-4"
   >
-    <a href="#top">
-      <img src="/LightModeLogo.png" alt="company logo" class="pl-15" />
+    <a href="/" target="_self" class="hover:opacity-80 transition-opacity">
+      <img
+        src="/company-logo.png"
+        alt="company logo"
+        class="max-w-[280px] h-auto"
+      />
     </a>
-    <span class="border-r-2 border-r-gray-600 h-[80%] ml-5"></span>
   </div>
 
-  <!-- Navigation -->
-  <div id="navigation" class="col-start-5 col-end-10 grid grid-cols-6 h-full">
-    <span
-      class="flex justify-center items-center hover:border-b-2 hover:inset-shadow-sm/10"
+  <nav id="navigation" class="col-start-4 col-end-10 grid grid-cols-5">
+    <a href="/" class="navigation-link"
+      ><span class="navigation-button">HOME</span></a
     >
-      <a
-        href="/#hero"
-        class="flex justify-center items-center text-[1.5rem] w-full h-full hover:scale-110 transition-transform ease-in-out duration-300 px-5"
-        >HOME</a
-      >
-    </span>
-    <span
-      class="flex justify-center items-center hover:border-b-2 hover:inset-shadow-sm/10"
+    <a href="/#about-us" class="navigation-link"
+      ><span class="navigation-button">ABOUT</span></a
     >
-      <a
-        href="#venue"
-        class="flex justify-center items-center text-[1.25rem] w-full h-full hover:scale-110 transition-transform ease-in-out duration-300 px-5"
-        >VENUE</a
-      >
-    </span>
-    <span
-      class="flex justify-center items-center hover:border-b-2 hover:inset-shadow-sm/10"
+    <a href="/events_and_booking/events" class="navigation-link"
+      ><span class="navigation-button">EVENTS</span></a
     >
-      <a
-        href="#about-us"
-        class="flex justify-center items-center text-[1.25rem] w-full h-full hover:scale-110 transition-transform ease-in-out duration-300 px-5"
-        >ABOUT</a
-      >
-    </span>
-    <span
-      class="flex justify-center items-center hover:border-b-2 hover:inset-shadow-sm/10"
+    <a href="/#find-us" class="navigation-link"
+      ><span class="navigation-button">FIND US</span></a
     >
-      <a
-        href="/booking"
-        class="flex justify-center items-center text-[1.25rem] w-full h-full hover:scale-110 transition-transform ease-in-out duration-300 px-5"
-        >BOOKING</a
-      >
-    </span>
-    <span
-      class="flex justify-center items-center hover:border-b-2 hover:inset-shadow-sm/10"
+    <a href="/contact-us" class="navigation-link"
+      ><span class="navigation-button">CONTACT US</span></a
     >
-      <a
-        href="#find-us"
-        class="flex justify-center items-center text-[1.25rem] w-full h-full hover:scale-110 transition-transform ease-in-out duration-300 px-5"
-        >FIND US</a
-      >
-    </span>
-    <span
-      class="flex justify-center items-center hover:border-b-2 hover:inset-shadow-sm/10"
-      ><a
-        href="#contact-us"
-        class="flex justify-center items-center text-[1.25rem] w-full h-full hover:scale-110 transition-transform ease-in-out duration-300 px-5"
-        >CONTACT</a
-      ></span
-    >
-  </div>
+  </nav>
 
-  <!-- User buttons -->
-  <div id="user" class="col-start-10 col-end-11 ml-10">
-    <div class="flex items-center gap-5 pl-10">
-      <span class="w-[400px]"
-        ><a
-          href="/signUp"
-          class="px-2 py-1 flex justify-center items-center bg-[#8a31ff] rounded-2xl text-white outline-2 outline-transparent hover:cursor-pointer hover:text-black hover:outline-black hover:bg-[#b176ff]"
+  <div
+    id="user_buttons"
+    class="col-start-10 col-end-13 w-auto grid grid-cols-3 grid-rows-3"
+  >
+    <!-- Primary CTA button with improved styling -->
+    <a
+      href="/signIn"
+      target="_self"
+      class="flex items-center justify-center row-start-2 row-end-4 m-2 text-center rounded-lg hover:cursor-pointer font-semibold transition-all duration-300 text-white"
+      style="background-color: var(--butterscotch-primary);"
+    >
+      LOG IN
+    </a>
+
+    <!-- Secondary button with brand color outline -->
+    <a
+      href="/signUp"
+      target="_self"
+      class="flex items-center justify-center row-start-2 row-end-4 m-2 text-center rounded-lg hover:cursor-pointer font-semibold transition-all duration-300"
+      style="border: 2px solid var(--butterscotch-primary); color: var(--butterscotch-primary);"
+    >
+      SIGN UP
+    </a>
+
+    <span
+      class="flex items-center justify-center row-start-2 row-end-4 m-2 text-center"
+    >
+      <Theme />
+    </span>
+
+    <!-- Calendar preview button with brand styling -->
+    <button
+      id="preview"
+      class="col-start-1 col-end-4 w-full row-start-4 p-2 transition ease-in-out duration-300 hover:cursor-pointer font-semibold bg-[#ccbba2] hover:bg-[#aa8f66] rounded-t-md flex items-center justify-center gap-1"
+    >
+      <p id="previewText" class="text-sm">See if your date's available!</p>
+      <svg
+        id="previewArrow"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        width="20"
+        height="20"
+        role="img"
+        aria-hidden="true"
+        class="inline-block transition-transform duration-300"
+      >
+        <g
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
         >
-          SIGN UP
-        </a></span
-      >
-
-      <a
-        href="/signIn"
-        class="px-2 py-1 flex justify-center items-center bg-[#8a31ff] rounded-2xl text-white outline-2 outline-transparent hover:cursor-pointer hover:text-black hover:outline-black hover:bg-[#7811ff]"
-      >
-        LOG IN
-      </a>
-      <ThemeButton class="" />
-    </div>
+          <path d="M6 10l6 6 6-6"></path>
+          <path d="M6 5l6 6 6-6"></path>
+        </g>
+      </svg>
+    </button>
   </div>
-</div>
+</header>
+<CalendarPreview />
+
+<script>
+  const previewBtn = document.getElementById('preview');
+  const previewText = document.getElementById('previewText');
+  const previewArrow = document.getElementById('previewArrow');
+  let isOpen = false;
+
+  // Listen for preview opening/closing
+  document.addEventListener('click', (e) => {
+    try {
+      var target = e && e.target;
+      if (!target || !(target instanceof Element)) return;
+      if (target.closest('#preview')) {
+        isOpen = !isOpen;
+        updatePreviewButton();
+      }
+    } catch (err) {
+      // ignore
+    }
+  });
+
+  // Listen for preview closing (ESC key)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isOpen) {
+      isOpen = false;
+      updatePreviewButton();
+    }
+  });
+
+  function updatePreviewButton() {
+    if (isOpen) {
+      if (previewText) previewText.textContent = 'Close preview';
+      if (previewArrow) previewArrow.style.transform = 'rotate(180deg)';
+    } else {
+      if (previewText)
+        previewText.textContent = "See if your date's available!";
+      if (previewArrow) previewArrow.style.transform = 'rotate(0deg)';
+    }
+  }
+</script>

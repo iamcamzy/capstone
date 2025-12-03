@@ -1,0 +1,299 @@
+---
+const { venueId, venueName, pricePerNight } = Astro.props;
+---
+
+<div id="booking-form">
+  <h2 class="text-2xl font-bold mb-6" style="color: var(--jet-primary);">
+    Complete Your Booking
+  </h2>
+
+  <form id="bookingForm" class="space-y-6">
+    <!-- Guest Information -->
+    <div class="space-y-4">
+      <h3 class="text-lg font-semibold" style="color: var(--lion-primary);">
+        Guest Information
+      </h3>
+
+      <div>
+        <label
+          for="fullName"
+          class="block text-sm font-medium mb-2"
+          style="color: var(--jet-primary);"
+        >
+          Full Name *
+        </label>
+        <input
+          type="text"
+          id="fullName"
+          name="fullName"
+          required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all"
+          style="focus:ring-color: var(--butterscotch-primary);"
+        />
+      </div>
+
+      <div>
+        <label
+          for="email"
+          class="block text-sm font-medium mb-2"
+          style="color: var(--jet-primary);"
+        >
+          Email Address *
+        </label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all"
+          style="focus:ring-color: var(--butterscotch-primary);"
+        />
+      </div>
+
+      <div>
+        <label
+          for="phone"
+          class="block text-sm font-medium mb-2"
+          style="color: var(--jet-primary);"
+        >
+          Phone Number *
+        </label>
+        <input
+          type="tel"
+          id="phone"
+          name="phone"
+          required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all"
+          style="focus:ring-color: var(--butterscotch-primary);"
+        />
+      </div>
+    </div>
+
+    <!-- Booking Details -->
+    <div class="space-y-4 pt-6 border-t border-gray-200">
+      <h3 class="text-lg font-semibold" style="color: var(--lion-primary);">
+        Booking Details
+      </h3>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label
+            for="checkIn"
+            class="block text-sm font-medium mb-2"
+            style="color: var(--jet-primary);"
+          >
+            Check-in Date *
+          </label>
+          <input
+            type="date"
+            id="checkIn"
+            name="checkIn"
+            required
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all"
+            style="focus:ring-color: var(--butterscotch-primary);"
+          />
+        </div>
+
+        <div>
+          <label
+            for="checkOut"
+            class="block text-sm font-medium mb-2"
+            style="color: var(--jet-primary);"
+          >
+            Check-out Date *
+          </label>
+          <input
+            type="date"
+            id="checkOut"
+            name="checkOut"
+            required
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all"
+            style="focus:ring-color: var(--butterscotch-primary);"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label
+          for="guests"
+          class="block text-sm font-medium mb-2"
+          style="color: var(--jet-primary);"
+        >
+          Number of Guests *
+        </label>
+        <input
+          type="number"
+          id="guests"
+          name="guests"
+          min="1"
+          required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all"
+          style="focus:ring-color: var(--butterscotch-primary);"
+        />
+      </div>
+
+      <div>
+        <label
+          for="eventType"
+          class="block text-sm font-medium mb-2"
+          style="color: var(--jet-primary);"
+        >
+          Event Type *
+        </label>
+        <select
+          id="eventType"
+          name="eventType"
+          required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all"
+          style="focus:ring-color: var(--butterscotch-primary);"
+        >
+          <option value="">Select event type</option>
+          <option value="wedding">Wedding</option>
+          <option value="birthday">Birthday Party</option>
+          <option value="corporate">Corporate Event</option>
+          <option value="conference">Conference</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div>
+        <label
+          for="specialRequests"
+          class="block text-sm font-medium mb-2"
+          style="color: var(--jet-primary);"
+        >
+          Special Requests
+        </label>
+        <textarea
+          id="specialRequests"
+          name="specialRequests"
+          rows="4"
+          placeholder="Any special requests or requirements..."
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all resize-none"
+          style="focus:ring-color: var(--butterscotch-primary);"></textarea>
+      </div>
+    </div>
+
+    <!-- Price Breakdown -->
+    <div class="pt-6 border-t border-gray-200">
+      <div class="bg-gray-50 rounded-lg p-4 space-y-2 mb-6">
+        <div class="flex justify-between text-sm">
+          <span class="text-gray-600">Price per night</span>
+          <span style="color: var(--butterscotch-primary);">
+            ${pricePerNight.toFixed(2)}
+          </span>
+        </div>
+        <div class="flex justify-between text-sm" id="nightsBreakdown">
+          <span class="text-gray-600">Number of nights</span>
+          <span id="nightsCount">0</span>
+        </div>
+        <div
+          class="flex justify-between font-bold pt-2 border-t border-gray-200"
+          style="color: var(--jet-primary);"
+        >
+          <span>Total</span>
+          <span id="totalPrice" style="color: var(--butterscotch-primary);"
+            >$0.00</span
+          >
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit Button -->
+    <button
+      type="submit"
+      class="w-full py-3 px-4 text-white font-semibold rounded-lg transition-all hover:opacity-90 text-center"
+      style="background-color: var(--butterscotch-primary);"
+      id="submitBtn"
+    >
+      Complete Booking
+    </button>
+
+    <p class="text-xs text-gray-500 text-center">
+      By booking, you agree to our terms and conditions
+    </p>
+  </form>
+</div>
+
+<script define:vars={{ venueId, pricePerNight }}>
+  const form = document.getElementById('bookingForm');
+  const checkInInput = document.getElementById('checkIn');
+  const checkOutInput = document.getElementById('checkOut');
+  const nightsCountEl = document.getElementById('nightsCount');
+  const totalPriceEl = document.getElementById('totalPrice');
+  const submitBtn = document.getElementById('submitBtn');
+
+  function calculatePrice() {
+    if (checkInInput.value && checkOutInput.value) {
+      const checkIn = new Date(checkInInput.value);
+      const checkOut = new Date(checkOutInput.value);
+      const nights = Math.max(
+        1,
+        Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24))
+      );
+
+      nightsCountEl.textContent = nights;
+      const total = nights * pricePerNight;
+      totalPriceEl.textContent = '$' + total.toFixed(2);
+    }
+  }
+
+  checkInInput?.addEventListener('change', calculatePrice);
+  checkOutInput?.addEventListener('change', calculatePrice);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Processing...';
+
+    const formData = {
+      fullName: document.getElementById('fullName').value,
+      email: document.getElementById('email').value,
+      phone: document.getElementById('phone').value,
+      checkIn: checkInInput.value,
+      checkOut: checkOutInput.value,
+      guests: parseInt(document.getElementById('guests').value),
+      eventType: document.getElementById('eventType').value,
+      specialRequests: document.getElementById('specialRequests').value,
+      venueId: venueId,
+    };
+
+    try {
+      const response = await fetch('/api/bookings/CreateBookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        alert('Booking confirmed! Check your email for details.');
+        form.reset();
+        nightsCountEl.textContent = '0';
+        totalPriceEl.textContent = '$0.00';
+      } else {
+        alert('Booking failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Booking error:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Complete Booking';
+    }
+  });
+</script>
+
+<style>
+  :global(:root) {
+    --lion-primary: #aa8f66;
+    --butterscotch-primary: #ed9b40;
+    --jet-primary: #363537;
+  }
+
+  #bookingForm input:focus,
+  #bookingForm select:focus,
+  #bookingForm textarea:focus {
+    ring-color: var(--butterscotch-primary);
+  }
+</style>

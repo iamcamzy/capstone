@@ -1,0 +1,64 @@
+---
+const { venue } = Astro.props;
+---
+
+<!-- Refactored to receive individual venue as prop and render single card -->
+<div
+  id="event-card"
+  class="rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 w-full h-full flex flex-col bg-white border border-gray-200"
+>
+  {
+    venue.image_url && (
+      <img
+        src={venue.image_url || '/placeholder.svg'}
+        alt={venue.name || 'Venue'}
+        class="w-full h-48 object-cover"
+      />
+    )
+  }
+
+  <div class="p-6 flex flex-col grow">
+    <h3 class="text-xl font-bold mb-2" style="color: var(--jet-primary);">
+      {venue.name || 'Venue'}
+    </h3>
+
+    {
+      venue.description && (
+        <p class="text-gray-600 text-sm mb-4 grow">
+          {venue.description.substring(0, 100)}...
+        </p>
+      )
+    }
+
+    {
+      venue.price_per_night && (
+        <div class="mb-4">
+          <p class="text-sm text-gray-500">Starting from</p>
+          <p
+            class="text-2xl font-bold"
+            style="color: var(--butterscotch-primary);"
+          >
+            ${venue.price_per_night}
+            <span class="text-sm text-gray-600">/night</span>
+          </p>
+        </div>
+      )
+    }
+
+    <a
+      href={`/events_and_booking/events/${venue.id}`}
+      class="mt-auto rounded-lg text-white font-semibold py-2 px-4 transition-all hover:opacity-90 text-center"
+      style="background-color: var(--butterscotch-primary);"
+    >
+      Book Now
+    </a>
+  </div>
+</div>
+
+<style>
+  :global(:root) {
+    --lion-primary: #aa8f66;
+    --butterscotch-primary: #ed9b40;
+    --jet-primary: #363537;
+  }
+</style>

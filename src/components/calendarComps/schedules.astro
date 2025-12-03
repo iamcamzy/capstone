@@ -1,0 +1,111 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout>
+  <div class="min-w-full h-auto flex justify-center items-center">
+    <div class="w-[80%] h-auto mt-20 grid grid-cols-12 grid-rows-2 gap-20">
+      <div id="welcome" class="bg-blue-100 w-auto h-auto col-start-1 col-end-3">
+        <h1 id="purpose" class="text-[2em]">Schedule a date with us!</h1>
+        <p id="about">please choose an available date in our calendar below"</p>
+      </div>
+      <div
+        id="calendar"
+        class="col-start-3 col-end-13 w-full h-auto flex justify-center items-center bg-blue-950"
+      >
+        <div class="w-[90%] h-auto ring-2 shadow-xl">
+          <div
+            class="flex justify-around items-center text-center overflow-y-scroll"
+          >
+            <div
+              class="border-2 border-gray-400 rounded-md w-[150px] h-[150px]"
+            >
+            </div>
+            <div
+              class="border-2 border-gray-400 rounded-md w-[150px] h-[150px]"
+            >
+              MONDAY
+            </div>
+            <div
+              class="border-2 border-gray-400 rounded-md w-[150px] h-[150px]"
+            >
+              TUESDAY
+            </div>
+            <div
+              class="border-2 border-gray-400 rounded-md w-[150px] h-[150px]"
+            >
+              WEDNESDAY
+            </div>
+            <div
+              class="border-2 border-gray-400 rounded-md w-[150px] h-[150px]"
+            >
+              THURSDAY
+            </div>
+            <div
+              class="border-2 border-gray-400 rounded-md w-[150px] h-[150px]"
+            >
+              FRIDAY
+            </div>
+            <div
+              class="border-2 border-gray-400 rounded-md w-[150px] h-[150px]"
+            >
+              SATURDAY
+            </div>
+            <div
+              class="border-2 border-gray-400 rounded-md w-[150px] h-[150px]"
+            >
+              SUNDAY
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        id="legends"
+        class="row-start-2 col-start-1 col-end-13 grid grid-cols-12 ring-2 ring-gray-400 w-full h-auto p-10"
+      >
+        <h2 class="text-[2em] col-start-1 col-end-3 text-center">Legends</h2>
+        <div
+          id="legend markers"
+          class="col-start-3 col-end-13 gap-10 flex justify-center items-center"
+        >
+          <span class="flex justify-center items-center">
+            <div
+              id="green"
+              class="inline-block bg-green-500 w-[2em] h-[2em] rounded mr-3 ring"
+            >
+            </div>Open
+          </span>
+          <span class="flex justify-center items-center"
+            ><div
+              id="red"
+              class="inline-block bg-red-500 w-[2em] h-[2em] rounded mr-3 ring"
+            >
+            </div>Not Available</span
+          >
+          <span class="flex justify-center items-center"
+            ><div
+              id="yellow"
+              class="inline-block bg-yellow-500 w-[2em] h-[2em] rounded mr-3 ring"
+            >
+            </div>Promos!</span
+          >
+          <span class="flex justify-center items-center"
+            ><div
+              id="blue"
+              class="inline-block bg-blue-500 w-[2em] h-[2em] rounded mr-3 ring"
+            >
+            </div>Holiday</span
+          >
+          <span class="flex justify-center items-center"
+            ><div
+              id="teal"
+              class="inline-block bg-teal-500 w-[2em] h-[2em] rounded mr-3 ring"
+            >
+            </div>Limited operating time</span
+          >
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+<script></script>

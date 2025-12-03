@@ -1,0 +1,177 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { getVenue } from '../../../services/venues';
+import BookingForm from '../../../components/bookingForm.astro';
+
+const { venueId } = Astro.params;
+
+if (!venueId || typeof venueId !== 'string') {
+  console.error('[v0] No venue ID provided');
+  Astro.redirect('/events_and_booking/events');
+}
+
+// Fetch venue data server-side
+const { data, error } = await getVenue(venueId);
+
+if (error || !data) {
+  console.error(
+    '[v0] Failed to load venue:',
+    error?.message || 'Venue not found'
+  );
+  Astro.redirect('/events_and_booking/events');
+}
+
+const venue = {
+  id: data.id || venueId,
+  name: data.name || 'Unknown Venue',
+  image_url: data.image_url || undefined,
+  price_per_night: data.price_per_night || 0,
+  capacity: data.capacity || undefined,
+  description: data.description || undefined,
+};
+
+if (!venue.name || venue.price_per_night <= 0) {
+  console.error('[v0] Venue data is incomplete:', {
+    name: venue.name,
+    price: venue.price_per_night,
+  });
+  Astro.redirect('/events_and_booking/events');
+}
+
+console.log('[v0] Loaded venue:', {
+  id: venue.id,
+  name: venue.name,
+  price: venue.price_per_night,
+});
+---
+
+<Layout>
+  <!-- Hero Section -->
+  <div
+    id="top-runner"
+    class="w-full py-12 text-white"
+    style="background-color: var(--jet-primary);"
+  >
+    <div class="max-w-6xl mx-auto px-4">
+      <a
+        href="/events_and_booking/events"
+        class="inline-flex items-center gap-2 mb-6 text-butterscotch-500 hover:text-butterscotch-400 transition-colors"
+      >
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"></path>
+        </svg>
+        Back to Events
+      </a>
+      <h1 class="text-4xl font-bold mb-2">{venue.name}</h1>
+      <p class="text-lg opacity-90">
+        Complete your booking for this amazing venue
+      </p>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="w-full py-12">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Venue Details -->
+        <div class="lg:col-span-1">
+          <div
+            class="bg-white rounded-lg border border-gray-200 overflow-hidden sticky top-20"
+          >
+            {
+              venue.image_url && (
+                <img
+                  src={venue.image_url || '/placeholder.svg'}
+                  alt={venue.name}
+                  class="w-full h-48 object-cover"
+                />
+              )
+            }
+            <div class="p-6">
+              <h3
+                class="text-xl font-bold mb-4"
+                style="color: var(--jet-primary);"
+              >
+                Booking Details
+              </h3>
+
+              <div class="space-y-4">
+                <div
+                  class="flex justify-between items-center pb-4 border-b border-gray-200"
+                >
+                  <span class="text-gray-600">Price per Night</span>
+                  <span
+                    class="text-2xl font-bold"
+                    style="color: var(--butterscotch-primary);"
+                  >
+                    ${venue.price_per_night.toFixed(2)}
+                  </span>
+                </div>
+
+                {
+                  venue.capacity && (
+                    <div class="pb-4 border-b border-gray-200">
+                      <span class="text-gray-600 text-sm">Capacity</span>
+                      <p
+                        class="font-semibold"
+                        style="color: var(--jet-primary);"
+                      >
+                        {venue.capacity} guests
+                      </p>
+                    </div>
+                  )
+                }
+
+                {
+                  venue.description && (
+                    <div>
+                      <span class="text-gray-600 text-sm">About</span>
+                      <p class="text-sm text-gray-700 mt-2">
+                        {venue.description}
+                      </p>
+                    </div>
+                  )
+                }
+              </div>
+
+              <div class="mt-6 pt-6 border-t border-gray-200">
+                <p class="text-xs text-gray-500 text-center">
+                  You'll receive a confirmation email after booking
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Booking Form -->
+        <div class="lg:col-span-2">
+          <div class="bg-white rounded-lg border border-gray-200 p-8">
+            <BookingForm
+              venueId={venue.id}
+              venueName={venue.name}
+              pricePerNight={venue.price_per_night}
+              client:load
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  :global(:root) {
+    --lion-primary: #aa8f66;
+    --butterscotch-primary: #ed9b40;
+    --jet-primary: #363537;
+  }
+</style>

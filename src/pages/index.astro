@@ -1,69 +1,135 @@
 ---
 import '../styles/global.css';
 import Layout from '../layouts/Layout.astro';
-import Header from '../components/Header.astro';
-import Footer from '../components/Footer.astro';
+import Slideshow from '../components/imageSlider.astro';
 ---
 
-<div class="top">
-  <Layout />
-  <Header />
-  <div class="w-[100vw] h-auto bg-black flex justify-center">
-    <main class="w-[75%]">
-      <section id="hero" class="h-[75vh] bg-amber-500"></section>
-      <section id="venue" class="h-[75vh] bg-blue-500"></section>
-      <section id="booking" class="h-[75vh] bg-green-500"></section>
-      <section id="about-us" class="h-[75vh] bg-gray-500"></section>
-      <section id="find-us" class="h-[75vh] grid grid-cols-2 bg-green-700">
-        <div class="w-full h-auto my-10 border-r-2 border-r-gray-400">
-          <h2 class="font-bold text-[2.5em] ml-10">CONTACT US:</h2>
-          <div class="w-full h-full flex items-center justify-center">
-            <span
-              ><h3 class="text-[1.5em] font-semibold">PHONE</h3>
-              <span class="flex py-1.5 hover:text-blue-500 gap-2"
-                ><img
-                  class="w-[1em] h-auto"
-                  src="/contacts/mobile-phone-logo.png"
-                  alt="mobile phone logo"
-                /><a href="tel:">+63-XXX-XXX-XXXX</a></span
-              >
+<!-- 
+COLORS
 
-              <h3 class="text-[1.5em] font-semibold">TELEPHONE</h3>
-              <span class="flex py-1.5 hover:text-blue-500 gap-2"
-                ><img
-                  class="w-[1em] h-auto"
-                  src="/contacts/Telephone-logo.png"
-                  alt="telephone logo"
-                /><a href="tel:">+63-XXX-XXX-XXXX</a></span
-              >
-              <h3 class="text-[1.5em] font-semibold">FAX</h3>
-              <span class="flex py-1.5 hover:text-blue-500 gap-2"
-                ><img
-                  class="w-[1em] h-auto"
-                  src="/contacts/fax-logo.png"
-                  alt="fax logo"
-                /><a href="tel:" class="text-2xl text-gray-700 hover:text-black"
-                  >+63-XXX-XXX-XXXX</a
-                ></span
-              ></span
-            >
-          </div>
-        </div>
-        <div class="w-full h-auto my-10 ml-10">
-          <h2 class="font-bold text-[2.5em]">LOCATION:</h2>
-          <p class="text-[1.5em] text-gray-600">
-            3202 Carl Albert Dr
-            <br />Durant, OK 74701, United States
-          </p>
-          <div
-            id="map"
-            class="w-full h-full flex justify-center items-center pb-30 pr-30"
-          >
-            <div class="w-[80%] h-[80%] outline-gray-600 outline-4"></div>
-          </div>
-        </div>
-      </section>
-    </main>
+lion: #aa8f66
+butterscotch: #ed9b40
+jet: #363537 
+-->
+<Layout>
+  <!-- HERO -->
+  <div id="hero" class="w-full h-auto">
+    <Slideshow />
   </div>
-  <Footer />
+
+  <!-- ABOUT US -->
+  <div id="about-us" class="w-full bg-neutral-light py-16">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="mb-16">
+        <h2 class="text-3xl font-bold mb-6" style="color: var(--jet-primary);">
+          OUR FOUNDER
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+          <div>
+            <p class="text-justify leading-relaxed">
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec
+              bibendum suscipit hendrerit. Pellentesque dignissim consequat
+              elit, sed efficitur lectus auctor non. Vestibulum ante ipsum
+              primis in faucibus orci luctus et ultrices posuere cubilia curae;
+              Aenean eget urna ac augue ultricies aliquet. Pellentesque
+              porttitor nibh et mattis lobortis.
+            </p>
+          </div>
+          <div class="card-container p-4">
+            <img
+              src="/samples/founder.png"
+              alt="founder"
+              class="w-full h-64 rounded-lg object-cover"
+            />
+            <p class="text-center text-sm font-semibold mt-3">Founder 1990-1956</p>
+          </div>
+      </div>
+    </div>
+
+    <div class="mb-16">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+        <div class="card-container p-4 order-2 md:order-1">
+          <img
+            src="/samples/vintage-resort.png"
+            alt="vintage resort"
+            class="w-full h-64 rounded-lg object-cover"
+          />
+          <p class="text-center text-sm font-semibold mt-3">Las Vegas, 1935</p>
+        </div>
+        <div class="order-1 md:order-2">
+          <h2
+            class="text-3xl font-bold mb-6"
+            style="color: var(--jet-primary);"
+          >
+            OUR HISTORY
+          </h2>
+          <p class="text-justify leading-relaxed">
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec
+            bibendum suscipit hendrerit. Pellentesque dignissim consequat elit,
+            sed efficitur lectus auctor non. Vestibulum ante ipsum primis in
+            faucibus orci luctus et ultrices posuere cubilia curae; Aenean eget
+            urna ac augue ultricies aliquet. Pellentesque porttitor nibh et
+            mattis lobortis.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<!-- FIND US & CONTACT -->
+<div class="w-full py-16">
+  <div class="max-w-6xl mx-auto px-4">
+    <h2
+      class="text-3xl font-bold mb-12 text-center"
+      style="color: var(--jet-primary);"
+    >
+      GET IN TOUCH
+    </h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- Contact Form -->
+      <div id="contact-us" class="card-container p-8">
+        <h3
+          class="text-2xl font-bold mb-6"
+          style="color: var(--butterscotch-primary);"
+        >
+          CONTACT US!
+        </h3>
+        <p class="mb-4 text-gray-600">
+          Fill out the form to get in touch with our team.
+        </p>
+        <a
+          href="/contact-us"
+          class="inline-block px-6 py-3 rounded-lg font-semibold text-white transition-all hover:opacity-90"
+          style="background-color: var(--butterscotch-primary);"
+        >
+          Send us a message
+        </a>
+      </div>
+
+      <!-- Location Map -->
+      <div id="find-us" class="card-container p-8">
+        <h3 class="text-2xl font-bold mb-6" style="color: var(--jet-primary);">
+          WE'RE LOCATED AT...
+        </h3>
+        <p class="mb-4">
+          777, 1 Bitas Bridge, Cabanatuan City, 3100 Nueva Ecija
+        </p>
+        <div id="maps" class="mb-4 rounded-lg overflow-hidden">
+          <img
+            src="/MapsSample.png"
+            alt="google maps location"
+            class="w-full h-64 object-cover"
+          />
+        </div>
+        <a
+          href="https://maps.app.goo.gl/Lk3BeDLY8yLHRVL76"
+          target="_blank"
+          class="inline-block text-butterscotch-primary font-semibold hover:underline transition-all"
+        >
+          → View on Google Maps
+        </a>
+      </div>
+    </div>
+  </div>
 </div>

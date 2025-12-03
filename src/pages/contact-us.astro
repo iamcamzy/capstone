@@ -1,7 +1,64 @@
 ---
-
+import Layout from '../layouts/Layout.astro';
 ---
 
-<div></div>
+<!-- 
+COLORS
 
-<style></style>
+lion: #aa8f66
+butterscotch: #ed9b40
+jet: #363537 
+-->
+<Layout>
+  <div class="w-screen min-h-screen flex justify-center items-center py-10">
+    <div class="w-[75%] min-h-[70vh] grid grid-cols-2 ring">
+      <div class="w-full h-auto">
+        <h3 class="text-[2em] text-white font-bold w-full bg-jet-500">
+          SEND US AN EMAIL
+        </h3>
+        <form id="contact-form" class="w-full h-auto">
+          <div class="w-full h-auto">
+            <label for="">Tell us your email so we can contact you back!</label>
+            <input type="email" class="w-[20ch] ring rounded" />
+          </div>
+          <div class="w-full h-auto">
+            <label>What's your reason for contacting us?</label>
+            <input type="text" />
+          </div>
+          <div class="w-full h-auto">
+            <label>Tell us the specifics!</label>
+            <input type="text" />
+          </div>
+          <button
+            id="contactFormSubmit"
+            type="submit"
+            class="rounded p-2 px-5 text-white bg-butterscotch-500 font-bold text-[1.5em] ring transition ease-in-out duration-50 hover:cursor-pointer hover:ring-black hover:scale-102"
+            >SUBMIT</button
+          >
+        </form>
+      </div>
+      <div class="w-full h-full grid grid-rows-2">
+        <div class="">
+          <h3 class="text-[2em] text-white font-bold w-full bg-jet-500">
+            CONTACT METHODS
+          </h3>
+          <div id="contact-types" class="m-5">
+            <a href="" target="_self" class="grid grid-cols-2 gap-2"
+              ><span class="justify-end">Cell</span><span class="justify-start"
+                >0999999999</span
+              ><span class=""></span></a
+            >
+          </div>
+          <div>
+            <h3 class="m-5 text-[1.5em]">Our map location!</h3>
+            <div>
+              <div class="w-[600px] h-[400px] ring bg-blue-300"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <style></style>
+</Layout>
