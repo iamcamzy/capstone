@@ -1,60 +1,66 @@
+// GET /api/reviews/get?venueId= — get reviews for a venue (public)
 import type { APIRoute } from "astro";
 import { supabase } from "../../../lib/supabase";
+import { ok, error } from "../../../lib/response";
+
 export const prerender = false;
 
-export const GET: APIRoute = async ({ request }) => {
-    try {
-        const url = new URL(request.url);
-        const venueId = url.searchParams.get("venueId");
-        const page = parseInt(url.searchParams.get("page") || "1");
-        const limit = parseInt(url.searchParams.get("limit") || "10");
-        const offset = (page - 1) * limit;
+export const GET: APIRoute = async ({ url }) => {
+  const venueId = url.searchParams.get("venueId");
+  if (!venueId) return error("venueId is required", 400);
 
-        if (!venueId) {
-            return new Response(JSON.stringify({ error: "Missing venueId" }), {
-                status: 400,
-                headers: { "Content-Type": "application/json" },
-            });
-        }
+  const page   = Math.max(1, parseInt(url.searchParams.get("page")  ?? "1"));
+  const limit  = Math.min(50, parseInt(url.searchParams.get("limit") ?? "10"));
+  const offset = (page - 1) * limit;
 
-        const { data, error, count } = await supabase
-            .from("reviews")
-            .select(
-                `
-            *, booking:bookings(*, venue:venues(*))
-        `,
-                { count: "exact" }
-            )
-            .eq("booking.venue_id", venueId)
-            .order("created_at", { ascending: false })
-            .range(offset, offset + limit - 1);
+  // Get reviews for bookings at this venue
+  const { data: bookingIds } = await supabase
+    .from("bookings")
+    .select("id")
+    .eq("venue_id", venueId)
+    .eq("status", "confirmed");
 
-        if (error) {
-            console.error("Error fetching venue reviews:", error.message);
-            return new Response(JSON.stringify({ error: error.message }), {
-                status: 500,
-                headers: { "Content-Type": "application/json" },
-            });
-        }
+  if (!bookingIds || bookingIds.length === 0) {
+    return ok({ reviews: [], averageRating: null,
+      pagination: { page, limit, total: 0, totalPages: 0 } });
+  }
 
-        return new Response(
-            JSON.stringify({
-                message: "Venue reviews fetched successfully",
-                data,
-                pagination: {
-                    page,
-                    limit,
-                    total: count || 0,
-                    totalPages: count ? Math.ceil(count / limit) : 0,
-                },
-            }),
-            { status: 200, headers: { "Content-Type": "application/json" } }
-        );
-    } catch (err: any) {
-        console.error("API ERROR (getVenueReviews):", err);
-        return new Response(
-            JSON.stringify({ error: err.message || "Unknown error" }),
-            { status: 500, headers: { "Content-Type": "application/json" } }
-        );
-    }
+  const ids = bookingIds.map((b) => b.id);
+
+  const { data, error: dbError, count } = await supabase
+    .from("reviews")
+    .select("id, rating, comment, created_at, user_id", { count: "exact" })
+    .in("booking_id", ids)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (dbError) {
+    console.error("[GetReviews]", dbError.message);
+    return error(dbError.message, 500);
+  }
+
+  // Attach reviewer names
+  const userIds = [...new Set((data ?? []).map((r) => r.user_id))];
+  const { data: users } = userIds.length > 0
+    ? await supabase.from("customers").select("id, first_name, last_name").in("id", userIds)
+    : { data: [] };
+
+  const userMap = Object.fromEntries((users ?? []).map((u) => [u.id, u]));
+
+  const reviews = (data ?? []).map(({ user_id, ...r }) => ({
+    ...r,
+    reviewer: userMap[user_id]
+      ? { first_name: userMap[user_id].first_name, last_name: userMap[user_id].last_name }
+      : null,
+  }));
+
+  const avg = reviews.length > 0
+    ? parseFloat((reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1))
+    : null;
+
+  return ok({
+    reviews,
+    averageRating: avg,
+    pagination: { page, limit, total: count ?? 0, totalPages: Math.ceil((count ?? 0) / limit) },
+  });
 };

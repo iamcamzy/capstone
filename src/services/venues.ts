@@ -1,42 +1,33 @@
 import { supabase } from "../lib/supabase";
 
-// Get all venues
 export async function getAllVenues() {
-    const { data, error } = await supabase.from("venues").select("*");
-    return { data, error };
+  return supabase
+    .from("venues")
+    .select("*")
+    .eq("is_active", true)
+    .order("name");
 }
 
-// Get single venue
 export async function getVenue(id: string) {
-    const { data, error } = await supabase
-        .from("venues")
-        .select("*")
-        .eq("id", id)
-        .single();
-    return { data, error };
+  return supabase.from("venues").select("*").eq("id", id).single();
 }
 
-// Create venue (Owner only)
-export async function createVenue(venue: any) {
-    const { data, error } = await supabase
-        .from("venues")
-        .insert([venue])
-        .select();
-    return { data, error };
+export async function createVenue(venue: {
+  name: string;
+  description?: string;
+  location?: string;
+  capacity?: number;
+  price_per_night: number;
+  image_url?: string;
+}) {
+  return supabase.from("venues").insert([{ ...venue, is_active: true }]).select().single();
 }
 
-// Update venue
-export async function updateVenue(id: string, updates: any) {
-    const { data, error } = await supabase
-        .from("venues")
-        .update(updates)
-        .eq("id", id)
-        .select();
-    return { data, error };
+export async function updateVenue(id: string, updates: Record<string, unknown>) {
+  return supabase.from("venues").update(updates).eq("id", id).select().single();
 }
 
-// Delete venue
 export async function deleteVenue(id: string) {
-    const { error } = await supabase.from("venues").delete().eq("id", id);
-    return { error };
+  // Soft delete
+  return supabase.from("venues").update({ is_active: false }).eq("id", id);
 }

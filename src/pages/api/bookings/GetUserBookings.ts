@@ -1,39 +1,39 @@
+// GET /api/bookings/GetUserBookings — get current user's bookings (requires auth)
 import type { APIRoute } from "astro";
-import { getUserBookings } from "../../../services/bookings";
+import { supabase } from "../../../lib/supabase";
+import { getUser } from "../../../lib/auth";
+import { ok, error } from "../../../lib/response";
+
 export const prerender = false;
 
-export const GET: APIRoute = async ({ url }) => {
-    try {
-        const userId = url.searchParams.get("userId");
+const VALID_STATUSES = ["pending", "confirmed", "cancelled", "rescheduled"];
 
-        if (!userId) {
-            return new Response(
-                JSON.stringify({ error: "Missing userId parameter" }),
-                { status: 400 }
-            );
-        }
+export const GET: APIRoute = async ({ cookies, url }) => {
+  const user = await getUser(cookies);
+  if (!user) return error("Unauthorized — please sign in", 401);
 
-        const { data, error } = await getUserBookings(userId);
+  const status = url.searchParams.get("status");
+  if (status && !VALID_STATUSES.includes(status)) {
+    return error(`Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`, 400);
+  }
 
-        if (error) {
-            console.error("Error fetching user bookings:", error.message);
-            return new Response(JSON.stringify({ error: error.message }), {
-                status: 500,
-            });
-        }
+  let query = supabase
+    .from("bookings")
+    .select(`
+      id, start_date, end_date, event_date, event_type,
+      pax, status, total_price, special_requests, created_at,
+      venues ( id, name, image_url, price_per_night )
+    `)
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
 
-        return new Response(
-            JSON.stringify({
-                message: "User bookings fetched successfully",
-                bookings: data,
-            }),
-            { status: 200 }
-        );
-    } catch (err: any) {
-        console.error("Error fetching user bookings:", err);
-        return new Response(
-            JSON.stringify({ error: err.message || err.toString() }),
-            { status: 500 }
-        );
-    }
+  if (status) query = query.eq("status", status as "pending" | "confirmed" | "cancelled" | "rescheduled");
+
+  const { data, error: dbError } = await query;
+  if (dbError) {
+    console.error("[GetUserBookings]", dbError.message);
+    return error(dbError.message, 500);
+  }
+
+  return ok({ bookings: data ?? [] });
 };

@@ -146,7 +146,7 @@
       // Optional: close on outside click
       root?.addEventListener('click', (e) => {
         const panel = root.querySelector('.relative');
-        if (panel && !panel.contains(e.target)) closeExpanded();
+        if (panel && !panel.contains(e.target as Node)) closeExpanded();
       });
 
       // Close on Escape

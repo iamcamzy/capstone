@@ -1,63 +1,59 @@
+// POST /api/reviews/add — add a review for a confirmed booking (requires auth)
 import type { APIRoute } from "astro";
 import { supabase } from "../../../lib/supabase";
+import { getUser } from "../../../lib/auth";
+import { addReviewSchema } from "../../../validation/review";
+import { created, error } from "../../../lib/response";
+import { parseBody } from "../../../lib/parseBody";
+
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request }) => {
-    try {
-        // Debug
-        const raw = await request.text();
-        console.log("RAW BODY RECEIVED:", raw);
+export const POST: APIRoute = async ({ request, cookies }) => {
+  const user = await getUser(cookies);
+  if (!user) return error("Unauthorized — please sign in", 401);
 
-        let body: any = null;
-        try {
-            body = JSON.parse(raw);
-        } catch (err) {
-            console.error("Failed to parse JSON:", err);
-        }
+  const body = await parseBody(request);
+  if (!body.ok) return body.response;
 
-        if (!body) {
-            return new Response(
-                JSON.stringify({ error: "Invalid or missing JSON body", raw }),
-                { status: 400, headers: { "Content-Type": "application/json" } }
-            );
-        }
+  const parsed = addReviewSchema.safeParse(body.data);
+  if (!parsed.success) {
+    return error(parsed.error.errors.map((e) => e.message).join(", "), 400);
+  }
 
-        const { userId, bookingId, rating, comment } = body;
+  const { bookingId, rating, comment } = parsed.data;
 
-        if (!userId || !bookingId || !rating) {
-            return new Response(
-                JSON.stringify({
-                    error: "userId, bookingId, and rating are required",
-                    body,
-                }),
-                { status: 400, headers: { "Content-Type": "application/json" } }
-            );
-        }
+  // Booking must exist, belong to user, and be confirmed
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("id, user_id, status")
+    .eq("id", bookingId)
+    .single();
 
-        const { data, error } = await supabase.rpc("add_review", {
-            p_user_id: userId,
-            p_booking_id: bookingId,
-            p_rating: rating,
-            p_comment: comment || null,
-        });
+  if (!booking)                      return error("Booking not found", 404);
+  if (booking.user_id !== user.id)   return error("You can only review your own bookings", 403);
+  if (booking.status !== "confirmed") return error("You can only review confirmed bookings", 400);
 
-        if (error) {
-            console.error("Supabase RPC Error:", error);
-            return new Response(JSON.stringify({ error, body }), {
-                status: 400,
-                headers: { "Content-Type": "application/json" },
-            });
-        }
+  // One review per booking
+  const { data: existing } = await supabase
+    .from("reviews")
+    .select("id")
+    .eq("booking_id", bookingId)
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-        return new Response(JSON.stringify({ reviewId: data, body }), {
-            status: 201,
-            headers: { "Content-Type": "application/json" },
-        });
-    } catch (err: any) {
-        console.error("API ERROR:", err);
-        return new Response(
-            JSON.stringify({ error: err.message || "Unknown error" }),
-            { status: 500, headers: { "Content-Type": "application/json" } }
-        );
-    }
+  if (existing) return error("You have already reviewed this booking", 409);
+
+  const { data: reviewId, error: rpcError } = await supabase.rpc("add_review", {
+    p_user_id:    user.id,
+    p_booking_id: bookingId,
+    p_rating:     rating,
+    p_comment:    comment ?? null,
+  });
+
+  if (rpcError) {
+    console.error("[AddReview]", rpcError.message);
+    return error(rpcError.message, 500);
+  }
+
+  return created({ reviewId, message: "Review added successfully" });
 };

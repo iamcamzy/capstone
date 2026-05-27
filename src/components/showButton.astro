@@ -1,24 +1,21 @@
----
-
----
-
 <button
-  id="show/hide"
   type="button"
-  class="w-[5ch] h-5 -translate-x-17 flex justify-center items-center text-sm font-semibold hover:cursor-pointer"
-  >show</button
+  id="showPassword"
+  class="col-start-3 col-end-4 row-start-2 row-end-3 text-sm font-semibold hover:cursor-pointer"
 >
-<style></style>
+  SHOW
+</button>
 
 <script>
-  const showButton = document.getElementById('show/hide');
-  const passwordInput = document.getElementById('password');
+  const showButton = document.getElementById('showPassword') as HTMLButtonElement | null;
+  const passwordInput = document.querySelector('input[type="password"], input[name="password"]') as HTMLInputElement | null;
 
-  showButton.addEventListener('click', () => {
-    const type =
-      passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-    passwordInput.setAttribute('type', type);
-
-    showButton.textContent = type === 'password' ? 'show' : 'hide';
-  });
+  if (showButton && passwordInput) {
+    showButton.addEventListener('click', () => {
+      const type =
+        passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      showButton.textContent = type === 'password' ? 'SHOW' : 'HIDE';
+    });
+  }
 </script>

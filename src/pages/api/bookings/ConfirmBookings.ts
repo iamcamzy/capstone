@@ -1,59 +1,41 @@
+// POST /api/bookings/ConfirmBookings — confirm a booking (admin only)
 import type { APIRoute } from "astro";
 import { supabase } from "../../../lib/supabase";
+import { adminGuard } from "../../../lib/adminGuard";
+import { ok, error } from "../../../lib/response";
+import { parseBody } from "../../../lib/parseBody";
+
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request }) => {
-    try {
-        const raw = await request.text();
-        console.log("RAW BODY RECEIVED:", raw);
+export const POST: APIRoute = async ({ request, cookies }) => {
+  const guard = await adminGuard(cookies);
+  if (guard instanceof Response) return guard;
 
-        let body: any = null;
-        try {
-            body = JSON.parse(raw);
-        } catch (err) {
-            console.error("Failed to parse JSON:", err);
-        }
+  const body = await parseBody<{ bookingId?: string }>(request);
+  if (!body.ok) return body.response;
 
-        if (!body) {
-            return new Response(
-                JSON.stringify({ error: "Invalid or missing JSON body", raw }),
-                { status: 400, headers: { "Content-Type": "application/json" } }
-            );
-        }
+  const { bookingId } = body.data;
+  if (!bookingId) return error("bookingId is required", 400);
 
-        const { bookingId, userId } = body;
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("id, status")
+    .eq("id", bookingId)
+    .single();
 
-        if (!bookingId || !userId) {
-            return new Response(
-                JSON.stringify({ error: "bookingId and userId are required" }),
-                { status: 400 }
-            );
-        }
+  if (!booking)                        return error("Booking not found", 404);
+  if (booking.status === "confirmed")  return error("Booking is already confirmed", 400);
+  if (booking.status === "cancelled")  return error("Cannot confirm a cancelled booking", 400);
 
-        const { data, error } = await supabase.rpc("confirm_booking", {
-            p_booking_id: bookingId,
-            p_user_id: userId,
-        });
+  const { error: rpcError } = await supabase.rpc("confirm_booking", {
+    p_booking_id: bookingId,
+    p_user_id: guard.user.id,
+  });
 
-        if (error) {
-            console.error("Confirm booking failed:", error);
-            return new Response(JSON.stringify({ error: error.message }), {
-                status: 500,
-            });
-        }
+  if (rpcError) {
+    console.error("[ConfirmBookings]", rpcError.message);
+    return error(rpcError.message, 500);
+  }
 
-        return new Response(
-            JSON.stringify({
-                message: "Booking confirmed successfully",
-                booking: data,
-            }),
-            { status: 200 }
-        );
-    } catch (err: any) {
-        console.error("API ERROR:", err);
-        return new Response(
-            JSON.stringify({ error: err.message || "Unknown error" }),
-            { status: 500 }
-        );
-    }
+  return ok({ message: "Booking confirmed successfully" });
 };

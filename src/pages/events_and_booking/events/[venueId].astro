@@ -5,44 +5,20 @@ import BookingForm from '../../../components/bookingForm.astro';
 
 const { venueId } = Astro.params;
 
-if (!venueId || typeof venueId !== 'string') {
-  console.error('[v0] No venue ID provided');
-  Astro.redirect('/events_and_booking/events');
-}
+if (!venueId) return Astro.redirect('/events_and_booking/events');
 
-// Fetch venue data server-side
 const { data, error } = await getVenue(venueId);
 
-if (error || !data) {
-  console.error(
-    '[v0] Failed to load venue:',
-    error?.message || 'Venue not found'
-  );
-  Astro.redirect('/events_and_booking/events');
-}
+if (error || !data) return Astro.redirect('/events_and_booking/events');
 
 const venue = {
-  id: data.id || venueId,
+  id: data.id,
   name: data.name || 'Unknown Venue',
-  image_url: data.image_url || undefined,
+  image_url: data.image_url ?? undefined,
   price_per_night: data.price_per_night || 0,
-  capacity: data.capacity || undefined,
-  description: data.description || undefined,
+  capacity: data.capacity ?? undefined,
+  description: data.description ?? undefined,
 };
-
-if (!venue.name || venue.price_per_night <= 0) {
-  console.error('[v0] Venue data is incomplete:', {
-    name: venue.name,
-    price: venue.price_per_night,
-  });
-  Astro.redirect('/events_and_booking/events');
-}
-
-console.log('[v0] Loaded venue:', {
-  id: venue.id,
-  name: venue.name,
-  price: venue.price_per_night,
-});
 ---
 
 <Layout>
@@ -159,7 +135,6 @@ console.log('[v0] Loaded venue:', {
               venueId={venue.id}
               venueName={venue.name}
               pricePerNight={venue.price_per_night}
-              client:load
             />
           </div>
         </div>

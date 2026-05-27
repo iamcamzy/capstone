@@ -1,5 +1,5 @@
 ---
-const { venueId, venueName, pricePerNight } = Astro.props;
+const { venueId, pricePerNight } = Astro.props;
 ---
 
 <div id="booking-form">
@@ -215,7 +215,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   </form>
 </div>
 
-<script define:vars={{ venueId, pricePerNight }}>
+<script is:inline define:vars={{ venueId, pricePerNight }}>
   const form = document.getElementById('bookingForm');
   const checkInInput = document.getElementById('checkIn');
   const checkOutInput = document.getElementById('checkOut');
@@ -248,15 +248,14 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     submitBtn.textContent = 'Processing...';
 
     const formData = {
-      fullName: document.getElementById('fullName').value,
-      email: document.getElementById('email').value,
-      phone: document.getElementById('phone').value,
-      checkIn: checkInInput.value,
-      checkOut: checkOutInput.value,
-      guests: parseInt(document.getElementById('guests').value),
-      eventType: document.getElementById('eventType').value,
-      specialRequests: document.getElementById('specialRequests').value,
       venueId: venueId,
+      startDate: checkInInput.value,
+      endDate: checkOutInput.value,
+      fullName: document.getElementById('fullName').value,
+      phone: document.getElementById('phone').value,
+      guests: parseInt(document.getElementById('guests').value) || null,
+      eventType: document.getElementById('eventType').value || null,
+      specialRequests: document.getElementById('specialRequests').value || null,
     };
 
     try {
@@ -267,12 +266,14 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       });
 
       if (response.ok) {
-        alert('Booking confirmed! Check your email for details.');
+        alert('Booking confirmed! You can view it in your dashboard.');
         form.reset();
         nightsCountEl.textContent = '0';
         totalPriceEl.textContent = '$0.00';
+        window.location.href = '/dashboard';
       } else {
-        alert('Booking failed. Please try again.');
+        const err = await response.json().catch(() => ({}));
+        alert('Booking failed: ' + (err.error ?? 'Please try again.'));
       }
     } catch (error) {
       console.error('Booking error:', error);

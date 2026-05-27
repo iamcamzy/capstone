@@ -1,43 +1,29 @@
+// POST /api/auth/signin — sign in via form, sets cookies, redirects to /dashboard
 import type { APIRoute } from "astro";
-import { signIn } from "../../../services/auth";
+import { supabase } from "../../../lib/supabase";
+import { setSessionCookies } from "../../../lib/auth";
+import { signInSchema } from "../../../validation/user";
 
 export const prerender = false;
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
-    try {
-        const form = await request.formData();
-        const email = form.get("email")?.toString().trim();
-        const password = form.get("password")?.toString();
+  const form  = await request.formData();
+  const email    = form.get("email")?.toString().trim() ?? "";
+  const password = form.get("password")?.toString() ?? "";
 
-        if (!email || !password) {
-            return new Response("Missing email or password", { status: 400 });
-        }
+  const parsed = signInSchema.safeParse({ email, password });
+  if (!parsed.success) {
+    const msg = parsed.error.errors[0].message;
+    return redirect(`/signin?error=${encodeURIComponent(msg)}`);
+  }
 
-        const { data, error } = await signIn(email, password);
-        const session = data?.session;
+  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
 
-        if (error || !session) {
-            return new Response(error?.message ?? "Invalid credentials", {
-                status: 401,
-            });
-        }
+  if (error || !data.session) {
+    const msg = error?.message ?? "Invalid credentials";
+    return redirect(`/signin?error=${encodeURIComponent(msg)}`);
+  }
 
-        const cookieOptions = {
-            path: "/",
-            httpOnly: true,
-            sameSite: "strict" as const,
-            secure: import.meta.env.PROD,
-        };
-
-        cookies.set("sb-access-token", session.access_token, cookieOptions);
-        cookies.set("sb-refresh-token", session.refresh_token, cookieOptions);
-
-        return redirect("/dashboard");
-    } catch (err) {
-        console.error(
-            "Signin failed:",
-            err instanceof Error ? err.message : err
-        );
-        return new Response("Unexpected server error", { status: 500 });
-    }
+  setSessionCookies(cookies, data.session.access_token, data.session.refresh_token);
+  return redirect("/dashboard");
 };

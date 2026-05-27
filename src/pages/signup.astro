@@ -128,13 +128,20 @@ import ShowButton from '../components/showButton.astro';
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, firstName, lastName }),
+        redirect: 'follow',
       });
 
+      // API now auto signs-in and redirects to /dashboard
+      if (res.redirected) {
+        window.location.href = res.url;
+        return;
+      }
+
       if (res.ok) {
-        window.location.href = '/signin';
+        window.location.href = '/dashboard';
       } else {
-        const errMsg = await res.text();
-        alert('Signup failed: ' + errMsg);
+        const data = await res.json().catch(() => ({}));
+        alert('Signup failed: ' + (data.error ?? 'Please try again.'));
       }
     } catch {
       alert('Something went wrong. Please try again.');

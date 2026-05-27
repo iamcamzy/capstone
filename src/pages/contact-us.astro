@@ -153,11 +153,12 @@ jet: #363537
 </Layout>
 
 <script>
-  // Simple client-side form handling (no backend integration)
-  const form = document.getElementById('contact-form');
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    alert('Thank you for reaching out! We will get back to you soon.');
-    form.reset();
-  });
+  const form = document.getElementById('contact-form') as HTMLFormElement | null;
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      alert('Thank you for reaching out! We will get back to you soon.');
+      form.reset();
+    });
+  }
 </script>

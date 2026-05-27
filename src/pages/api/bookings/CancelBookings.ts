@@ -1,59 +1,42 @@
+// POST /api/bookings/CancelBookings — cancel own booking (requires auth)
 import type { APIRoute } from "astro";
 import { supabase } from "../../../lib/supabase";
+import { getUser } from "../../../lib/auth";
+import { ok, error } from "../../../lib/response";
+import { parseBody } from "../../../lib/parseBody";
+
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request }) => {
-    try {
-        const raw = await request.text();
-        console.log("RAW BODY RECEIVED:", raw);
+export const POST: APIRoute = async ({ request, cookies }) => {
+  const user = await getUser(cookies);
+  if (!user) return error("Unauthorized — please sign in", 401);
 
-        let body: any = null;
-        try {
-            body = JSON.parse(raw);
-        } catch (err) {
-            console.error("Failed to parse JSON:", err);
-        }
+  const body = await parseBody<{ bookingId?: string }>(request);
+  if (!body.ok) return body.response;
 
-        if (!body) {
-            return new Response(
-                JSON.stringify({ error: "Invalid or missing JSON body", raw }),
-                { status: 400, headers: { "Content-Type": "application/json" } }
-            );
-        }
+  const { bookingId } = body.data;
+  if (!bookingId) return error("bookingId is required", 400);
 
-        const { bookingId, userId } = body;
+  // Verify ownership
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("id, status, user_id")
+    .eq("id", bookingId)
+    .single();
 
-        if (!bookingId || !userId) {
-            return new Response(
-                JSON.stringify({ error: "bookingId and userId are required" }),
-                { status: 400 }
-            );
-        }
+  if (!booking)                      return error("Booking not found", 404);
+  if (booking.user_id !== user.id)   return error("You can only cancel your own bookings", 403);
+  if (booking.status === "cancelled") return error("Booking is already cancelled", 400);
 
-        const { data, error } = await supabase.rpc("cancel_booking", {
-            p_booking_id: bookingId,
-            p_user_id: userId,
-        });
+  const { error: rpcError } = await supabase.rpc("cancel_booking", {
+    p_booking_id: bookingId,
+    p_user_id: user.id,
+  });
 
-        if (error) {
-            console.error("Cancel booking failed:", error);
-            return new Response(JSON.stringify({ error: error.message }), {
-                status: 500,
-            });
-        }
+  if (rpcError) {
+    console.error("[CancelBookings]", rpcError.message);
+    return error(rpcError.message, 500);
+  }
 
-        return new Response(
-            JSON.stringify({
-                message: "Booking cancelled successfully",
-                booking: data,
-            }),
-            { status: 200 }
-        );
-    } catch (err: any) {
-        console.error("API ERROR:", err);
-        return new Response(
-            JSON.stringify({ error: err.message || "Unknown error" }),
-            { status: 500 }
-        );
-    }
+  return ok({ message: "Booking cancelled successfully" });
 };

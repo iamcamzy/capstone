@@ -3,7 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import EventCard from '../../components/eventCards/eventCard.astro';
 import { getAllVenues } from '../../services/venues';
 
-const { data: venues, error } = await getAllVenues();
+const { data: venues } = await getAllVenues();
 const venuesToDisplay = venues || [];
 ---
 

@@ -43,7 +43,7 @@ const slides = [
   slides.forEach((slide) => {
     const imageUrl = slide.getAttribute('data-image');
     if (imageUrl) {
-      slide.style.backgroundImage = `url('${imageUrl}')`;
+      (slide as HTMLElement).style.backgroundImage = `url('${imageUrl}')`;
     }
   });
 

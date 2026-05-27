@@ -1,97 +1,95 @@
 ---
 import CalendarPreview from './calendarComps/calendarPreview.astro';
-import Theme from './themeButton.astro';
+import Theme from './ThemeButton.astro';
+import { getUser } from '../lib/auth';
+import { supabase, supabaseAdmin } from '../lib/supabase';
+
+const user = await getUser(Astro.cookies);
+
+let isAdmin = false;
+if (user) {
+  const client = supabaseAdmin ?? supabase;
+  const { data } = await client
+    .from('admins')
+    .select('id')
+    .eq('id', user.id)
+    .single();
+  isAdmin = !!data;
+}
 ---
 
-<!-- Improved header styling with better layout and colors -->
 <header
   id="navbar"
   class="fixed top-0 left-0 w-full bg-white shadow-md transition-transform duration-300 z-100 min-h-[15vh] max-w-screen grid grid-cols-12"
 >
-  <div
-    id="company_logo"
-    class="flex justify-center items-center col-start-1 col-end-4 px-4"
-  >
+  <div id="company_logo" class="flex justify-center items-center col-start-1 col-end-4 px-4">
     <a href="/" target="_self" class="hover:opacity-80 transition-opacity">
-      <img
-        src="/company-logo.png"
-        alt="company logo"
-        class="max-w-[280px] h-auto"
-      />
+      <img src="/company-logo.png" alt="company logo" class="max-w-[280px] h-auto" />
     </a>
   </div>
 
   <nav id="navigation" class="col-start-4 col-end-10 grid grid-cols-5">
-    <a href="/" class="navigation-link"
-      ><span class="navigation-button">HOME</span></a
-    >
-    <a href="/#about-us" class="navigation-link"
-      ><span class="navigation-button">ABOUT</span></a
-    >
-    <a href="/events_and_booking/events" class="navigation-link"
-      ><span class="navigation-button">EVENTS</span></a
-    >
-    <a href="/#find-us" class="navigation-link"
-      ><span class="navigation-button">FIND US</span></a
-    >
-    <a href="/contact-us" class="navigation-link"
-      ><span class="navigation-button">CONTACT US</span></a
-    >
+    <a href="/" class="navigation-link"><span class="navigation-button">HOME</span></a>
+    <a href="/#about-us" class="navigation-link"><span class="navigation-button">ABOUT</span></a>
+    <a href="/events_and_booking/events" class="navigation-link"><span class="navigation-button">EVENTS</span></a>
+    <a href="/#find-us" class="navigation-link"><span class="navigation-button">FIND US</span></a>
+    <a href="/contact-us" class="navigation-link"><span class="navigation-button">CONTACT US</span></a>
   </nav>
 
-  <div
-    id="user_buttons"
-    class="col-start-10 col-end-13 w-auto grid grid-cols-3 grid-rows-3"
-  >
-    <!-- Primary CTA button with improved styling -->
-    <a
-      href="/signin"
-      target="_self"
-      class="flex items-center justify-center row-start-2 row-end-4 m-2 text-center rounded-lg hover:cursor-pointer font-semibold transition-all duration-300 text-white"
-      style="background-color: var(--butterscotch-primary);"
-    >
-      LOG IN
-    </a>
+  <div id="user_buttons" class="col-start-10 col-end-13 w-auto grid grid-cols-3 grid-rows-3">
 
-    <!-- Secondary button with brand color outline -->
-    <a
-      href="/signup"
-      target="_self"
-      class="flex items-center justify-center row-start-2 row-end-4 m-2 text-center rounded-lg hover:cursor-pointer font-semibold transition-all duration-300"
-      style="border: 2px solid var(--butterscotch-primary); color: var(--butterscotch-primary);"
-    >
-      SIGN UP
-    </a>
+    {/* ── Not logged in ── */}
+    {!user && (
+      <a href="/signin"
+        class="flex items-center justify-center row-start-2 row-end-4 m-2 text-center rounded-lg hover:cursor-pointer font-semibold transition-all duration-300 text-white"
+        style="background-color: var(--butterscotch-primary);">
+        LOG IN
+      </a>
+    )}
+    {!user && (
+      <a href="/signup"
+        class="flex items-center justify-center row-start-2 row-end-4 m-2 text-center rounded-lg hover:cursor-pointer font-semibold transition-all duration-300"
+        style="border: 2px solid var(--butterscotch-primary); color: var(--butterscotch-primary);">
+        SIGN UP
+      </a>
+    )}
 
-    <span
-      class="flex items-center justify-center row-start-2 row-end-4 m-2 text-center"
-    >
+    {/* ── Logged in as admin ── */}
+    {user && isAdmin && (
+      <a href="/dashboard"
+        class="flex items-center justify-center row-start-2 row-end-4 m-2 text-center rounded-lg hover:cursor-pointer font-semibold transition-all duration-300 text-white"
+        style="background-color: var(--butterscotch-primary);">
+        DASHBOARD
+      </a>
+    )}
+    {user && isAdmin && (
+      <a href="/admin"
+        class="flex items-center justify-center row-start-2 row-end-4 m-2 text-center rounded-lg hover:cursor-pointer font-semibold transition-all duration-300 text-white"
+        style="background-color: var(--jet-primary);">
+        ADMIN
+      </a>
+    )}
+
+    {/* ── Logged in as regular user ── */}
+    {user && !isAdmin && (
+      <a href="/dashboard"
+        class="flex items-center justify-center row-start-2 row-end-4 col-span-2 m-2 text-center rounded-lg hover:cursor-pointer font-semibold transition-all duration-300 text-white"
+        style="background-color: var(--butterscotch-primary);">
+        MY DASHBOARD
+      </a>
+    )}
+
+    <span class="flex items-center justify-center row-start-2 row-end-4 m-2 text-center">
       <Theme />
     </span>
 
-    <!-- Calendar preview button with brand styling -->
     <button
       id="preview"
       class="col-start-1 col-end-4 w-full row-start-4 p-2 transition ease-in-out duration-300 hover:cursor-pointer font-semibold bg-[#ccbba2] hover:bg-[#aa8f66] rounded-t-md flex items-center justify-center gap-1"
     >
       <p id="previewText" class="text-sm">See if your date's available!</p>
-      <svg
-        id="previewArrow"
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        width="20"
-        height="20"
-        role="img"
-        aria-hidden="true"
-        class="inline-block transition-transform duration-300"
-      >
-        <g
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
+      <svg id="previewArrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" role="img" aria-hidden="true" class="inline-block transition-transform duration-300">
+        <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M6 10l6 6 6-6"></path>
           <path d="M6 5l6 6 6-6"></path>
         </g>
@@ -102,26 +100,21 @@ import Theme from './themeButton.astro';
 <CalendarPreview />
 
 <script>
-  const previewBtn = document.getElementById('preview');
   const previewText = document.getElementById('previewText');
   const previewArrow = document.getElementById('previewArrow');
   let isOpen = false;
 
-  // Listen for preview opening/closing
   document.addEventListener('click', (e) => {
     try {
-      var target = e && e.target;
+      const target = e && e.target;
       if (!target || !(target instanceof Element)) return;
       if (target.closest('#preview')) {
         isOpen = !isOpen;
         updatePreviewButton();
       }
-    } catch (err) {
-      // ignore
-    }
+    } catch (err) {}
   });
 
-  // Listen for preview closing (ESC key)
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isOpen) {
       isOpen = false;
@@ -134,8 +127,7 @@ import Theme from './themeButton.astro';
       if (previewText) previewText.textContent = 'Close preview';
       if (previewArrow) previewArrow.style.transform = 'rotate(180deg)';
     } else {
-      if (previewText)
-        previewText.textContent = "See if your date's available!";
+      if (previewText) previewText.textContent = "See if your date's available!";
       if (previewArrow) previewArrow.style.transform = 'rotate(0deg)';
     }
   }

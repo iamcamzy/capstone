@@ -1,0 +1,679 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { requireAuth } from '../../lib/auth';
+import { supabase, supabaseAdmin } from '../../lib/supabase';
+
+export const prerender = false;
+
+const user = await requireAuth(Astro.cookies);
+if (!user) return Astro.redirect('/signin');
+
+// Use service role client so RLS never blocks the role check
+const adminClient = supabaseAdmin ?? supabase;
+const { data: profile } = await adminClient
+  .from('admins')
+  .select('first_name, last_name')
+  .eq('id', user.id)
+  .single();
+
+// Not in admins table = not an admin
+if (!profile) return Astro.redirect('/dashboard');
+
+const { data: bookings } = await adminClient
+  .from('bookings')
+  .select('id, full_name, phone, pax, event_date, start_date, end_date, event_type, status, total_price, created_at, venue_id, user_id, package_id')
+  .order('created_at', { ascending: false })
+  .limit(200);
+
+// Separately fetch venue names for each booking
+const venueIds = [...new Set((bookings ?? []).map(b => b.venue_id).filter(Boolean))];
+const { data: venueMap } = venueIds.length > 0
+  ? await adminClient.from('venues').select('id, name').in('id', venueIds)
+  : { data: [] };
+const venueById: Record<string, string> = {};
+(venueMap ?? []).forEach((v: any) => { venueById[v.id] = v.name; });
+
+const packageIds = [...new Set((bookings ?? []).map(b => b.package_id).filter((id): id is string => id !== null && id !== undefined))];
+const { data: pkgMap } = packageIds.length > 0
+  ? await adminClient.from('packages').select('id, name').in('id', packageIds)
+  : { data: [] };
+const packageById: Record<string, string> = {};
+(pkgMap ?? []).forEach((p: any) => { packageById[p.id] = p.name; });
+
+const userIds = [...new Set((bookings ?? []).map(b => b.user_id).filter(Boolean))];
+const { data: userMap } = userIds.length > 0
+  ? await adminClient.from('users').select('id, first_name, last_name, email').in('id', userIds)
+  : { data: [] };
+const userById: Record<string, any> = {};
+(userMap ?? []).forEach((u: any) => { userById[u.id] = u; });
+
+// Attach names to bookings
+const enrichedBookings = (bookings ?? []).map(b => ({
+  ...b,
+  venueName: venueById[b.venue_id] ?? '—',
+  packageName: b.package_id ? (packageById[b.package_id] ?? '—') : null,
+  userName: userById[b.user_id] ?? null,
+}));
+
+const { data: venues } = await adminClient.from('venues').select('*').order('name');
+const { data: packages } = await adminClient.from('packages').select('*').order('price');
+const { data: rawReviews } = await adminClient
+  .from('reviews')
+  .select('id, rating, comment, created_at, user_id, booking_id')
+  .order('created_at', { ascending: false })
+  .limit(100);
+
+const reviewUserIds = [...new Set((rawReviews ?? []).map((r: any) => r.user_id).filter(Boolean))];
+const { data: reviewUsers } = reviewUserIds.length > 0
+  ? await adminClient.from('users').select('id, first_name, last_name, email').in('id', reviewUserIds)
+  : { data: [] };
+const reviewUserById: Record<string, any> = {};
+(reviewUsers ?? []).forEach((u: any) => { reviewUserById[u.id] = u; });
+
+const reviewBookingIds = [...new Set((rawReviews ?? []).map((r: any) => r.booking_id).filter(Boolean))];
+const { data: reviewBookings } = reviewBookingIds.length > 0
+  ? await adminClient.from('bookings').select('id, event_date, venue_id').in('id', reviewBookingIds)
+  : { data: [] };
+const reviewBookingById: Record<string, any> = {};
+(reviewBookings ?? []).forEach((b: any) => { reviewBookingById[b.id] = b; });
+
+const reviews = (rawReviews ?? []).map((r: any) => ({
+  ...r,
+  reviewUser: reviewUserById[r.user_id] ?? null,
+  reviewBooking: reviewBookingById[r.booking_id] ?? null,
+  reviewVenueName: reviewBookingById[r.booking_id]?.venue_id ? (venueById[reviewBookingById[r.booking_id].venue_id] ?? '—') : '—',
+}));
+
+const { data: allCustomers } = await adminClient
+  .from('customers')
+  .select('id, email, first_name, last_name, created_at')
+  .order('created_at', { ascending: false });
+
+const { data: allAdmins } = await adminClient
+  .from('admins')
+  .select('id, email, first_name, last_name, created_at')
+  .order('created_at', { ascending: false });
+
+const stats = {
+  total:       enrichedBookings.length,
+  pending:     enrichedBookings.filter(b => b.status === 'pending').length,
+  confirmed:   enrichedBookings.filter(b => b.status === 'confirmed').length,
+  cancelled:   enrichedBookings.filter(b => b.status === 'cancelled').length,
+  rescheduled: enrichedBookings.filter(b => b.status === 'rescheduled').length,
+  revenue:     enrichedBookings.filter(b => b.status === 'confirmed')
+                               .reduce((s, b) => s + (Number(b.total_price) ?? 0), 0),
+  avgPax: (() => {
+    const w = enrichedBookings.filter(b => b.pax && b.status === 'confirmed');
+    return w.length ? Math.round(w.reduce((s,b) => s + (b.pax ?? 0), 0) / w.length) : 0;
+  })(),
+};
+
+const adminName = profile.first_name
+  ? `${profile.first_name} ${profile.last_name ?? ''}`.trim()
+  : user.email;
+---
+
+<Layout title="Admin Dashboard">
+<div id="admin-root" class="min-h-screen" style="background:#f5f3f0;">
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 z-50 flex flex-col shadow-xl" style="background:var(--jet-primary);color:white;">
+    <div class="px-6 py-5 border-b border-white/10">
+      <p class="text-xs font-semibold uppercase tracking-widest opacity-60 mb-1">Admin Panel</p>
+      <p class="font-bold text-lg truncate" style="color:var(--butterscotch-primary);">{adminName}</p>
+      <p class="text-xs opacity-50 truncate">{user.email}</p>
+    </div>
+    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      {[
+        { id:'dashboard', icon:'📊', label:'Dashboard'  },
+        { id:'bookings',  icon:'📅', label:'Bookings'   },
+        { id:'venues',    icon:'🏖️', label:'Venues'     },
+        { id:'packages',  icon:'📦', label:'Packages'   },
+        { id:'reviews',   icon:'⭐', label:'Reviews'    },
+        { id:'users',     icon:'👥', label:'Users'      },
+      ].map(nav => (
+        <button data-tab={nav.id} class="nav-btn w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium transition-all hover:bg-white/10">
+          <span>{nav.icon}</span><span>{nav.label}</span>
+        </button>
+      ))}
+    </nav>
+    <div class="px-4 py-4 border-t border-white/10">
+      <a href="/dashboard" class="block text-center text-sm py-2 px-3 rounded-lg transition hover:bg-white/10 mb-2">← Back to Site</a>
+      <a href="/api/auth/signout" class="block text-center text-sm py-2 px-3 rounded-lg bg-red-600/80 hover:bg-red-600 transition">Sign out</a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="ml-64 min-h-screen">
+    <header class="sticky top-0 z-40 flex items-center justify-between px-8 py-4 shadow-sm" style="background:white;border-bottom:2px solid var(--lion-light);">
+      <h1 id="page-title" class="text-2xl font-bold" style="color:var(--jet-primary);">Dashboard</h1>
+      <div class="flex items-center gap-3 text-sm">
+        <span class="px-3 py-1 rounded-full font-semibold text-white text-xs" style="background:var(--butterscotch-primary);">ADMIN</span>
+      </div>
+    </header>
+
+    <div class="p-8">
+
+      <!-- TAB: DASHBOARD -->
+      <section id="tab-dashboard" class="tab-section">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+          {[
+            { label:'Total Bookings', value:stats.total,      color:'#ed9b40', icon:'📅' },
+            { label:'Pending',        value:stats.pending,    color:'#f59e0b', icon:'⏳' },
+            { label:'Confirmed',      value:stats.confirmed,  color:'#10b981', icon:'✅' },
+            { label:'Cancelled',      value:stats.cancelled,  color:'#ef4444', icon:'❌' },
+            { label:'Rescheduled',    value:stats.rescheduled,color:'#8b5cf6', icon:'🔄' },
+            { label:'Total Revenue',  value:`₱${stats.revenue.toLocaleString()}`, color:'#059669', icon:'💰' },
+            { label:'Active Venues',  value:venues?.filter(v=>v.is_active).length??0, color:'#0ea5e9', icon:'🏖️' },
+            { label:'Avg Pax (confirmed)', value:stats.avgPax||'—', color:'#6366f1', icon:'👥' },
+          ].map(c => (
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center gap-4">
+              <span class="text-3xl">{c.icon}</span>
+              <div>
+                <p class="text-xs uppercase tracking-wide text-gray-400 font-semibold">{c.label}</p>
+                <p class="text-2xl font-bold" style={`color:${c.color}`}>{c.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h2 class="font-bold text-lg" style="color:var(--jet-primary);">Recent Bookings</h2>
+            <button data-tab="bookings" class="nav-btn text-sm font-semibold" style="color:var(--butterscotch-primary);">View all →</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                <th class="px-4 py-3 text-left">Guest</th>
+                <th class="px-4 py-3 text-left">Venue</th>
+                <th class="px-4 py-3 text-left">Event Date</th>
+                <th class="px-4 py-3 text-left">Pax</th>
+                <th class="px-4 py-3 text-left">Total</th>
+                <th class="px-4 py-3 text-left">Status</th>
+              </tr></thead>
+              <tbody>
+                {enrichedBookings.slice(0,8).map(b => (
+                  <tr class="border-t border-gray-50 hover:bg-gray-50">
+                    <td class="px-4 py-3 font-medium">{b.full_name ?? (b.userName as any)?.email ?? '—'}</td>
+                    <td class="px-4 py-3 text-gray-600">{b.venueName ?? '—'}</td>
+                    <td class="px-4 py-3 text-gray-600">{b.event_date ? new Date(b.event_date).toLocaleDateString('en-PH') : '—'}</td>
+                    <td class="px-4 py-3 text-gray-600">{b.pax ?? '—'}</td>
+                    <td class="px-4 py-3 font-semibold" style="color:var(--butterscotch-primary);">{b.total_price ? `₱${Number(b.total_price).toLocaleString()}` : '—'}</td>
+                    <td class="px-4 py-3">
+                      <span class={`px-2 py-0.5 rounded-full text-xs font-bold ${ b.status==='confirmed'?'bg-green-100 text-green-700': b.status==='cancelled'?'bg-red-100 text-red-700': b.status==='rescheduled'?'bg-purple-100 text-purple-700':'bg-yellow-100 text-yellow-700'}`}>{b.status}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: BOOKINGS -->
+      <section id="tab-bookings" class="tab-section hidden">
+        <div class="flex flex-wrap gap-3 mb-6 items-center justify-between">
+          <div class="flex gap-2 flex-wrap">
+            {['all','pending','confirmed','cancelled','rescheduled'].map(s => (
+              <button data-filter={s} class="filter-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 transition-all capitalize" style="border-color:var(--lion-light);">
+                {s==='all'?'All':s}
+              </button>
+            ))}
+          </div>
+          <input id="bookingSearch" type="text" placeholder="Search guest, venue…" class="px-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 w-60" />
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                <th class="px-4 py-3 text-left">Guest / Phone</th>
+                <th class="px-4 py-3 text-left">Venue</th>
+                <th class="px-4 py-3 text-left">Package</th>
+                <th class="px-4 py-3 text-left">Event Date</th>
+                <th class="px-4 py-3 text-left">Hold Period</th>
+                <th class="px-4 py-3 text-left">Pax</th>
+                <th class="px-4 py-3 text-left">Total</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left">Booked On</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+              </tr></thead>
+              <tbody>
+                {enrichedBookings.map(b => (
+                  <tr data-status={b.status} data-search={`${b.full_name??''} ${b.venueName??''} ${b.phone??''} ${b.event_type??''}`} class="booking-row border-t border-gray-50 hover:bg-gray-50">
+                    <td class="px-4 py-3"><p class="font-medium">{b.full_name??'—'}</p><p class="text-xs text-gray-400">{b.phone??(b.userName as any)?.email??''}</p></td>
+                    <td class="px-4 py-3 text-gray-600">{b.venueName??'—'}</td>
+                    <td class="px-4 py-3 text-gray-600">{b.packageName??b.packageName??b.event_type??'—'}</td>
+                    <td class="px-4 py-3 text-gray-600">{b.event_date?new Date(b.event_date).toLocaleDateString('en-PH'):'—'}</td>
+                    <td class="px-4 py-3 text-gray-500 text-xs">{new Date(b.start_date).toLocaleDateString('en-PH',{month:'short',day:'numeric'})} → {new Date(b.end_date).toLocaleDateString('en-PH',{month:'short',day:'numeric'})}</td>
+                    <td class="px-4 py-3 text-gray-600">{b.pax??'—'}</td>
+                    <td class="px-4 py-3 font-semibold" style="color:var(--butterscotch-primary);">{b.total_price?`₱${Number(b.total_price).toLocaleString()}`:'—'}</td>
+                    <td class="px-4 py-3">
+                      <span class={`px-2 py-0.5 rounded-full text-xs font-bold ${b.status==='confirmed'?'bg-green-100 text-green-700':b.status==='cancelled'?'bg-red-100 text-red-700':b.status==='rescheduled'?'bg-purple-100 text-purple-700':'bg-yellow-100 text-yellow-700'}`}>{b.status}</span>
+                    </td>
+                    <td class="px-4 py-3 text-gray-400 text-xs">{new Date(b.created_at).toLocaleDateString('en-PH')}</td>
+                    <td class="px-4 py-3">
+                      <div class="flex gap-1 flex-wrap">
+                        {b.status==='pending'&&(<button onclick={`confirmBooking('${b.id}')`} class="px-2 py-1 rounded text-xs font-bold text-white hover:opacity-80" style="background:#10b981;">✓ Confirm</button>)}
+                        {(b.status==='pending'||b.status==='confirmed')&&(<button onclick={`openReschedule('${b.id}')`} class="px-2 py-1 rounded text-xs font-bold text-white hover:opacity-80" style="background:#8b5cf6;">↻ Reschedule</button>)}
+                        {b.status!=='cancelled'&&b.status!=='rescheduled'&&(<button onclick={`cancelBooking('${b.id}')`} class="px-2 py-1 rounded text-xs font-bold text-white hover:opacity-80" style="background:#ef4444;">✕ Cancel</button>)}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: VENUES -->
+      <section id="tab-venues" class="tab-section hidden">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold" style="color:var(--jet-primary);">Manage Venues</h2>
+          <button onclick="openVenueModal()" class="px-5 py-2 rounded-lg text-white font-semibold transition hover:opacity-90" style="background:var(--butterscotch-primary);">+ Add Venue</button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {venues?.map(v => (
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              {v.image_url?(<img src={v.image_url} alt={v.name} class="w-full h-40 object-cover" />):(<div class="w-full h-40 flex items-center justify-center text-4xl" style="background:var(--neutral-light);">🏖️</div>)}
+              <div class="p-5">
+                <div class="flex justify-between items-start mb-2">
+                  <h3 class="font-bold text-lg" style="color:var(--jet-primary);">{v.name}</h3>
+                  <span class={`text-xs px-2 py-0.5 rounded-full font-bold ${v.is_active?'bg-green-100 text-green-700':'bg-gray-100 text-gray-500'}`}>{v.is_active?'Active':'Inactive'}</span>
+                </div>
+                <p class="text-sm text-gray-500 mb-1">{v.location??'—'}</p>
+                <p class="text-sm text-gray-400 mb-3 line-clamp-2">{v.description??''}</p>
+                <div class="flex justify-between text-sm mb-4">
+                  <span class="text-gray-500">Cap: <strong>{v.capacity??'—'}</strong></span>
+                  <span class="font-bold" style="color:var(--butterscotch-primary);">₱{Number(v.price_per_night).toLocaleString()}/night</span>
+                </div>
+                <div class="flex gap-2">
+                  <button onclick={`openVenueModal(${JSON.stringify(JSON.stringify(v))})`} class="flex-1 py-1.5 rounded-lg text-sm font-semibold border-2 transition hover:bg-gray-50" style="border-color:var(--butterscotch-primary);color:var(--butterscotch-primary);">Edit</button>
+                  <button onclick={`toggleVenue('${v.id}',${v.is_active})`} class={`flex-1 py-1.5 rounded-lg text-sm font-semibold text-white transition hover:opacity-80 ${v.is_active?'bg-red-400':'bg-green-500'}`}>{v.is_active?'Deactivate':'Activate'}</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- TAB: PACKAGES -->
+      <section id="tab-packages" class="tab-section hidden">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold" style="color:var(--jet-primary);">Manage Packages</h2>
+          <button onclick="openPackageModal()" class="px-5 py-2 rounded-lg text-white font-semibold transition hover:opacity-90" style="background:var(--butterscotch-primary);">+ Add Package</button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {packages?.map(p => (
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div class="flex justify-between items-start mb-3">
+                <h3 class="font-bold text-xl" style="color:var(--jet-primary);">{p.name}</h3>
+                <span class={`text-xs px-2 py-0.5 rounded-full font-bold ${p.is_active?'bg-green-100 text-green-700':'bg-gray-100 text-gray-500'}`}>{p.is_active?'Active':'Inactive'}</span>
+              </div>
+              <p class="text-3xl font-black mb-3" style="color:var(--butterscotch-primary);">₱{Number(p.price).toLocaleString()}</p>
+              {p.description&&<p class="text-sm text-gray-500 mb-3">{p.description}</p>}
+              {p.inclusions&&<div class="mb-3"><p class="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">Inclusions</p><p class="text-sm text-gray-600">{p.inclusions}</p></div>}
+              {p.max_pax&&<p class="text-sm text-gray-500 mb-4">Max pax: <strong>{p.max_pax}</strong></p>}
+              <div class="flex gap-2">
+                <button onclick={`openPackageModal(${JSON.stringify(JSON.stringify(p))})`} class="flex-1 py-1.5 rounded-lg text-sm font-semibold border-2 transition hover:bg-gray-50" style="border-color:var(--butterscotch-primary);color:var(--butterscotch-primary);">Edit</button>
+                <button onclick={`togglePackage('${p.id}',${p.is_active})`} class={`flex-1 py-1.5 rounded-lg text-sm font-semibold text-white transition hover:opacity-80 ${p.is_active?'bg-red-400':'bg-green-500'}`}>{p.is_active?'Deactivate':'Activate'}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- TAB: REVIEWS -->
+      <section id="tab-reviews" class="tab-section hidden">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="px-6 py-4 border-b border-gray-100"><h2 class="font-bold text-lg" style="color:var(--jet-primary);">All Reviews</h2></div>
+          <div class="divide-y divide-gray-50">
+            {reviews?.map(r => (
+              <div class="px-6 py-5">
+                <div class="flex justify-between items-start mb-2">
+                  <div>
+                    <p class="font-semibold">{(r.reviewUser as any)?.first_name} {(r.reviewUser as any)?.last_name}</p>
+                    <p class="text-xs text-gray-400">{(r.reviewUser as any)?.email}</p>
+                  </div>
+                  <div class="text-right">
+                    <div class="flex gap-0.5 mb-1">{Array.from({length:5}).map((_,i)=>(<span class={i<r.rating?'text-yellow-400':'text-gray-200'}>★</span>))}</div>
+                    <p class="text-xs text-gray-400">{new Date(r.created_at).toLocaleDateString('en-PH')}</p>
+                  </div>
+                </div>
+                <p class="text-sm text-gray-500">Venue: <strong>{r.reviewVenueName}</strong></p>
+                {r.comment&&<p class="text-sm text-gray-700 mt-2 bg-gray-50 rounded-lg px-4 py-3 italic">"{r.comment}"</p>}
+              </div>
+            ))}
+            {(!reviews||reviews.length===0)&&<p class="px-6 py-12 text-center text-gray-400">No reviews yet.</p>}
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: USERS -->
+      <section id="tab-users" class="tab-section hidden">
+        <!-- Admins -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+          <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+            <h2 class="font-bold text-lg" style="color:var(--jet-primary);">Admins</h2>
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">{allAdmins?.length ?? 0}</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                <th class="px-5 py-3 text-left">Name</th>
+                <th class="px-5 py-3 text-left">Email</th>
+                <th class="px-5 py-3 text-left">Joined</th>
+                <th class="px-5 py-3 text-left">Actions</th>
+              </tr></thead>
+              <tbody>
+                {allAdmins?.map(a => (
+                  <tr class="border-t border-gray-50 hover:bg-gray-50">
+                    <td class="px-5 py-3 font-medium">{a.first_name??''} {a.last_name??''}</td>
+                    <td class="px-5 py-3 text-gray-600">{a.email??'—'}</td>
+                    <td class="px-5 py-3 text-gray-400 text-xs">{new Date(a.created_at).toLocaleDateString('en-PH')}</td>
+                    <td class="px-5 py-3">
+                      <button onclick={`demoteUser('${a.id}')`}
+                        class="px-3 py-1 rounded text-xs font-bold border-2 transition hover:bg-gray-50"
+                        style="border-color:#ef4444;color:#ef4444;">
+                        Demote to Customer
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {(!allAdmins||allAdmins.length===0)&&<tr><td colspan="4" class="px-5 py-8 text-center text-gray-400">No admins found.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Customers -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+            <h2 class="font-bold text-lg" style="color:var(--jet-primary);">Customers</h2>
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700">{allCustomers?.length ?? 0}</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                <th class="px-5 py-3 text-left">Name</th>
+                <th class="px-5 py-3 text-left">Email</th>
+                <th class="px-5 py-3 text-left">Joined</th>
+                <th class="px-5 py-3 text-left">Actions</th>
+              </tr></thead>
+              <tbody>
+                {allCustomers?.map(c => (
+                  <tr class="border-t border-gray-50 hover:bg-gray-50">
+                    <td class="px-5 py-3 font-medium">{c.first_name??''} {c.last_name??''}</td>
+                    <td class="px-5 py-3 text-gray-600">{c.email??'—'}</td>
+                    <td class="px-5 py-3 text-gray-400 text-xs">{new Date(c.created_at).toLocaleDateString('en-PH')}</td>
+                    <td class="px-5 py-3">
+                      <button onclick={`promoteUser('${c.id}')`}
+                        class="px-3 py-1 rounded text-xs font-bold border-2 transition hover:bg-gray-50"
+                        style="border-color:var(--butterscotch-primary);color:var(--butterscotch-primary);">
+                        Promote to Admin
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {(!allCustomers||allCustomers.length===0)&&<tr><td colspan="4" class="px-5 py-8 text-center text-gray-400">No customers yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- RESCHEDULE MODAL -->
+<div id="rescheduleModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.5);">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+    <h3 class="text-xl font-bold mb-5" style="color:var(--jet-primary);">Reschedule Booking</h3>
+    <input id="rescheduleBookingId" type="hidden" />
+    <div class="space-y-4">
+      <div><label class="block text-sm font-semibold mb-1">New Event Date</label><input type="date" id="rescheduleEventDate" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none" /></div>
+      <div><label class="block text-sm font-semibold mb-1">New Check-in *</label><input type="date" id="rescheduleStart" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none" required /></div>
+      <div><label class="block text-sm font-semibold mb-1">New Check-out *</label><input type="date" id="rescheduleEnd" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none" required /></div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="closeReschedule()" class="flex-1 py-2 rounded-lg border-2 font-semibold" style="border-color:var(--lion-light);">Cancel</button>
+      <button onclick="submitReschedule()" class="flex-1 py-2 rounded-lg text-white font-semibold" style="background:var(--butterscotch-primary);">Reschedule</button>
+    </div>
+  </div>
+</div>
+
+<!-- VENUE MODAL -->
+<div id="venueModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.5);">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
+    <h3 id="venueModalTitle" class="text-xl font-bold mb-5" style="color:var(--jet-primary);">Add Venue</h3>
+    <input id="venueId" type="hidden" />
+    <div class="space-y-4">
+      <div><label class="block text-sm font-semibold mb-1">Name *</label><input type="text" id="venueName" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none" /></div>
+      <div><label class="block text-sm font-semibold mb-1">Description</label><textarea id="venueDesc" rows="2" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none resize-none"></textarea></div>
+      <div><label class="block text-sm font-semibold mb-1">Location</label><input type="text" id="venueLocation" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none" /></div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="block text-sm font-semibold mb-1">Capacity</label><input type="number" id="venueCapacity" min="1" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none" /></div>
+        <div><label class="block text-sm font-semibold mb-1">Price/Night (₱) *</label><input type="number" id="venuePrice" min="0" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none" /></div>
+      </div>
+      <div><label class="block text-sm font-semibold mb-1">Image URL</label><input type="text" id="venueImage" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none" /></div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="closeVenueModal()" class="flex-1 py-2 rounded-lg border-2 font-semibold" style="border-color:var(--lion-light);">Cancel</button>
+      <button onclick="submitVenue()" class="flex-1 py-2 rounded-lg text-white font-semibold" style="background:var(--butterscotch-primary);">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- PACKAGE MODAL -->
+<div id="packageModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.5);">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
+    <h3 id="packageModalTitle" class="text-xl font-bold mb-5" style="color:var(--jet-primary);">Add Package</h3>
+    <input id="packageId" type="hidden" />
+    <div class="space-y-4">
+      <div><label class="block text-sm font-semibold mb-1">Name *</label><input type="text" id="packageName" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none" /></div>
+      <div><label class="block text-sm font-semibold mb-1">Description</label><textarea id="packageDesc" rows="2" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none resize-none"></textarea></div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="block text-sm font-semibold mb-1">Price (₱) *</label><input type="number" id="packagePrice" min="0" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none" /></div>
+        <div><label class="block text-sm font-semibold mb-1">Max Pax</label><input type="number" id="packageMaxPax" min="1" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none" /></div>
+      </div>
+      <div><label class="block text-sm font-semibold mb-1">Inclusions</label><textarea id="packageInclusions" rows="2" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none resize-none" placeholder="e.g. Tables, Chairs, Sound System"></textarea></div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="closePackageModal()" class="flex-1 py-2 rounded-lg border-2 font-semibold" style="border-color:var(--lion-light);">Cancel</button>
+      <button onclick="submitPackage()" class="flex-1 py-2 rounded-lg text-white font-semibold" style="background:var(--butterscotch-primary);">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="hidden fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl text-white text-sm font-semibold shadow-lg"></div>
+</Layout>
+
+<style>
+  main { padding-top: 0 !important; }
+  header#navbar { display: none !important; }
+  footer { display: none !important; }
+  .nav-btn.active { background: rgba(237,155,64,0.15); color: #ed9b40; }
+  .filter-btn.active { background: var(--butterscotch-primary); color: white; border-color: var(--butterscotch-primary); }
+  .line-clamp-2 { display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
+</style>
+
+<script>
+const tabTitles: Record<string,string> = {
+  dashboard:'Dashboard',bookings:'Bookings',venues:'Venues',
+  packages:'Packages',reviews:'Reviews',users:'Users'
+};
+function switchTab(id: string) {
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.add('hidden'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-${id}`)?.classList.remove('hidden');
+  document.querySelectorAll<HTMLElement>(`[data-tab="${id}"]`).forEach(b => b.classList.add('active'));
+  const t = document.getElementById('page-title');
+  if (t) t.textContent = tabTitles[id]??id;
+}
+document.querySelectorAll<HTMLElement>('.nav-btn[data-tab]').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab!));
+});
+switchTab('dashboard');
+
+document.querySelectorAll<HTMLElement>('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const f = btn.dataset.filter!;
+    document.querySelectorAll<HTMLElement>('.booking-row').forEach(r => {
+      r.style.display = (f==='all'||r.dataset.status===f)?'':'none';
+    });
+  });
+});
+document.querySelector<HTMLElement>('[data-filter="all"]')?.classList.add('active');
+
+document.getElementById('bookingSearch')?.addEventListener('input', (e) => {
+  const q = (e.target as HTMLInputElement).value.toLowerCase();
+  document.querySelectorAll<HTMLElement>('.booking-row').forEach(r => {
+    r.style.display = (r.dataset.search??'').toLowerCase().includes(q)?'':'none';
+  });
+});
+
+function toast(msg: string, ok=true) {
+  const el = document.getElementById('toast')!;
+  el.textContent = msg;
+  el.style.background = ok ? '#10b981' : '#ef4444';
+  el.classList.remove('hidden');
+  setTimeout(()=>el.classList.add('hidden'),3500);
+}
+
+async function confirmBooking(id: string) {
+  if (!confirm('Confirm this booking?')) return;
+  const r = await fetch('/api/bookings/ConfirmBookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:id})});
+  r.ok?(toast('Booking confirmed ✓'),location.reload()):toast('Failed to confirm',false);
+}
+async function cancelBooking(id: string) {
+  if (!confirm('Cancel this booking?')) return;
+  const r = await fetch('/api/bookings/CancelBookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:id})});
+  r.ok?(toast('Booking cancelled'),location.reload()):toast('Failed to cancel',false);
+}
+function openReschedule(id: string) {
+  (document.getElementById('rescheduleBookingId') as HTMLInputElement).value = id;
+  document.getElementById('rescheduleModal')?.classList.remove('hidden');
+}
+function closeReschedule() { document.getElementById('rescheduleModal')?.classList.add('hidden'); }
+async function submitReschedule() {
+  const id    = (document.getElementById('rescheduleBookingId') as HTMLInputElement).value;
+  const start = (document.getElementById('rescheduleStart') as HTMLInputElement).value;
+  const end   = (document.getElementById('rescheduleEnd') as HTMLInputElement).value;
+  const ev    = (document.getElementById('rescheduleEventDate') as HTMLInputElement).value;
+  if (!start||!end){toast('Dates required',false);return;}
+  const r = await fetch('/api/admin/reschedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:id,newStartDate:start,newEndDate:end,newEventDate:ev||null})});
+  r.ok?(toast('Rescheduled ✓'),closeReschedule(),location.reload()):toast('Failed to reschedule',false);
+}
+
+function openVenueModal(jsonStr?: string) {
+  const title = document.getElementById('venueModalTitle')!;
+  if (jsonStr) {
+    const v = JSON.parse(jsonStr);
+    (document.getElementById('venueId') as HTMLInputElement).value = v.id;
+    (document.getElementById('venueName') as HTMLInputElement).value = v.name??'';
+    (document.getElementById('venueDesc') as HTMLTextAreaElement).value = v.description??'';
+    (document.getElementById('venueLocation') as HTMLInputElement).value = v.location??'';
+    (document.getElementById('venueCapacity') as HTMLInputElement).value = v.capacity??'';
+    (document.getElementById('venuePrice') as HTMLInputElement).value = v.price_per_night??'';
+    (document.getElementById('venueImage') as HTMLInputElement).value = v.image_url??'';
+    title.textContent = 'Edit Venue';
+  } else {
+    ['venueId','venueName','venueDesc','venueLocation','venueCapacity','venuePrice','venueImage']
+      .forEach(i=>{const e=document.getElementById(i) as HTMLInputElement;if(e)e.value='';});
+    title.textContent = 'Add Venue';
+  }
+  document.getElementById('venueModal')?.classList.remove('hidden');
+}
+function closeVenueModal(){document.getElementById('venueModal')?.classList.add('hidden');}
+async function submitVenue(){
+  const id=(document.getElementById('venueId') as HTMLInputElement).value;
+  const body={
+    name:(document.getElementById('venueName') as HTMLInputElement).value,
+    description:(document.getElementById('venueDesc') as HTMLTextAreaElement).value||null,
+    location:(document.getElementById('venueLocation') as HTMLInputElement).value||null,
+    capacity:parseInt((document.getElementById('venueCapacity') as HTMLInputElement).value)||null,
+    price_per_night:parseFloat((document.getElementById('venuePrice') as HTMLInputElement).value),
+    image_url:(document.getElementById('venueImage') as HTMLInputElement).value||null,
+  };
+  const r=await fetch(id?`/api/venues/${id}`:'/api/venues',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  r.ok?(toast(id?'Venue updated ✓':'Venue created ✓'),closeVenueModal(),location.reload()):toast('Failed to save venue',false);
+}
+async function toggleVenue(id:string,isActive:boolean){
+  if(!confirm(isActive?'Deactivate this venue?':'Activate this venue?'))return;
+  const r=await fetch(`/api/venues/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({is_active:!isActive})});
+  r.ok?(toast('Venue updated ✓'),location.reload()):toast('Failed',false);
+}
+
+function openPackageModal(jsonStr?: string) {
+  const title=document.getElementById('packageModalTitle')!;
+  if (jsonStr) {
+    const p=JSON.parse(jsonStr);
+    (document.getElementById('packageId') as HTMLInputElement).value=p.id;
+    (document.getElementById('packageName') as HTMLInputElement).value=p.name??'';
+    (document.getElementById('packageDesc') as HTMLTextAreaElement).value=p.description??'';
+    (document.getElementById('packagePrice') as HTMLInputElement).value=p.price??'';
+    (document.getElementById('packageMaxPax') as HTMLInputElement).value=p.max_pax??'';
+    (document.getElementById('packageInclusions') as HTMLTextAreaElement).value=p.inclusions??'';
+    title.textContent='Edit Package';
+  } else {
+    ['packageId','packageName','packageDesc','packagePrice','packageMaxPax','packageInclusions']
+      .forEach(i=>{const e=document.getElementById(i) as HTMLInputElement;if(e)e.value='';});
+    title.textContent='Add Package';
+  }
+  document.getElementById('packageModal')?.classList.remove('hidden');
+}
+function closePackageModal(){document.getElementById('packageModal')?.classList.add('hidden');}
+async function submitPackage(){
+  const id=(document.getElementById('packageId') as HTMLInputElement).value;
+  const body={
+    name:(document.getElementById('packageName') as HTMLInputElement).value,
+    description:(document.getElementById('packageDesc') as HTMLTextAreaElement).value||null,
+    price:parseFloat((document.getElementById('packagePrice') as HTMLInputElement).value),
+    max_pax:parseInt((document.getElementById('packageMaxPax') as HTMLInputElement).value)||null,
+    inclusions:(document.getElementById('packageInclusions') as HTMLTextAreaElement).value||null,
+  };
+  const r=await fetch(id?`/api/packages/${id}`:'/api/packages',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  r.ok?(toast(id?'Package updated ✓':'Package created ✓'),closePackageModal(),location.reload()):toast('Failed to save package',false);
+}
+async function togglePackage(id:string,isActive:boolean){
+  if(!confirm(isActive?'Deactivate?':'Activate?'))return;
+  const r=await fetch(`/api/packages/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({is_active:!isActive})});
+  r.ok?(toast('Package updated ✓'),location.reload()):toast('Failed',false);
+}
+
+async function promoteUser(id:string){
+  if(!confirm('Promote this customer to admin?'))return;
+  const r=await fetch('/api/admin/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:id,action:'promote'})});
+  r.ok?(toast('Promoted to admin ✓'),location.reload()):toast('Failed to promote',false);
+}
+async function demoteUser(id:string){
+  if(!confirm('Demote this admin to customer?'))return;
+  const r=await fetch('/api/admin/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:id,action:'demote'})});
+  r.ok?(toast('Demoted to customer ✓'),location.reload()):toast('Failed to demote',false);
+}
+
+['rescheduleModal','venueModal','packageModal'].forEach(id=>{
+  document.getElementById(id)?.addEventListener('click',(e)=>{
+    if(e.target===document.getElementById(id))document.getElementById(id)?.classList.add('hidden');
+  });
+});
+
+(window as any).confirmBooking=confirmBooking;
+(window as any).cancelBooking=cancelBooking;
+(window as any).openReschedule=openReschedule;
+(window as any).closeReschedule=closeReschedule;
+(window as any).submitReschedule=submitReschedule;
+(window as any).openVenueModal=openVenueModal;
+(window as any).closeVenueModal=closeVenueModal;
+(window as any).submitVenue=submitVenue;
+(window as any).toggleVenue=toggleVenue;
+(window as any).openPackageModal=openPackageModal;
+(window as any).closePackageModal=closePackageModal;
+(window as any).submitPackage=submitPackage;
+(window as any).togglePackage=togglePackage;
+
+</script>

@@ -1,80 +1,50 @@
 ---
 import ShowButton from '../components/showButton.astro';
 import Layout from '../layouts/Layout.astro';
-// This page needs access to request cookies/headers at render time.
-// Disable prerender so `Astro.request.headers` (and `Astro.cookies`) are available.
 export const prerender = false;
 
-const { cookies, redirect } = Astro;
-const hasSession =
-  cookies.get('sb-access-token') && cookies.get('sb-refresh-token');
+const { cookies, url } = Astro;
+const hasSession = cookies.get('sb-access-token') && cookies.get('sb-refresh-token');
+if (hasSession) return Astro.redirect('/dashboard');
 
-if (hasSession) {
-  return redirect('/dashboard');
-}
+const errorMsg = url.searchParams.get('error');
 ---
 
 <Layout title="Sign in">
-  <div class="w-full h-[69vh] flex justify-center items-center">
-    <div id="formBox" class="w-[50%] h-auto ring-2 rounded-xl">
-      <div
-        id="formHeader"
-        class="border-b w-full h-auto px-6 py-3 flex justify-between"
-      >
-        <h1 class="text-[2em] font-bold">Log in existing account</h1>
-        <a
-          href="/"
-          class="flex justify-center items-center text-[1.2em] rounded-2xl py-1 px-5 ring-1 bg-red-400 hover:bg-red-500"
-          >Back</a
-        >
+  <div class="w-full min-h-[69vh] flex justify-center items-center py-12">
+    <div id="formBox" class="w-full max-w-md ring-2 rounded-xl mx-4">
+      <div id="formHeader" class="border-b w-full px-6 py-4 flex justify-between items-center">
+        <h1 class="text-2xl font-bold">Log in</h1>
+        <a href="/" class="flex justify-center items-center text-sm rounded-2xl py-1 px-4 ring-1 bg-red-400 hover:bg-red-500 text-white">Back</a>
       </div>
 
-      <form action="/api/auth/signin" method="post" class="px-5 py-10">
-        <div
-          class="w-full h-auto grid grid-cols-12 grid-rows-2 items-center gap-5"
-        >
-          <label
-            for="email"
-            class="col-start-1 col-span-2 text-[1.2em] font-bold">Email</label
-          >
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            class="p-2 indent-4 rounded ring w-auto col-start-3 -col-end-4"
-          />
-          <label
-            for="password"
-            class="col-start-1 col-span-2 text-[1.2em] font-bold"
-            >Password</label
-          >
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            class="p-2 indent-4 rounded ring w-auto col-start-3 -col-end-4"
-          /><ShowButton />
+      {errorMsg && (
+        <div class="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {decodeURIComponent(errorMsg)}
         </div>
-        <div class="mt-10 w-full h-auto flex justify-center items-center">
-          <button
-            type="submit"
-            class="max-w-[20ch] text-[2em] text-white font-bold rounded-2xl py-2 px-5 bg-blue-400 hover:bg-blue-500 hover:cursor-pointer"
-            >Log in</button
-          >
+      )}
+
+      <form action="/api/auth/signin" method="post" class="px-6 py-8 space-y-5">
+        <div>
+          <label for="email" class="block text-sm font-bold mb-1">Email</label>
+          <input id="email" name="email" type="email" required
+            class="w-full p-2 pl-4 rounded ring focus:outline-none focus:ring-2" />
         </div>
+        <div class="relative">
+          <label for="password" class="block text-sm font-bold mb-1">Password</label>
+          <input id="password" name="password" type="password" required
+            class="w-full p-2 pl-4 rounded ring focus:outline-none focus:ring-2" />
+          <ShowButton />
+        </div>
+        <button type="submit"
+          class="w-full text-lg text-white font-bold rounded-2xl py-2 px-5 bg-blue-400 hover:bg-blue-500 hover:cursor-pointer transition">
+          Log in
+        </button>
       </form>
-      <p class="mt-5 flex justify-end py-2 px-5 gap-2">
+      <p class="flex justify-end pb-4 px-6 gap-2 text-sm">
         New here?
-        <a
-          href="/signup"
-          class="text-blue-500 hover:text-blue-800 hover:pointer-cursor underline"
-          >Create an account</a
-        >
+        <a href="/signup" class="text-blue-500 hover:text-blue-800 underline">Create an account</a>
       </p>
     </div>
   </div>
 </Layout>
-
-<script></script>

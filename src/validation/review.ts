@@ -1,14 +1,19 @@
 import { z } from "zod";
 
-export const reviewSchema = z.object({
-    userId: z.string().uuid("Invalid user ID"),
-    venueId: z.string().uuid("Invalid venue ID"),
-    rating: z
-        .number()
-        .int()
-        .min(1, "Minimum rating is 1")
-        .max(5, "Maximum rating is 5"),
-    comment: z.string().max(500, "Comment too long").optional(),
+/**
+ * POST /api/reviews
+ *
+ * Required:
+ *   bookingId  string (UUID) — must be a confirmed booking owned by the user
+ *   rating     number 1–5
+ *
+ * Optional:
+ *   comment    string (max 1000 chars)
+ */
+export const addReviewSchema = z.object({
+  bookingId: z.string().uuid("bookingId must be a valid UUID"),
+  rating:    z.number().int().min(1, "rating min is 1").max(5, "rating max is 5"),
+  comment:   z.string().max(1000, "comment max 1000 chars").optional(),
 });
 
-export type ReviewInput = z.infer<typeof reviewSchema>;
+export type AddReviewInput = z.infer<typeof addReviewSchema>;
