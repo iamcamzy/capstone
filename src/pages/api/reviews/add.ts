@@ -29,8 +29,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     .eq("id", bookingId)
     .single();
 
-  if (!booking)                      return error("Booking not found", 404);
-  if (booking.user_id !== user.id)   return error("You can only review your own bookings", 403);
+  if (!booking)                       return error("Booking not found", 404);
+  if (booking.user_id !== user.id)    return error("You can only review your own bookings", 403);
   if (booking.status !== "confirmed") return error("You can only review confirmed bookings", 400);
 
   // One review per booking
@@ -43,17 +43,22 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   if (existing) return error("You have already reviewed this booking", 409);
 
-  const { data: reviewId, error: rpcError } = await supabase.rpc("add_review", {
-    p_user_id:    user.id,
-    p_booking_id: bookingId,
-    p_rating:     rating,
-    p_comment:    comment ?? null,
-  });
+  // Direct insert — no RPC needed
+  const { data: review, error: insertError } = await supabase
+    .from("reviews")
+    .insert({
+      user_id:    user.id,
+      booking_id: bookingId,
+      rating:     rating,
+      comment:    comment ?? null,
+    })
+    .select("id")
+    .single();
 
-  if (rpcError) {
-    console.error("[AddReview]", rpcError.message);
-    return error(rpcError.message, 500);
+  if (insertError) {
+    console.error("[AddReview]", insertError.message);
+    return error(insertError.message, 500);
   }
 
-  return created({ reviewId, message: "Review added successfully" });
+  return created({ reviewId: review.id, message: "Review added successfully" });
 };

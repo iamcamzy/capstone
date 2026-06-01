@@ -1,20 +1,15 @@
 import { z } from "zod";
 
-/**
- * POST /api/auth/signin  (form data)
- *   email, password
- *
- * POST /api/auth/signup  (JSON body)
- *   email, password, firstName?, lastName?
- */
 export const signInSchema = z.object({
   email:    z.string().email("Invalid email"),
-  password: z.string().min(1, "Password is required"),
+  password: z.string().min(1, "Password is required").max(128, "Password too long"),
 });
 
 export const signUpSchema = z.object({
   email:     z.string().email("Invalid email"),
-  password:  z.string().min(6, "Password must be at least 6 characters"),
+  password:  z.string()
+               .min(6, "Password must be at least 6 characters")
+               .max(128, "Password must be at most 128 characters"),
   firstName: z.string().min(1).max(100).optional(),
   lastName:  z.string().min(1).max(100).optional(),
 });

@@ -1,11 +1,13 @@
 // POST /api/admin/reschedule — reschedule a booking (admin only)
 import type { APIRoute } from "astro";
-import { supabase } from "../../../lib/supabase";
+import { supabaseAdmin, supabase } from "../../../lib/supabase";
 import { adminGuard } from "../../../lib/adminGuard";
 import { ok, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
 
 export const prerender = false;
+
+const db = supabaseAdmin ?? supabase;
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const guard = await adminGuard(cookies);
@@ -29,17 +31,35 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return error("newEndDate must be after newStartDate", 400);
   }
 
-  const { data: newBookingId, error: rpcError } = await supabase.rpc("reschedule_booking", {
-    p_booking_id:     bookingId,
-    p_new_start:      newStartDate,
-    p_new_end:        newEndDate,
-    p_new_event_date: newEventDate ?? null,
-  } as any);
+  // Fetch booking to confirm it exists
+  const { data: booking, error: fetchError } = await db
+    .from("bookings")
+    .select("id, status")
+    .eq("id", bookingId)
+    .single();
 
-  if (rpcError) {
-    console.error("[Reschedule]", rpcError.message);
-    return error(rpcError.message, 500);
+  if (fetchError || !booking) return error("Booking not found", 404);
+  if (booking.status === "cancelled") return error("Cannot reschedule a cancelled booking", 400);
+
+  // Build update object
+  const updateData: Record<string, string> = {
+    status: "rescheduled",
+    start_date: newStartDate,
+    end_date: newEndDate,
+    rescheduled_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  if (newEventDate) updateData.event_date = newEventDate;
+
+  const { error: updateError } = await db
+    .from("bookings")
+    .update(updateData)
+    .eq("id", bookingId);
+
+  if (updateError) {
+    console.error("[Reschedule]", updateError.message);
+    return error(updateError.message, 500);
   }
 
-  return ok({ message: "Booking rescheduled successfully", newBookingId });
+  return ok({ message: "Booking rescheduled successfully", bookingId });
 };

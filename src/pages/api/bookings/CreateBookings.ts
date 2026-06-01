@@ -9,15 +9,12 @@ import { parseBody } from "../../../lib/parseBody";
 export const prerender = false;
 
 export const POST: APIRoute = async ({ request, cookies }) => {
-  // 1. Auth
   const user = await getUser(cookies);
   if (!user) return error("Unauthorized — please sign in", 401);
 
-  // 2. Parse body
   const body = await parseBody(request);
   if (!body.ok) return body.response;
 
-  // 3. Validate
   const parsed = createBookingSchema.safeParse(body.data);
   if (!parsed.success) {
     return error(parsed.error.errors.map((e) => e.message).join(", "), 400);
@@ -26,7 +23,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const { venueId, startDate, endDate, eventDate, eventType, packageId, pax,
           fullName, phone, specialRequests } = parsed.data;
 
-  // 4. Overlap check — prevent double-booking
+  // Overlap check
   const { data: overlap } = await supabase
     .from("bookings")
     .select("id")
@@ -40,41 +37,64 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return error("This venue is already booked for the selected dates", 409);
   }
 
-  // 5. Venue exists and is active
+  // Venue check
   const { data: venue } = await supabase
     .from("venues")
     .select("price_per_night, is_active, name")
     .eq("id", venueId)
     .single();
 
-  if (!venue)         return error("Venue not found", 404);
+  if (!venue)           return error("Venue not found", 404);
   if (!venue.is_active) return error("This venue is not available for booking", 400);
 
-  // 6. Create via stored procedure (handles price calc + status timestamps)
-  const { data: bookingId, error: rpcError } = await supabase.rpc("create_booking", {
-    p_user_id:          user.id,
-    p_venue_id:         venueId,
-    p_start_date:       startDate,
-    p_end_date:         endDate,
-    p_event_date:       eventDate        ?? null,
-    p_event_type:       eventType        ?? null,
-    p_package_id:       packageId        ?? null,
-    p_pax:              pax              ?? null,
-    p_full_name:        fullName         ?? null,
-    p_phone:            phone            ?? null,
-    p_special_requests: specialRequests  ?? null,
-  });
-
-  if (rpcError) {
-    console.error("[CreateBookings]", rpcError.message);
-    return error(rpcError.message, 500);
-  }
-
-  // 7. Calculate price for the response (for display — actual price is set by the RPC)
-  const nights = Math.ceil(
+  // Calculate price
+  const nights = Math.max(1, Math.ceil(
     (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000
-  );
+  ));
   const totalPrice = nights * Number(venue.price_per_night);
 
-  return created({ bookingId, totalPrice, message: "Booking created successfully" });
+  // Package price addition
+  let packagePrice = 0;
+  if (packageId) {
+    const { data: pkg } = await supabase
+      .from("packages")
+      .select("price")
+      .eq("id", packageId)
+      .single();
+    if (pkg) packagePrice = Number(pkg.price);
+  }
+
+  // Direct insert — no RPC needed
+  const { data: newBooking, error: insertError } = await supabase
+    .from("bookings")
+    .insert({
+      user_id:          user.id,
+      venue_id:         venueId,
+      start_date:       startDate,
+      end_date:         endDate,
+      event_date:       eventDate        ?? null,
+      event_type:       eventType        ?? null,
+      package_id:       packageId        ?? null,
+      pax:              pax              ?? null,
+      full_name:        fullName         ?? null,
+      phone:            phone            ?? null,
+      special_requests: specialRequests  ?? null,
+      total_price:      totalPrice + packagePrice,
+      status:           "pending",
+      created_at:       new Date().toISOString(),
+      updated_at:       new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (insertError) {
+    console.error("[CreateBookings]", insertError.message);
+    return error(insertError.message, 500);
+  }
+
+  return created({
+    bookingId:   newBooking.id,
+    totalPrice:  totalPrice + packagePrice,
+    message:     "Booking created successfully",
+  });
 };
