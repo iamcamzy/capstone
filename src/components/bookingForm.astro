@@ -1,5 +1,5 @@
 ---
-const { venueId, pricePerNight } = Astro.props;
+const { venueId, venueName, pricePerNight } = Astro.props;
 ---
 
 <div id="booking-form">
@@ -7,170 +7,73 @@ const { venueId, pricePerNight } = Astro.props;
     Complete Your Booking
   </h2>
 
+  <!-- Notification banner -->
+  <div id="bookingNotice" class="hidden mb-4 px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-2"></div>
+
   <form id="bookingForm" class="space-y-6">
     <!-- Guest Information -->
     <div class="space-y-4">
-      <h3 class="text-lg font-semibold" style="color: var(--lion-primary);">
-        Guest Information
-      </h3>
-
+      <h3 class="text-lg font-semibold" style="color: var(--lion-primary);">Guest Information</h3>
       <div>
-        <label
-          for="fullName"
-          class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);"
-        >
-          Full Name *
-        </label>
-        <input
-          type="text"
-          id="fullName"
-          name="fullName"
-          required
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all"
-          style="focus:ring-color: var(--butterscotch-primary);"
-        />
+        <label for="fullName" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Full Name *</label>
+        <input type="text" id="fullName" name="fullName" required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
       </div>
-
       <div>
-        <label
-          for="email"
-          class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);"
-        >
-          Email Address *
-        </label>
-        <input
-          type="email"
-          id="email"
-          name="email"
-          required
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all"
-          style="focus:ring-color: var(--butterscotch-primary);"
-        />
+        <label for="email" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Email Address *</label>
+        <input type="email" id="email" name="email" required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
       </div>
-
       <div>
-        <label
-          for="phone"
-          class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);"
-        >
-          Phone Number *
-        </label>
-        <input
-          type="tel"
-          id="phone"
-          name="phone"
-          required
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all"
-          style="focus:ring-color: var(--butterscotch-primary);"
-        />
+        <label for="phone" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Phone Number *</label>
+        <input type="tel" id="phone" name="phone" required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
       </div>
     </div>
 
     <!-- Booking Details -->
     <div class="space-y-4 pt-6 border-t border-gray-200">
-      <h3 class="text-lg font-semibold" style="color: var(--lion-primary);">
-        Booking Details
-      </h3>
-
+      <h3 class="text-lg font-semibold" style="color: var(--lion-primary);">Booking Details</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label
-            for="checkIn"
-            class="block text-sm font-medium mb-2"
-            style="color: var(--jet-primary);"
-          >
-            Check-in Date *
-          </label>
-          <input
-            type="date"
-            id="checkIn"
-            name="checkIn"
-            required
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all"
-            style="focus:ring-color: var(--butterscotch-primary);"
-          />
+          <label for="checkIn" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Check-in Date *</label>
+          <input type="date" id="checkIn" name="checkIn" required
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
         </div>
-
         <div>
-          <label
-            for="checkOut"
-            class="block text-sm font-medium mb-2"
-            style="color: var(--jet-primary);"
-          >
-            Check-out Date *
-          </label>
-          <input
-            type="date"
-            id="checkOut"
-            name="checkOut"
-            required
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all"
-            style="focus:ring-color: var(--butterscotch-primary);"
-          />
+          <label for="checkOut" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Check-out Date *</label>
+          <input type="date" id="checkOut" name="checkOut" required
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
         </div>
       </div>
-
       <div>
-        <label
-          for="guests"
-          class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);"
-        >
-          Number of Guests *
-        </label>
-        <input
-          type="number"
-          id="guests"
-          name="guests"
-          min="1"
-          required
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all"
-          style="focus:ring-color: var(--butterscotch-primary);"
-        />
+        <label for="eventDate" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Event Date *</label>
+        <input type="date" id="eventDate" name="eventDate" required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
       </div>
-
       <div>
-        <label
-          for="eventType"
-          class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);"
-        >
-          Event Type *
-        </label>
-        <select
-          id="eventType"
-          name="eventType"
-          required
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all"
-          style="focus:ring-color: var(--butterscotch-primary);"
-        >
+        <label for="guests" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Number of Guests *</label>
+        <input type="number" id="guests" name="guests" min="1" required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+      </div>
+      <div>
+        <label for="eventType" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Event Type *</label>
+        <select id="eventType" name="eventType" required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all">
           <option value="">Select event type</option>
           <option value="wedding">Wedding</option>
           <option value="birthday">Birthday Party</option>
           <option value="corporate">Corporate Event</option>
           <option value="conference">Conference</option>
+          <option value="debut">Debut</option>
           <option value="other">Other</option>
         </select>
       </div>
-
       <div>
-        <label
-          for="specialRequests"
-          class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);"
-        >
-          Special Requests
-        </label>
-        <textarea
-          id="specialRequests"
-          name="specialRequests"
-          rows="4"
+        <label for="specialRequests" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Special Requests <span class="text-gray-400 font-normal">(optional)</span></label>
+        <textarea id="specialRequests" name="specialRequests" rows="4"
           placeholder="Any special requests or requirements..."
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition-all resize-none"
-          style="focus:ring-color: var(--butterscotch-primary);"></textarea>
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all resize-none"></textarea>
       </div>
     </div>
 
@@ -179,108 +82,312 @@ const { venueId, pricePerNight } = Astro.props;
       <div class="bg-gray-50 rounded-lg p-4 space-y-2 mb-6">
         <div class="flex justify-between text-sm">
           <span class="text-gray-600">Price per night</span>
-          <span style="color: var(--butterscotch-primary);">
-            ${pricePerNight.toFixed(2)}
-          </span>
+          <span style="color: var(--butterscotch-primary);" id="pricePerNightDisplay"></span>
         </div>
-        <div class="flex justify-between text-sm" id="nightsBreakdown">
+        <div class="flex justify-between text-sm">
           <span class="text-gray-600">Number of nights</span>
           <span id="nightsCount">0</span>
         </div>
-        <div
-          class="flex justify-between font-bold pt-2 border-t border-gray-200"
-          style="color: var(--jet-primary);"
-        >
-          <span>Total</span>
-          <span id="totalPrice" style="color: var(--butterscotch-primary);"
-            >$0.00</span
-          >
+        <div class="flex justify-between font-bold pt-2 border-t border-gray-200" style="color: var(--jet-primary);">
+          <span>Estimated Total</span>
+          <span id="totalPrice" style="color: var(--butterscotch-primary);">₱0.00</span>
         </div>
       </div>
     </div>
 
     <!-- Submit Button -->
-    <button
-      type="submit"
+    <button type="submit"
       class="w-full py-3 px-4 text-white font-semibold rounded-lg transition-all hover:opacity-90 text-center"
       style="background-color: var(--butterscotch-primary);"
-      id="submitBtn"
-    >
-      Complete Booking
+      id="submitBtn">
+      Review Booking →
     </button>
-
-    <p class="text-xs text-gray-500 text-center">
-      By booking, you agree to our terms and conditions
-    </p>
+    <p class="text-xs text-gray-500 text-center">By booking, you agree to our terms and conditions</p>
   </form>
 </div>
 
-<script is:inline define:vars={{ venueId, pricePerNight }}>
-  const form = document.getElementById('bookingForm');
-  const checkInInput = document.getElementById('checkIn');
-  const checkOutInput = document.getElementById('checkOut');
-  const nightsCountEl = document.getElementById('nightsCount');
-  const totalPriceEl = document.getElementById('totalPrice');
-  const submitBtn = document.getElementById('submitBtn');
+<!-- ── BOOKING CONFIRMATION MODAL (Figure 16) ─────────────────────── -->
+<div id="bookingConfirmModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.6);">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden max-h-[92vh] overflow-y-auto">
 
-  function calculatePrice() {
-    if (checkInInput.value && checkOutInput.value) {
-      const checkIn = new Date(checkInInput.value);
-      const checkOut = new Date(checkOutInput.value);
-      const nights = Math.max(
-        1,
-        Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24))
-      );
+    <!-- Header -->
+    <div class="px-7 pt-7 pb-4 border-b border-gray-100">
+      <div class="flex items-center gap-3 mb-1">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl" style="background:#ed9b4020;">📋</div>
+        <h3 class="text-xl font-black" style="color:var(--jet-primary);">Review Your Booking</h3>
+      </div>
+      <p class="text-sm text-gray-500">Please review your booking details before submitting.</p>
+    </div>
 
-      nightsCountEl.textContent = nights;
-      const total = nights * pricePerNight;
-      totalPriceEl.textContent = '$' + total.toFixed(2);
-    }
+    <!-- Summary body -->
+    <div class="px-7 py-5 space-y-4">
+
+      <!-- Venue -->
+      <div class="rounded-xl p-4" style="background:#f9f7f4;">
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">Venue</p>
+        <p id="conf-venue" class="font-bold text-lg" style="color:var(--jet-primary);"></p>
+      </div>
+
+      <!-- Guest info -->
+      <div>
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Guest Information</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-400">Full Name</p>
+            <p id="conf-name" class="font-semibold text-sm mt-0.5"></p>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-400">Phone</p>
+            <p id="conf-phone" class="font-semibold text-sm mt-0.5"></p>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3 col-span-2">
+            <p class="text-xs text-gray-400">Email</p>
+            <p id="conf-email" class="font-semibold text-sm mt-0.5"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Booking dates -->
+      <div>
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Booking Details</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-400">Check-in</p>
+            <p id="conf-checkin" class="font-semibold text-sm mt-0.5"></p>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-400">Check-out</p>
+            <p id="conf-checkout" class="font-semibold text-sm mt-0.5"></p>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-400">Event Date</p>
+            <p id="conf-eventdate" class="font-semibold text-sm mt-0.5"></p>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-400">Guests</p>
+            <p id="conf-guests" class="font-semibold text-sm mt-0.5"></p>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-400">Event Type</p>
+            <p id="conf-eventtype" class="font-semibold text-sm mt-0.5"></p>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-400">Nights</p>
+            <p id="conf-nights" class="font-semibold text-sm mt-0.5"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Special requests -->
+      <div id="conf-requests-wrap" class="hidden">
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Special Requests</p>
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p id="conf-requests" class="text-sm text-gray-700 italic"></p>
+        </div>
+      </div>
+
+      <!-- Price total -->
+      <div class="rounded-xl p-4 border-2" style="border-color:var(--butterscotch-primary);background:#fffbf5;">
+        <div class="flex justify-between items-center">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Estimated Total</p>
+            <p class="text-xs text-gray-400 mt-0.5">Subject to final confirmation by staff</p>
+          </div>
+          <p id="conf-total" class="text-2xl font-black" style="color:var(--butterscotch-primary);"></p>
+        </div>
+      </div>
+
+      <p class="text-xs text-gray-400 text-center">
+        Your booking will be <strong>pending review</strong> until confirmed by our staff. You will be notified once confirmed.
+      </p>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="px-7 pb-7 flex gap-3">
+      <button id="conf-back-btn"
+        class="flex-1 py-3 rounded-xl border-2 font-semibold text-sm transition hover:bg-gray-50"
+        style="border-color:#d1d5db;color:#374151;">
+        ← Go Back & Edit
+      </button>
+      <button id="conf-submit-btn"
+        class="flex-1 py-3 rounded-xl text-white font-bold text-sm transition hover:opacity-90"
+        style="background:var(--butterscotch-primary);">
+        Submit Booking Request
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── BOOKING SUCCESS SCREEN (Figure 16 — after submit) ────────────── -->
+<div id="bookingSuccessScreen" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.6);">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 text-center">
+    <div class="w-20 h-20 rounded-full flex items-center justify-center text-4xl mx-auto mb-4" style="background:#10b98120;">✅</div>
+    <h3 class="text-2xl font-black mb-2" style="color:var(--jet-primary);">Booking Submitted!</h3>
+    <p class="text-gray-500 text-sm mb-2">Your booking request has been successfully recorded.</p>
+    <p class="text-gray-500 text-sm mb-6">Our staff will review and confirm your request. You can track your booking status in your dashboard.</p>
+    <div class="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+      <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Booking Reference</p>
+      <p id="success-ref" class="font-mono font-bold text-sm" style="color:var(--butterscotch-primary);"></p>
+      <p id="success-venue" class="text-sm text-gray-600 mt-1"></p>
+      <p id="success-dates" class="text-sm text-gray-600"></p>
+    </div>
+    <p class="text-xs text-gray-400 mb-5">Redirecting to your dashboard in <span id="success-countdown">5</span>s...</p>
+    <a href="/dashboard"
+      class="block w-full py-3 rounded-xl text-white font-bold text-sm transition hover:opacity-90"
+      style="background:var(--butterscotch-primary);">
+      Go to Dashboard Now
+    </a>
+  </div>
+</div>
+
+<script is:inline define:vars={{ venueId, venueName, pricePerNight }}>
+  var form         = document.getElementById('bookingForm');
+  var checkInInput = document.getElementById('checkIn');
+  var checkOutInput= document.getElementById('checkOut');
+  var eventDateInput = document.getElementById('eventDate');
+  var nightsCountEl= document.getElementById('nightsCount');
+  var totalPriceEl = document.getElementById('totalPrice');
+  var submitBtn    = document.getElementById('submitBtn');
+  var noticeEl     = document.getElementById('bookingNotice');
+  var confirmModal = document.getElementById('bookingConfirmModal');
+  var successScreen= document.getElementById('bookingSuccessScreen');
+  var confBackBtn  = document.getElementById('conf-back-btn');
+  var confSubmitBtn= document.getElementById('conf-submit-btn');
+
+  // Set price display
+  var ppnDisplay = document.getElementById('pricePerNightDisplay');
+  if (ppnDisplay) ppnDisplay.textContent = '₱' + Number(pricePerNight).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+
+  function fmtDate(str) {
+    if (!str) return '—';
+    var d = new Date(str + 'T00:00:00');
+    return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
   }
 
-  checkInInput?.addEventListener('change', calculatePrice);
-  checkOutInput?.addEventListener('change', calculatePrice);
+  function showNotice(msg, type) {
+    if (!noticeEl) return;
+    noticeEl.className = 'mb-4 px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-2 '
+      + (type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
+    noticeEl.innerHTML = (type === 'success' ? '✅ ' : '❌ ') + msg;
+    noticeEl.classList.remove('hidden');
+    noticeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 
-  form.addEventListener('submit', async (e) => {
+  function calculateNights() {
+    if (checkInInput.value && checkOutInput.value) {
+      var checkIn  = new Date(checkInInput.value);
+      var checkOut = new Date(checkOutInput.value);
+      var nights = Math.max(1, Math.ceil((checkOut - checkIn) / 86400000));
+      nightsCountEl.textContent = nights;
+      var total = nights * pricePerNight;
+      totalPriceEl.textContent = '₱' + total.toLocaleString('en-PH', { minimumFractionDigits: 2 });
+      return nights;
+    }
+    return 0;
+  }
+
+  checkInInput.addEventListener('change', calculateNights);
+  checkOutInput.addEventListener('change', calculateNights);
+
+  // ── STEP 1: form submit → show confirmation modal ──────────────────
+  form.addEventListener('submit', function(e) {
     e.preventDefault();
+    if (noticeEl) noticeEl.classList.add('hidden');
 
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Processing...';
+    var nights = calculateNights();
+    var total  = nights * pricePerNight;
 
-    const formData = {
-      venueId: venueId,
-      startDate: checkInInput.value,
-      endDate: checkOutInput.value,
-      fullName: document.getElementById('fullName').value,
-      phone: document.getElementById('phone').value,
-      guests: parseInt(document.getElementById('guests').value) || null,
-      eventType: document.getElementById('eventType').value || null,
+    // Populate confirmation modal
+    document.getElementById('conf-venue').textContent      = venueName || 'Venue';
+    document.getElementById('conf-name').textContent       = document.getElementById('fullName').value || '—';
+    document.getElementById('conf-phone').textContent      = document.getElementById('phone').value || '—';
+    document.getElementById('conf-email').textContent      = document.getElementById('email').value || '—';
+    document.getElementById('conf-checkin').textContent    = fmtDate(checkInInput.value);
+    document.getElementById('conf-checkout').textContent   = fmtDate(checkOutInput.value);
+    document.getElementById('conf-eventdate').textContent  = fmtDate(eventDateInput.value);
+    document.getElementById('conf-guests').textContent     = document.getElementById('guests').value + ' guests';
+    document.getElementById('conf-eventtype').textContent  = document.getElementById('eventType').value || '—';
+    document.getElementById('conf-nights').textContent     = nights + ' night' + (nights !== 1 ? 's' : '');
+    document.getElementById('conf-total').textContent      = '₱' + total.toLocaleString('en-PH', { minimumFractionDigits: 2 });
+
+    var requests = document.getElementById('specialRequests').value;
+    var reqWrap  = document.getElementById('conf-requests-wrap');
+    if (requests) {
+      document.getElementById('conf-requests').textContent = requests;
+      reqWrap.classList.remove('hidden');
+    } else {
+      reqWrap.classList.add('hidden');
+    }
+
+    confirmModal.classList.remove('hidden');
+  });
+
+  // ── Go back & edit ─────────────────────────────────────────────────
+  confBackBtn.addEventListener('click', function() {
+    confirmModal.classList.add('hidden');
+  });
+
+  // Close modal on backdrop click
+  confirmModal.addEventListener('click', function(e) {
+    if (e.target === confirmModal) confirmModal.classList.add('hidden');
+  });
+
+  // ── STEP 2: confirmed → actually submit ────────────────────────────
+  confSubmitBtn.addEventListener('click', async function() {
+    confSubmitBtn.disabled = true;
+    confSubmitBtn.textContent = 'Submitting...';
+
+    var formData = {
+      venueId:         venueId,
+      startDate:       checkInInput.value,
+      endDate:         checkOutInput.value,
+      eventDate:       eventDateInput.value || null,
+      fullName:        document.getElementById('fullName').value,
+      phone:           document.getElementById('phone').value,
+      pax:             parseInt(document.getElementById('guests').value) || null,
+      eventType:       document.getElementById('eventType').value || null,
       specialRequests: document.getElementById('specialRequests').value || null,
     };
 
     try {
-      const response = await fetch('/api/bookings/CreateBookings', {
+      var response = await fetch('/api/bookings/CreateBookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
+      var result = await response.json().catch(function() { return {}; });
+
       if (response.ok) {
-        alert('Booking confirmed! You can view it in your dashboard.');
+        // Hide confirmation modal, show success screen
+        confirmModal.classList.add('hidden');
+        var refId = result.bookingId ? result.bookingId.substring(0, 8).toUpperCase() : '—';
+        document.getElementById('success-ref').textContent   = 'REF-' + refId;
+        document.getElementById('success-venue').textContent = venueName || '';
+        document.getElementById('success-dates').textContent =
+          fmtDate(checkInInput.value) + ' → ' + fmtDate(checkOutInput.value);
+        successScreen.classList.remove('hidden');
         form.reset();
         nightsCountEl.textContent = '0';
-        totalPriceEl.textContent = '$0.00';
-        window.location.href = '/dashboard';
+        totalPriceEl.textContent  = '₱0.00';
+        // Countdown redirect
+        var seconds = 5;
+        var countdown = document.getElementById('success-countdown');
+        var timer = setInterval(function() {
+          seconds--;
+          if (countdown) countdown.textContent = String(seconds);
+          if (seconds <= 0) { clearInterval(timer); window.location.href = '/dashboard'; }
+        }, 1000);
       } else {
-        const err = await response.json().catch(() => ({}));
-        alert('Booking failed: ' + (err.error ?? 'Please try again.'));
+        confirmModal.classList.add('hidden');
+        showNotice('Booking failed: ' + (result.error ?? 'Please try again.'), 'error');
       }
-    } catch (error) {
-      console.error('Booking error:', error);
-      alert('An error occurred. Please try again.');
+    } catch (err) {
+      confirmModal.classList.add('hidden');
+      showNotice('An error occurred. Please check your connection and try again.', 'error');
     } finally {
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Complete Booking';
+      confSubmitBtn.disabled = false;
+      confSubmitBtn.textContent = 'Submit Booking Request';
     }
   });
 </script>
@@ -291,10 +398,10 @@ const { venueId, pricePerNight } = Astro.props;
     --butterscotch-primary: #ed9b40;
     --jet-primary: #363537;
   }
-
   #bookingForm input:focus,
   #bookingForm select:focus,
   #bookingForm textarea:focus {
-    ring-color: var(--butterscotch-primary);
+    outline: none;
+    ring: 2px solid var(--butterscotch-primary);
   }
 </style>
