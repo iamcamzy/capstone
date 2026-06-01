@@ -119,9 +119,9 @@ const adminName = profile.first_name
   <!-- SIDEBAR -->
   <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 z-50 flex flex-col shadow-xl" style="background:var(--jet-primary);color:white;">
     <div class="px-6 py-5 border-b border-white/10">
-      <p class="text-xs font-semibold uppercase tracking-widest opacity-60 mb-1">Admin Panel</p>
+      <p class="text-xs font-semibold uppercase tracking-widest mb-1" style="color:rgba(255,255,255,0.55);">Admin Panel</p>
       <p class="font-bold text-lg truncate" style="color:var(--butterscotch-primary);">{adminName}</p>
-      <p class="text-xs opacity-50 truncate">{user.email}</p>
+      <p class="text-xs truncate" style="color:rgba(255,255,255,0.65);">{user.email}</p>
     </div>
     <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
       {[
@@ -131,6 +131,7 @@ const adminName = profile.first_name
         { id:'packages',  icon:'📦', label:'Packages'   },
         { id:'reviews',   icon:'⭐', label:'Reviews'    },
         { id:'users',     icon:'👥', label:'Users'      },
+        { id:'reports',   icon:'📈', label:'Reports'    },
       ].map(nav => (
         <button data-tab={nav.id} class="nav-btn w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium transition-all hover:bg-white/10">
           <span>{nav.icon}</span><span>{nav.label}</span>
@@ -139,7 +140,9 @@ const adminName = profile.first_name
     </nav>
     <div class="px-4 py-4 border-t border-white/10">
       <a href="/dashboard" class="block text-center text-sm py-2 px-3 rounded-lg transition hover:bg-white/10 mb-2">← Back to Site</a>
-      <a href="/api/auth/signout" class="block text-center text-sm py-2 px-3 rounded-lg bg-red-600/80 hover:bg-red-600 transition">Sign out</a>
+      <form method="POST" action="/api/auth/signout">
+        <button type="submit" class="w-full block text-center text-sm py-2 px-3 rounded-lg bg-red-600/80 hover:bg-red-600 transition text-white">Sign out</button>
+      </form>
     </div>
   </aside>
 
@@ -256,6 +259,7 @@ const adminName = profile.first_name
                         {b.status==='pending'&&(<button onclick={`confirmBooking('${b.id}')`} class="px-2 py-1 rounded text-xs font-bold text-white hover:opacity-80" style="background:#10b981;">✓ Confirm</button>)}
                         {(b.status==='pending'||b.status==='confirmed')&&(<button onclick={`openReschedule('${b.id}')`} class="px-2 py-1 rounded text-xs font-bold text-white hover:opacity-80" style="background:#8b5cf6;">↻ Reschedule</button>)}
                         {b.status!=='cancelled'&&b.status!=='rescheduled'&&(<button onclick={`cancelBooking('${b.id}')`} class="px-2 py-1 rounded text-xs font-bold text-white hover:opacity-80" style="background:#ef4444;">✕ Cancel</button>)}
+                        <button onclick={`openBookingDetail(${JSON.stringify(JSON.stringify(b))})`} class="px-2 py-1 rounded text-xs font-bold hover:opacity-80 border" style="border-color:#64748b;color:#64748b;">👁 View</button>
                       </div>
                     </td>
                   </tr>
@@ -422,8 +426,197 @@ const adminName = profile.first_name
         </div>
       </section>
 
+      <!-- TAB: REPORTS -->
+      <section id="tab-reports" class="tab-section hidden">
+
+        <!-- Period selector -->
+        <div class="flex flex-wrap gap-3 items-center mb-6">
+          <div class="flex rounded-xl overflow-hidden border-2 border-gray-200">
+            <button id="rpt-btn-weekly"  onclick="switchReport('weekly')"  class="rpt-mode-btn px-5 py-2 text-sm font-semibold transition-all">Weekly</button>
+            <button id="rpt-btn-monthly" onclick="switchReport('monthly')" class="rpt-mode-btn px-5 py-2 text-sm font-semibold transition-all">Monthly</button>
+          </div>
+
+          <!-- Week picker -->
+          <div id="rpt-week-picker" class="flex items-center gap-2">
+            <label class="text-sm font-semibold text-gray-500">Week of:</label>
+            <input type="date" id="rpt-week-input" class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none" />
+          </div>
+
+          <!-- Month picker -->
+          <div id="rpt-month-picker" class="hidden flex items-center gap-2">
+            <label class="text-sm font-semibold text-gray-500">Month:</label>
+            <input type="month" id="rpt-month-input" class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none" />
+          </div>
+
+          <button onclick="generateReport()" class="px-5 py-2 rounded-xl text-white text-sm font-bold transition hover:opacity-90" style="background:var(--butterscotch-primary);">Generate Report</button>
+          <button onclick="printReport()" class="px-5 py-2 rounded-xl text-sm font-bold border-2 transition hover:bg-gray-50" style="border-color:var(--butterscotch-primary);color:var(--butterscotch-primary);">🖨 Print / Save PDF</button>
+        </div>
+
+        <!-- Report output (printable area) -->
+        <div id="report-output" class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 hidden">
+
+          <!-- Report header -->
+          <div class="flex justify-between items-start mb-6 pb-5 border-b border-gray-100">
+            <div>
+              <h2 id="rpt-title" class="text-2xl font-black" style="color:var(--jet-primary);"></h2>
+              <p id="rpt-period" class="text-sm text-gray-400 mt-0.5"></p>
+            </div>
+            <p class="text-xs text-gray-400">Generated: <span id="rpt-generated"></span></p>
+          </div>
+
+          <!-- Metric cards -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+            {[
+              { id:'rpt-total',       label:'Total Requests', color:'#ed9b40', icon:'📅' },
+              { id:'rpt-confirmed',   label:'Confirmed',      color:'#10b981', icon:'✅' },
+              { id:'rpt-cancelled',   label:'Cancelled',      color:'#ef4444', icon:'❌' },
+              { id:'rpt-rescheduled', label:'Rescheduled',    color:'#8b5cf6', icon:'🔄' },
+              { id:'rpt-revenue',     label:'Revenue',        color:'#059669', icon:'💰' },
+            ].map(c => (
+              <div class="rounded-xl p-4 border border-gray-100 bg-gray-50 flex flex-col items-center text-center">
+                <span class="text-2xl mb-1">{c.icon}</span>
+                <p class="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">{c.label}</p>
+                <p id={c.id} class="text-2xl font-black" style={`color:${c.color}`}>—</p>
+              </div>
+            ))}
+          </div>
+
+          <!-- Distribution by date -->
+          <div class="mb-8">
+            <h3 class="text-sm font-bold uppercase tracking-wide text-gray-400 mb-3">Booking Distribution by Date</h3>
+            <div id="rpt-distribution" class="space-y-2 text-sm"></div>
+          </div>
+
+          <!-- Breakdown by event type/package -->
+          <div class="mb-8">
+            <h3 class="text-sm font-bold uppercase tracking-wide text-gray-400 mb-3">Breakdown by Event Type / Package</h3>
+            <div id="rpt-breakdown" class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                  <th class="px-4 py-2 text-left">Event / Package</th>
+                  <th class="px-4 py-2 text-left">Bookings</th>
+                  <th class="px-4 py-2 text-left">Revenue</th>
+                </tr></thead>
+                <tbody id="rpt-breakdown-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Bookings table -->
+          <div>
+            <h3 class="text-sm font-bold uppercase tracking-wide text-gray-400 mb-3">All Bookings in Period</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                  <th class="px-3 py-2 text-left">Guest</th>
+                  <th class="px-3 py-2 text-left">Venue</th>
+                  <th class="px-3 py-2 text-left">Package</th>
+                  <th class="px-3 py-2 text-left">Event Date</th>
+                  <th class="px-3 py-2 text-left">Pax</th>
+                  <th class="px-3 py-2 text-left">Total</th>
+                  <th class="px-3 py-2 text-left">Status</th>
+                </tr></thead>
+                <tbody id="rpt-bookings-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div><!-- /report-output -->
+
+        <div id="report-empty" class="text-center py-16 text-gray-400">
+          <p class="text-4xl mb-3">📈</p>
+          <p class="font-semibold">Select a period and click <strong>Generate Report</strong></p>
+        </div>
+
+      </section>
+
     </div>
   </main>
+</div>
+
+<!-- BOOKING DETAILS MODAL (Fig 19) -->
+<div id="bookingDetailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.55);">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[92vh] overflow-y-auto">
+    <div class="sticky top-0 bg-white px-7 pt-6 pb-4 border-b border-gray-100 flex justify-between items-center z-10">
+      <h3 class="text-xl font-black" style="color:var(--jet-primary);">Booking Details</h3>
+      <button onclick="closeBookingDetail()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    </div>
+    <div class="px-7 py-6 space-y-6">
+
+      <!-- Status badge -->
+      <div class="flex items-center gap-3">
+        <span class="text-sm font-semibold text-gray-500">Current Status:</span>
+        <span id="bd-status-badge" class="px-3 py-1 rounded-full text-sm font-bold"></span>
+      </div>
+
+      <!-- Guest info -->
+      <div>
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Guest Information</p>
+        <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <div><span class="text-gray-400">Full Name</span><p id="bd-name" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Phone</span><p id="bd-phone" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Email</span><p id="bd-email" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Pax</span><p id="bd-pax" class="font-semibold mt-0.5"></p></div>
+        </div>
+      </div>
+
+      <!-- Booking info -->
+      <div>
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Booking Information</p>
+        <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <div><span class="text-gray-400">Venue</span><p id="bd-venue" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Package</span><p id="bd-package" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Event Date</span><p id="bd-event-date" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Hold Period</span><p id="bd-hold" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Event Type</span><p id="bd-event-type" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Total Price</span><p id="bd-price" class="font-semibold mt-0.5" style="color:var(--butterscotch-primary);"></p></div>
+        </div>
+      </div>
+
+      <!-- Special requests -->
+      <div id="bd-requests-wrap">
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Special Requests</p>
+        <p id="bd-requests" class="text-sm text-gray-700 bg-gray-50 rounded-lg px-4 py-3 italic"></p>
+      </div>
+
+      <!-- Timestamps -->
+      <div>
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Timeline</p>
+        <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+          <div><span class="text-gray-400">Submitted</span><p id="bd-created" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Last Updated</span><p id="bd-updated" class="font-semibold mt-0.5"></p></div>
+          <div id="bd-confirmed-wrap"><span class="text-gray-400">Confirmed At</span><p id="bd-confirmed" class="font-semibold mt-0.5 text-green-600"></p></div>
+          <div id="bd-cancelled-wrap"><span class="text-gray-400">Cancelled At</span><p id="bd-cancelled" class="font-semibold mt-0.5 text-red-500"></p></div>
+          <div id="bd-rescheduled-wrap"><span class="text-gray-400">Rescheduled At</span><p id="bd-rescheduled" class="font-semibold mt-0.5 text-purple-600"></p></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Action bar -->
+    <div id="bd-actions" class="sticky bottom-0 bg-white px-7 py-4 border-t border-gray-100 flex flex-wrap gap-3 z-10"></div>
+  </div>
+</div>
+
+<!-- CUSTOM CONFIRM DIALOG (replaces all browser confirm() popups) -->
+<div id="confirmDialog" class="hidden fixed inset-0 z-[60] flex items-center justify-center" style="background:rgba(0,0,0,0.55);">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+    <!-- Icon + header -->
+    <div id="confirmDialogHeader" class="px-6 pt-6 pb-4 flex flex-col items-center text-center">
+      <div id="confirmDialogIcon" class="w-14 h-14 rounded-full flex items-center justify-center text-2xl mb-3"></div>
+      <h3 id="confirmDialogTitle" class="text-lg font-black" style="color:var(--jet-primary);"></h3>
+      <p id="confirmDialogMessage" class="text-sm text-gray-500 mt-1"></p>
+    </div>
+    <!-- Buttons -->
+    <div class="px-6 pb-6 flex gap-3">
+      <button id="confirmDialogCancel" class="flex-1 py-2.5 rounded-xl border-2 font-semibold text-sm transition hover:bg-gray-50" style="border-color:#d1d5db;color:#374151;">
+        Cancel
+      </button>
+      <button id="confirmDialogOk" class="flex-1 py-2.5 rounded-xl text-white font-semibold text-sm transition hover:opacity-90">
+        Confirm
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- RESCHEDULE MODAL -->
@@ -491,189 +684,613 @@ const adminName = profile.first_name
 </Layout>
 
 <style>
-  main { padding-top: 0 !important; }
-  header#navbar { display: none !important; }
+  /* Kill the layout's pt-35 that causes the big gap */
+  body > main { padding-top: 0 !important; }
+  /* Kill the global navbar completely */
+  header#navbar { display: none !important; visibility: hidden !important; height: 0 !important; overflow: hidden !important; position: static !important; }
   footer { display: none !important; }
-  .nav-btn.active { background: rgba(237,155,64,0.15); color: #ed9b40; }
+  body { padding-top: 0 !important; margin-top: 0 !important; overflow-x: hidden; }
+  html { overflow-x: hidden; }
+  .nav-btn { color: rgba(255,255,255,0.85) !important; }
+  .nav-btn:hover { color: white !important; }
+  .nav-btn.active { background: rgba(237,155,64,0.2) !important; color: #ed9b40 !important; }
   .filter-btn.active { background: var(--butterscotch-primary); color: white; border-color: var(--butterscotch-primary); }
   .line-clamp-2 { display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
 </style>
 
+<!-- Pass server data to client scripts safely, without breaking TypeScript -->
+<script is:inline define:vars={{ enrichedBookings }}>
+  window.__allBookings = enrichedBookings;
+</script>
+
 <script>
-const tabTitles: Record<string,string> = {
-  dashboard:'Dashboard',bookings:'Bookings',venues:'Venues',
-  packages:'Packages',reviews:'Reviews',users:'Users'
+// ── NAVBAR KILL ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  const nav = document.getElementById('navbar');
+  if (nav) { nav.style.cssText = 'display:none!important;height:0!important;overflow:hidden!important;position:static!important;'; }
+  // Also remove the layout <main> padding that causes the top gap
+  const layoutMain = document.querySelector('body > main') as HTMLElement;
+  if (layoutMain) { layoutMain.style.paddingTop = '0'; }
+});
+
+// ── TAB SWITCHING ────────────────────────────────────────────────────────────
+const tabTitles: Record<string, string> = {
+  dashboard: 'Dashboard', bookings: 'Bookings', venues: 'Venues',
+  packages: 'Packages', reviews: 'Reviews', users: 'Users', reports: 'Reports',
 };
+
 function switchTab(id: string) {
   document.querySelectorAll('.tab-section').forEach(s => s.classList.add('hidden'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById(`tab-${id}`)?.classList.remove('hidden');
-  document.querySelectorAll<HTMLElement>(`[data-tab="${id}"]`).forEach(b => b.classList.add('active'));
+  document.getElementById('tab-' + id)?.classList.remove('hidden');
+  document.querySelectorAll<HTMLElement>('[data-tab="' + id + '"]').forEach(b => b.classList.add('active'));
   const t = document.getElementById('page-title');
-  if (t) t.textContent = tabTitles[id]??id;
+  if (t) t.textContent = tabTitles[id] ?? id;
 }
-document.querySelectorAll<HTMLElement>('.nav-btn[data-tab]').forEach(btn => {
-  btn.addEventListener('click', () => switchTab(btn.dataset.tab!));
+
+document.querySelectorAll<HTMLElement>('.nav-btn[data-tab]').forEach(function(btn) {
+  btn.addEventListener('click', function() { switchTab(btn.dataset.tab!); });
 });
 switchTab('dashboard');
 
-document.querySelectorAll<HTMLElement>('.filter-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+// ── BOOKING FILTER & SEARCH ───────────────────────────────────────────────────
+document.querySelectorAll<HTMLElement>('.filter-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const f = btn.dataset.filter!;
     document.querySelectorAll<HTMLElement>('.booking-row').forEach(r => {
-      r.style.display = (f==='all'||r.dataset.status===f)?'':'none';
+      r.style.display = (f === 'all' || r.dataset.status === f) ? '' : 'none';
     });
   });
 });
 document.querySelector<HTMLElement>('[data-filter="all"]')?.classList.add('active');
 
-document.getElementById('bookingSearch')?.addEventListener('input', (e) => {
+document.getElementById('bookingSearch')?.addEventListener('input', function(e) {
   const q = (e.target as HTMLInputElement).value.toLowerCase();
   document.querySelectorAll<HTMLElement>('.booking-row').forEach(r => {
-    r.style.display = (r.dataset.search??'').toLowerCase().includes(q)?'':'none';
+    r.style.display = (r.dataset.search ?? '').toLowerCase().includes(q) ? '' : 'none';
   });
 });
 
-function toast(msg: string, ok=true) {
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function toast(msg: string, ok: boolean = true) {
   const el = document.getElementById('toast')!;
   el.textContent = msg;
   el.style.background = ok ? '#10b981' : '#ef4444';
   el.classList.remove('hidden');
-  setTimeout(()=>el.classList.add('hidden'),3500);
+  setTimeout(function() { el.classList.add('hidden'); }, 3500);
 }
 
+// ── CUSTOM CONFIRM DIALOG ─────────────────────────────────────────────────────
+type ConfirmOptions = {
+  title: string;
+  message: string;
+  okLabel?: string;
+  okColor?: string;
+  icon?: string;
+};
+
+function showConfirm(opts: ConfirmOptions): Promise<boolean> {
+  return new Promise(function(resolve) {
+    const dialog  = document.getElementById('confirmDialog')!;
+    const icon    = document.getElementById('confirmDialogIcon')!;
+    const title   = document.getElementById('confirmDialogTitle')!;
+    const message = document.getElementById('confirmDialogMessage')!;
+    const okBtn   = document.getElementById('confirmDialogOk')!;
+    const cancelBtn = document.getElementById('confirmDialogCancel')!;
+
+    icon.textContent    = opts.icon ?? '❓';
+    icon.style.background = (opts.okColor ?? '#ed9b40') + '20';
+    title.textContent   = opts.title;
+    message.textContent = opts.message;
+    okBtn.textContent   = opts.okLabel ?? 'Confirm';
+    okBtn.style.background = opts.okColor ?? '#ed9b40';
+
+    dialog.classList.remove('hidden');
+
+    function cleanup(result: boolean) {
+      dialog.classList.add('hidden');
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      dialog.removeEventListener('click', onBackdrop);
+      resolve(result);
+    }
+    function onOk()      { cleanup(true);  }
+    function onCancel()  { cleanup(false); }
+    function onBackdrop(e: Event) { if (e.target === dialog) cleanup(false); }
+
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    dialog.addEventListener('click', onBackdrop);
+  });
+}
+
+// ── BOOKING ACTIONS ───────────────────────────────────────────────────────────
 async function confirmBooking(id: string) {
-  if (!confirm('Confirm this booking?')) return;
-  const r = await fetch('/api/bookings/ConfirmBookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:id})});
-  r.ok?(toast('Booking confirmed ✓'),location.reload()):toast('Failed to confirm',false);
+  const ok = await showConfirm({
+    title: 'Confirm Booking',
+    message: 'Are you sure you want to confirm this booking? The client will be notified.',
+    okLabel: 'Yes, Confirm',
+    okColor: '#10b981',
+    icon: '✅',
+  });
+  if (!ok) return;
+  const r = await fetch('/api/bookings/ConfirmBookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: id }) });
+  if (r.ok) { toast('Booking confirmed ✓'); location.reload(); } else { toast('Failed to confirm', false); }
 }
+
 async function cancelBooking(id: string) {
-  if (!confirm('Cancel this booking?')) return;
-  const r = await fetch('/api/bookings/CancelBookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:id})});
-  r.ok?(toast('Booking cancelled'),location.reload()):toast('Failed to cancel',false);
+  const ok = await showConfirm({
+    title: 'Cancel Booking',
+    message: 'Are you sure you want to cancel this booking? This cannot be undone.',
+    okLabel: 'Yes, Cancel',
+    okColor: '#ef4444',
+    icon: '❌',
+  });
+  if (!ok) return;
+  const r = await fetch('/api/bookings/CancelBookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: id }) });
+  if (r.ok) { toast('Booking cancelled'); location.reload(); } else { toast('Failed to cancel', false); }
 }
+
 function openReschedule(id: string) {
   (document.getElementById('rescheduleBookingId') as HTMLInputElement).value = id;
   document.getElementById('rescheduleModal')?.classList.remove('hidden');
 }
-function closeReschedule() { document.getElementById('rescheduleModal')?.classList.add('hidden'); }
+
+function closeReschedule() {
+  document.getElementById('rescheduleModal')?.classList.add('hidden');
+}
+
 async function submitReschedule() {
   const id    = (document.getElementById('rescheduleBookingId') as HTMLInputElement).value;
   const start = (document.getElementById('rescheduleStart') as HTMLInputElement).value;
   const end   = (document.getElementById('rescheduleEnd') as HTMLInputElement).value;
   const ev    = (document.getElementById('rescheduleEventDate') as HTMLInputElement).value;
-  if (!start||!end){toast('Dates required',false);return;}
-  const r = await fetch('/api/admin/reschedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:id,newStartDate:start,newEndDate:end,newEventDate:ev||null})});
-  r.ok?(toast('Rescheduled ✓'),closeReschedule(),location.reload()):toast('Failed to reschedule',false);
+  if (!start || !end) { toast('Dates required', false); return; }
+  const r = await fetch('/api/admin/reschedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: id, newStartDate: start, newEndDate: end, newEventDate: ev || null }) });
+  if (r.ok) { toast('Rescheduled ✓'); closeReschedule(); location.reload(); } else { toast('Failed to reschedule', false); }
 }
 
+// ── VENUE MODAL ───────────────────────────────────────────────────────────────
 function openVenueModal(jsonStr?: string) {
   const title = document.getElementById('venueModalTitle')!;
   if (jsonStr) {
     const v = JSON.parse(jsonStr);
     (document.getElementById('venueId') as HTMLInputElement).value = v.id;
-    (document.getElementById('venueName') as HTMLInputElement).value = v.name??'';
-    (document.getElementById('venueDesc') as HTMLTextAreaElement).value = v.description??'';
-    (document.getElementById('venueLocation') as HTMLInputElement).value = v.location??'';
-    (document.getElementById('venueCapacity') as HTMLInputElement).value = v.capacity??'';
-    (document.getElementById('venuePrice') as HTMLInputElement).value = v.price_per_night??'';
-    (document.getElementById('venueImage') as HTMLInputElement).value = v.image_url??'';
+    (document.getElementById('venueName') as HTMLInputElement).value = v.name ?? '';
+    (document.getElementById('venueDesc') as HTMLTextAreaElement).value = v.description ?? '';
+    (document.getElementById('venueLocation') as HTMLInputElement).value = v.location ?? '';
+    (document.getElementById('venueCapacity') as HTMLInputElement).value = v.capacity ?? '';
+    (document.getElementById('venuePrice') as HTMLInputElement).value = v.price_per_night ?? '';
+    (document.getElementById('venueImage') as HTMLInputElement).value = v.image_url ?? '';
     title.textContent = 'Edit Venue';
   } else {
-    ['venueId','venueName','venueDesc','venueLocation','venueCapacity','venuePrice','venueImage']
-      .forEach(i=>{const e=document.getElementById(i) as HTMLInputElement;if(e)e.value='';});
+    ['venueId','venueName','venueDesc','venueLocation','venueCapacity','venuePrice','venueImage'].forEach(function(i) {
+      const e = document.getElementById(i) as HTMLInputElement;
+      if (e) e.value = '';
+    });
     title.textContent = 'Add Venue';
   }
   document.getElementById('venueModal')?.classList.remove('hidden');
 }
-function closeVenueModal(){document.getElementById('venueModal')?.classList.add('hidden');}
-async function submitVenue(){
-  const id=(document.getElementById('venueId') as HTMLInputElement).value;
-  const body={
-    name:(document.getElementById('venueName') as HTMLInputElement).value,
-    description:(document.getElementById('venueDesc') as HTMLTextAreaElement).value||null,
-    location:(document.getElementById('venueLocation') as HTMLInputElement).value||null,
-    capacity:parseInt((document.getElementById('venueCapacity') as HTMLInputElement).value)||null,
-    price_per_night:parseFloat((document.getElementById('venuePrice') as HTMLInputElement).value),
-    image_url:(document.getElementById('venueImage') as HTMLInputElement).value||null,
+
+function closeVenueModal() { document.getElementById('venueModal')?.classList.add('hidden'); }
+
+async function submitVenue() {
+  const id = (document.getElementById('venueId') as HTMLInputElement).value;
+  const body = {
+    name: (document.getElementById('venueName') as HTMLInputElement).value,
+    description: (document.getElementById('venueDesc') as HTMLTextAreaElement).value || null,
+    location: (document.getElementById('venueLocation') as HTMLInputElement).value || null,
+    capacity: parseInt((document.getElementById('venueCapacity') as HTMLInputElement).value) || null,
+    price_per_night: parseFloat((document.getElementById('venuePrice') as HTMLInputElement).value),
+    image_url: (document.getElementById('venueImage') as HTMLInputElement).value || null,
   };
-  const r=await fetch(id?`/api/venues/${id}`:'/api/venues',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  r.ok?(toast(id?'Venue updated ✓':'Venue created ✓'),closeVenueModal(),location.reload()):toast('Failed to save venue',false);
-}
-async function toggleVenue(id:string,isActive:boolean){
-  if(!confirm(isActive?'Deactivate this venue?':'Activate this venue?'))return;
-  const r=await fetch(`/api/venues/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({is_active:!isActive})});
-  r.ok?(toast('Venue updated ✓'),location.reload()):toast('Failed',false);
+  const r = await fetch(id ? '/api/venues/' + id : '/api/venues', { method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (r.ok) { toast(id ? 'Venue updated ✓' : 'Venue created ✓'); closeVenueModal(); location.reload(); } else { toast('Failed to save venue', false); }
 }
 
+async function toggleVenue(id: string, isActive: boolean) {
+  const ok = await showConfirm({
+    title: isActive ? 'Deactivate Venue' : 'Activate Venue',
+    message: isActive ? 'This venue will be hidden from bookings.' : 'This venue will be available for bookings again.',
+    okLabel: isActive ? 'Deactivate' : 'Activate',
+    okColor: isActive ? '#ef4444' : '#10b981',
+    icon: isActive ? '🔒' : '🔓',
+  });
+  if (!ok) return;
+  const r = await fetch('/api/venues/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: !isActive }) });
+  if (r.ok) { toast('Venue updated ✓'); location.reload(); } else { toast('Failed', false); }
+}
+
+// ── PACKAGE MODAL ─────────────────────────────────────────────────────────────
 function openPackageModal(jsonStr?: string) {
-  const title=document.getElementById('packageModalTitle')!;
+  const title = document.getElementById('packageModalTitle')!;
   if (jsonStr) {
-    const p=JSON.parse(jsonStr);
-    (document.getElementById('packageId') as HTMLInputElement).value=p.id;
-    (document.getElementById('packageName') as HTMLInputElement).value=p.name??'';
-    (document.getElementById('packageDesc') as HTMLTextAreaElement).value=p.description??'';
-    (document.getElementById('packagePrice') as HTMLInputElement).value=p.price??'';
-    (document.getElementById('packageMaxPax') as HTMLInputElement).value=p.max_pax??'';
-    (document.getElementById('packageInclusions') as HTMLTextAreaElement).value=p.inclusions??'';
-    title.textContent='Edit Package';
+    const p = JSON.parse(jsonStr);
+    (document.getElementById('packageId') as HTMLInputElement).value = p.id;
+    (document.getElementById('packageName') as HTMLInputElement).value = p.name ?? '';
+    (document.getElementById('packageDesc') as HTMLTextAreaElement).value = p.description ?? '';
+    (document.getElementById('packagePrice') as HTMLInputElement).value = p.price ?? '';
+    (document.getElementById('packageMaxPax') as HTMLInputElement).value = p.max_pax ?? '';
+    (document.getElementById('packageInclusions') as HTMLTextAreaElement).value = p.inclusions ?? '';
+    title.textContent = 'Edit Package';
   } else {
-    ['packageId','packageName','packageDesc','packagePrice','packageMaxPax','packageInclusions']
-      .forEach(i=>{const e=document.getElementById(i) as HTMLInputElement;if(e)e.value='';});
-    title.textContent='Add Package';
+    ['packageId','packageName','packageDesc','packagePrice','packageMaxPax','packageInclusions'].forEach(function(i) {
+      const e = document.getElementById(i) as HTMLInputElement;
+      if (e) e.value = '';
+    });
+    title.textContent = 'Add Package';
   }
   document.getElementById('packageModal')?.classList.remove('hidden');
 }
-function closePackageModal(){document.getElementById('packageModal')?.classList.add('hidden');}
-async function submitPackage(){
-  const id=(document.getElementById('packageId') as HTMLInputElement).value;
-  const body={
-    name:(document.getElementById('packageName') as HTMLInputElement).value,
-    description:(document.getElementById('packageDesc') as HTMLTextAreaElement).value||null,
-    price:parseFloat((document.getElementById('packagePrice') as HTMLInputElement).value),
-    max_pax:parseInt((document.getElementById('packageMaxPax') as HTMLInputElement).value)||null,
-    inclusions:(document.getElementById('packageInclusions') as HTMLTextAreaElement).value||null,
+
+function closePackageModal() { document.getElementById('packageModal')?.classList.add('hidden'); }
+
+async function submitPackage() {
+  const id = (document.getElementById('packageId') as HTMLInputElement).value;
+  const body = {
+    name: (document.getElementById('packageName') as HTMLInputElement).value,
+    description: (document.getElementById('packageDesc') as HTMLTextAreaElement).value || null,
+    price: parseFloat((document.getElementById('packagePrice') as HTMLInputElement).value),
+    max_pax: parseInt((document.getElementById('packageMaxPax') as HTMLInputElement).value) || null,
+    inclusions: (document.getElementById('packageInclusions') as HTMLTextAreaElement).value || null,
   };
-  const r=await fetch(id?`/api/packages/${id}`:'/api/packages',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  r.ok?(toast(id?'Package updated ✓':'Package created ✓'),closePackageModal(),location.reload()):toast('Failed to save package',false);
-}
-async function togglePackage(id:string,isActive:boolean){
-  if(!confirm(isActive?'Deactivate?':'Activate?'))return;
-  const r=await fetch(`/api/packages/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({is_active:!isActive})});
-  r.ok?(toast('Package updated ✓'),location.reload()):toast('Failed',false);
+  const r = await fetch(id ? '/api/packages/' + id : '/api/packages', { method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (r.ok) { toast(id ? 'Package updated ✓' : 'Package created ✓'); closePackageModal(); location.reload(); } else { toast('Failed to save package', false); }
 }
 
-async function promoteUser(id:string){
-  if(!confirm('Promote this customer to admin?'))return;
-  const r=await fetch('/api/admin/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:id,action:'promote'})});
-  r.ok?(toast('Promoted to admin ✓'),location.reload()):toast('Failed to promote',false);
-}
-async function demoteUser(id:string){
-  if(!confirm('Demote this admin to customer?'))return;
-  const r=await fetch('/api/admin/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:id,action:'demote'})});
-  r.ok?(toast('Demoted to customer ✓'),location.reload()):toast('Failed to demote',false);
+async function togglePackage(id: string, isActive: boolean) {
+  const ok = await showConfirm({
+    title: isActive ? 'Deactivate Package' : 'Activate Package',
+    message: isActive ? 'This package will no longer be available to clients.' : 'This package will be visible and bookable again.',
+    okLabel: isActive ? 'Deactivate' : 'Activate',
+    okColor: isActive ? '#ef4444' : '#10b981',
+    icon: isActive ? '📦' : '📦',
+  });
+  if (!ok) return;
+  const r = await fetch('/api/packages/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: !isActive }) });
+  if (r.ok) { toast('Package updated ✓'); location.reload(); } else { toast('Failed', false); }
 }
 
-['rescheduleModal','venueModal','packageModal'].forEach(id=>{
-  document.getElementById(id)?.addEventListener('click',(e)=>{
-    if(e.target===document.getElementById(id))document.getElementById(id)?.classList.add('hidden');
+// ── USER MANAGEMENT ───────────────────────────────────────────────────────────
+async function promoteUser(id: string) {
+  const ok = await showConfirm({
+    title: 'Promote to Admin',
+    message: 'This user will gain full admin access to the panel. Are you sure?',
+    okLabel: 'Yes, Promote',
+    okColor: '#8b5cf6',
+    icon: '👑',
+  });
+  if (!ok) return;
+  const r = await fetch('/api/admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: id, action: 'promote' }) });
+  if (r.ok) { toast('Promoted to admin ✓'); location.reload(); } else { toast('Failed to promote', false); }
+}
+
+async function demoteUser(id: string) {
+  const ok = await showConfirm({
+    title: 'Demote to Customer',
+    message: 'This admin will lose all admin privileges. Are you sure?',
+    okLabel: 'Yes, Demote',
+    okColor: '#ef4444',
+    icon: '⬇️',
+  });
+  if (!ok) return;
+  const r = await fetch('/api/admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: id, action: 'demote' }) });
+  if (r.ok) { toast('Demoted to customer ✓'); location.reload(); } else { toast('Failed to demote', false); }
+}
+
+// ── MODAL BACKDROP CLOSE ──────────────────────────────────────────────────────
+['rescheduleModal', 'venueModal', 'packageModal'].forEach(function(id) {
+  document.getElementById(id)?.addEventListener('click', function(e) {
+    if (e.target === document.getElementById(id)) document.getElementById(id)?.classList.add('hidden');
   });
 });
 
-(window as any).confirmBooking=confirmBooking;
-(window as any).cancelBooking=cancelBooking;
-(window as any).openReschedule=openReschedule;
-(window as any).closeReschedule=closeReschedule;
-(window as any).submitReschedule=submitReschedule;
-(window as any).openVenueModal=openVenueModal;
-(window as any).closeVenueModal=closeVenueModal;
-(window as any).submitVenue=submitVenue;
-(window as any).toggleVenue=toggleVenue;
-(window as any).openPackageModal=openPackageModal;
-(window as any).closePackageModal=closePackageModal;
-(window as any).submitPackage=submitPackage;
-(window as any).togglePackage=togglePackage;
+// ── BOOKING DETAILS MODAL (Fig 19) ───────────────────────────────────────────
+function setText(id: string, val: string) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
 
+function toggleEl(id: string, show: boolean) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = show ? '' : 'none';
+}
+
+function addActionBtn(container: HTMLElement, label: string, color: string, fn: () => void, outline: boolean = false) {
+  const btn = document.createElement('button');
+  btn.textContent = label;
+  btn.className = 'px-4 py-2 rounded-lg text-sm font-bold transition hover:opacity-80';
+  btn.style.cssText = outline
+    ? 'border:2px solid ' + color + ';color:' + color + ';background:white;'
+    : 'background:' + color + ';color:white;';
+  btn.addEventListener('click', fn);
+  container.appendChild(btn);
+}
+
+function openBookingDetail(jsonStr: string) {
+  const b = JSON.parse(jsonStr);
+
+  const statusColors: Record<string, string> = {
+    confirmed: 'bg-green-100 text-green-700',
+    cancelled: 'bg-red-100 text-red-700',
+    rescheduled: 'bg-purple-100 text-purple-700',
+    pending: 'bg-yellow-100 text-yellow-700',
+  };
+  const badge = document.getElementById('bd-status-badge')!;
+  badge.textContent = b.status;
+  badge.className = 'px-3 py-1 rounded-full text-sm font-bold ' + (statusColors[b.status] ?? 'bg-gray-100 text-gray-600');
+
+  const fmt = function(d: string | null) {
+    return d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
+  };
+  const fmtTs = function(d: string | null) {
+    return d ? new Date(d).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' } as any) : '—';
+  };
+
+  setText('bd-name', b.full_name ?? '—');
+  setText('bd-phone', b.phone ?? '—');
+  setText('bd-email', b.userName?.email ?? '—');
+  setText('bd-pax', b.pax ? b.pax + ' pax' : '—');
+  setText('bd-venue', b.venueName ?? '—');
+  setText('bd-package', b.packageName ?? b.event_type ?? '—');
+  setText('bd-event-date', fmt(b.event_date));
+  setText('bd-hold', fmt(b.start_date) + ' → ' + fmt(b.end_date));
+  setText('bd-event-type', b.event_type ?? '—');
+  setText('bd-price', b.total_price ? '₱' + Number(b.total_price).toLocaleString() : '—');
+  setText('bd-created', fmtTs(b.created_at));
+  setText('bd-updated', fmtTs(b.updated_at ?? null));
+
+  const reqWrap = document.getElementById('bd-requests-wrap')!;
+  if (b.special_requests) {
+    setText('bd-requests', b.special_requests);
+    reqWrap.classList.remove('hidden');
+  } else {
+    reqWrap.classList.add('hidden');
+  }
+
+  toggleEl('bd-confirmed-wrap', !!b.confirmed_at);
+  if (b.confirmed_at) setText('bd-confirmed', fmtTs(b.confirmed_at));
+  toggleEl('bd-cancelled-wrap', !!b.cancelled_at);
+  if (b.cancelled_at) setText('bd-cancelled', fmtTs(b.cancelled_at));
+  toggleEl('bd-rescheduled-wrap', !!b.rescheduled_at);
+  if (b.rescheduled_at) setText('bd-rescheduled', fmtTs(b.rescheduled_at));
+
+  const actions = document.getElementById('bd-actions')!;
+  actions.innerHTML = '';
+  if (b.status === 'pending') {
+    addActionBtn(actions, '✓ Confirm', '#10b981', function() { closeBookingDetail(); confirmBooking(b.id); });
+  }
+  if (b.status === 'pending' || b.status === 'confirmed') {
+    addActionBtn(actions, '↻ Reschedule', '#8b5cf6', function() { closeBookingDetail(); openReschedule(b.id); });
+  }
+  if (b.status !== 'cancelled' && b.status !== 'rescheduled') {
+    addActionBtn(actions, '✕ Cancel', '#ef4444', function() { closeBookingDetail(); cancelBooking(b.id); });
+  }
+  addActionBtn(actions, 'Close', '#64748b', closeBookingDetail, true);
+  document.getElementById('bookingDetailModal')?.classList.remove('hidden');
+}
+
+function closeBookingDetail() {
+  document.getElementById('bookingDetailModal')?.classList.add('hidden');
+}
+
+document.getElementById('bookingDetailModal')?.addEventListener('click', function(e) {
+  if (e.target === document.getElementById('bookingDetailModal')) closeBookingDetail();
+});
+
+// ── REPORTS (Fig 21 Weekly · Fig 22 Monthly) ─────────────────────────────────
+let _reportMode: string = 'weekly';
+
+function switchReport(mode: string) {
+  _reportMode = mode;
+  const weekly  = document.getElementById('rpt-week-picker')!;
+  const monthly = document.getElementById('rpt-month-picker')!;
+  const btnW    = document.getElementById('rpt-btn-weekly')!;
+  const btnM    = document.getElementById('rpt-btn-monthly')!;
+  if (mode === 'weekly') {
+    weekly.classList.remove('hidden');
+    monthly.classList.add('hidden');
+    btnW.style.cssText = 'background:var(--butterscotch-primary);color:white;';
+    btnM.style.cssText = 'background:white;color:#374151;';
+  } else {
+    monthly.classList.remove('hidden');
+    weekly.classList.add('hidden');
+    btnM.style.cssText = 'background:var(--butterscotch-primary);color:white;';
+    btnW.style.cssText = 'background:white;color:#374151;';
+  }
+}
+
+function getWeekRange(dateStr: string): [Date, Date] {
+  const d   = new Date(dateStr);
+  const day = d.getDay();
+  const mon = new Date(d);
+  mon.setDate(d.getDate() - ((day + 6) % 7));
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  sun.setHours(23, 59, 59, 999);
+  return [mon, sun];
+}
+
+function getMonthRange(monthStr: string): [Date, Date] {
+  const parts = monthStr.split('-').map(Number);
+  const y = parts[0];
+  const m = parts[1];
+  const start = new Date(y, m - 1, 1);
+  const end   = new Date(y, m, 0, 23, 59, 59, 999);
+  return [start, end];
+}
+
+function generateReport() {
+  const allBookings: any[] = (window as any).__allBookings ?? [];
+  let rangeStart: Date;
+  let rangeEnd: Date;
+  let rptTitle: string;
+  let periodLabel: string;
+
+  if (_reportMode === 'weekly') {
+    const val = (document.getElementById('rpt-week-input') as HTMLInputElement).value;
+    if (!val) { toast('Pick a week date first', false); return; }
+    const range = getWeekRange(val);
+    rangeStart = range[0];
+    rangeEnd   = range[1];
+    const fmtShort = function(d: Date) { return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }); };
+    rptTitle    = 'Weekly Booking Report';
+    periodLabel = fmtShort(rangeStart) + ' – ' + fmtShort(rangeEnd);
+  } else {
+    const val = (document.getElementById('rpt-month-input') as HTMLInputElement).value;
+    if (!val) { toast('Pick a month first', false); return; }
+    const range = getMonthRange(val);
+    rangeStart  = range[0];
+    rangeEnd    = range[1];
+    rptTitle    = 'Monthly Booking Report';
+    periodLabel = rangeStart.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+  }
+
+  const inRange = allBookings.filter(function(b) {
+    const d = new Date(b.event_date ?? b.created_at);
+    return d >= rangeStart && d <= rangeEnd;
+  });
+
+  const total       = inRange.length;
+  const confirmed   = inRange.filter(function(b) { return b.status === 'confirmed'; }).length;
+  const cancelled   = inRange.filter(function(b) { return b.status === 'cancelled'; }).length;
+  const rescheduled = inRange.filter(function(b) { return b.status === 'rescheduled'; }).length;
+  const revenue     = inRange.filter(function(b) { return b.status === 'confirmed'; })
+                             .reduce(function(s, b) { return s + Number(b.total_price ?? 0); }, 0);
+
+  setText('rpt-title',       rptTitle);
+  setText('rpt-period',      periodLabel);
+  setText('rpt-generated',   new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' } as any));
+  setText('rpt-total',       String(total));
+  setText('rpt-confirmed',   String(confirmed));
+  setText('rpt-cancelled',   String(cancelled));
+  setText('rpt-rescheduled', String(rescheduled));
+  setText('rpt-revenue',     '₱' + revenue.toLocaleString());
+
+  // Distribution by date
+  const byDate: Record<string, number> = {};
+  inRange.forEach(function(b) {
+    const d = (b.event_date ?? b.created_at)?.split('T')[0] ?? 'Unknown';
+    byDate[d] = (byDate[d] ?? 0) + 1;
+  });
+  const maxCount = Math.max.apply(null, (Object.values(byDate) as number[]).concat([1]));
+  const distEl = document.getElementById('rpt-distribution')!;
+  const distEntries = Object.entries(byDate).sort(function(a, b) { return a[0].localeCompare(b[0]); });
+  if (distEntries.length === 0) {
+    distEl.innerHTML = '<p class="text-gray-400 text-sm">No data</p>';
+  } else {
+    distEl.innerHTML = distEntries.map(function(entry) {
+      const date  = entry[0];
+      const count = entry[1] as number;
+      const pct   = Math.round((count / maxCount) * 100);
+      const label = new Date(date + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+      return '<div class="flex items-center gap-3">'
+        + '<span class="text-gray-500 w-28 shrink-0">' + label + '</span>'
+        + '<div class="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">'
+        + '<div class="h-full rounded-full" style="width:' + pct + '%;background:var(--butterscotch-primary);"></div></div>'
+        + '<span class="font-bold w-6 text-right">' + count + '</span></div>';
+    }).join('');
+  }
+
+  // Breakdown by event type / package
+  const byType: Record<string, { count: number; revenue: number }> = {};
+  inRange.forEach(function(b) {
+    const key = b.packageName ?? b.event_type ?? 'Unspecified';
+    if (!byType[key]) byType[key] = { count: 0, revenue: 0 };
+    byType[key].count++;
+    if (b.status === 'confirmed') byType[key].revenue += Number(b.total_price ?? 0);
+  });
+  const brkBody = document.getElementById('rpt-breakdown-body')!;
+  const brkEntries = Object.entries(byType).sort(function(a, b) { return (b[1] as any).count - (a[1] as any).count; });
+  brkBody.innerHTML = brkEntries.length
+    ? brkEntries.map(function(entry) {
+        const type = entry[0];
+        const d    = entry[1] as { count: number; revenue: number };
+        return '<tr class="border-t border-gray-50">'
+          + '<td class="px-4 py-2 font-medium">' + type + '</td>'
+          + '<td class="px-4 py-2 text-gray-600">' + d.count + '</td>'
+          + '<td class="px-4 py-2 font-semibold" style="color:var(--butterscotch-primary);">₱' + d.revenue.toLocaleString() + '</td></tr>';
+      }).join('')
+    : '<tr><td colspan="3" class="px-4 py-4 text-center text-gray-400">No data</td></tr>';
+
+  // All bookings table
+  const bkBody = document.getElementById('rpt-bookings-body')!;
+  const fmtDate = function(d: string | null) {
+    return d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+  };
+  const statusClass: Record<string, string> = {
+    confirmed:   'bg-green-100 text-green-700',
+    cancelled:   'bg-red-100 text-red-700',
+    rescheduled: 'bg-purple-100 text-purple-700',
+    pending:     'bg-yellow-100 text-yellow-700',
+  };
+  bkBody.innerHTML = inRange.length
+    ? inRange.map(function(b) {
+        const sc = statusClass[b.status] ?? 'bg-gray-100 text-gray-600';
+        return '<tr class="border-t border-gray-50 hover:bg-gray-50">'
+          + '<td class="px-3 py-2 font-medium">' + (b.full_name ?? '—') + '</td>'
+          + '<td class="px-3 py-2 text-gray-600">' + (b.venueName ?? '—') + '</td>'
+          + '<td class="px-3 py-2 text-gray-600">' + (b.packageName ?? b.event_type ?? '—') + '</td>'
+          + '<td class="px-3 py-2 text-gray-600">' + fmtDate(b.event_date) + '</td>'
+          + '<td class="px-3 py-2 text-gray-600">' + (b.pax ?? '—') + '</td>'
+          + '<td class="px-3 py-2 font-semibold" style="color:var(--butterscotch-primary);">' + (b.total_price ? '₱' + Number(b.total_price).toLocaleString() : '—') + '</td>'
+          + '<td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-bold ' + sc + '">' + b.status + '</span></td></tr>';
+      }).join('')
+    : '<tr><td colspan="7" class="px-3 py-8 text-center text-gray-400">No bookings in this period.</td></tr>';
+
+  document.getElementById('report-output')!.classList.remove('hidden');
+  document.getElementById('report-empty')!.classList.add('hidden');
+}
+
+function printReport() {
+  const output = document.getElementById('report-output');
+  if (!output || output.classList.contains('hidden')) { toast('Generate a report first', false); return; }
+  const w = window.open('', '_blank', 'width=900,height=700')!;
+  w.document.write('<html><head><title>Booking Report</title><style>'
+    + 'body{font-family:system-ui,sans-serif;padding:2rem;color:#1c1c1c;}'
+    + 'table{border-collapse:collapse;width:100%;}'
+    + 'th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #f0f0f0;}'
+    + 'th{background:#f9f9f9;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#888;}'
+    + '@media print{button{display:none;}}'
+    + '</style></head><body>');
+  w.document.write(output.innerHTML);
+  w.document.write('</body></html>');
+  w.document.close();
+  w.focus();
+  w.print();
+}
+
+// Seed date pickers on load
+const _today    = new Date();
+const _todayStr = _today.toISOString().split('T')[0];
+const _wkInput  = document.getElementById('rpt-week-input') as HTMLInputElement;
+const _moInput  = document.getElementById('rpt-month-input') as HTMLInputElement;
+if (_wkInput) _wkInput.value = _todayStr;
+if (_moInput) _moInput.value = _today.getFullYear() + '-' + String(_today.getMonth() + 1).padStart(2, '0');
+switchReport('weekly');
+
+// ── EXPOSE TO HTML onclick ATTRIBUTES ────────────────────────────────────────
+(window as any).confirmBooking    = confirmBooking;
+(window as any).cancelBooking     = cancelBooking;
+(window as any).openReschedule    = openReschedule;
+(window as any).closeReschedule   = closeReschedule;
+(window as any).submitReschedule  = submitReschedule;
+(window as any).openVenueModal    = openVenueModal;
+(window as any).closeVenueModal   = closeVenueModal;
+(window as any).submitVenue       = submitVenue;
+(window as any).toggleVenue       = toggleVenue;
+(window as any).openPackageModal  = openPackageModal;
+(window as any).closePackageModal = closePackageModal;
+(window as any).submitPackage     = submitPackage;
+(window as any).togglePackage     = togglePackage;
+(window as any).promoteUser       = promoteUser;
+(window as any).demoteUser        = demoteUser;
+(window as any).openBookingDetail = openBookingDetail;
+(window as any).closeBookingDetail = closeBookingDetail;
+(window as any).switchReport      = switchReport;
+(window as any).generateReport    = generateReport;
+(window as any).printReport       = printReport;
 </script>

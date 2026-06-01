@@ -101,25 +101,35 @@ import ShowButton from '../components/showButton.astro';
           >Sign in</a
         >
       </p>
+      <!-- Inline error/notice banner -->
+      <div id="signupNotice" class="hidden mx-5 mb-4 px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-2"></div>
     </div>
   </div>
 </Layout>
 <script>
-  const form = document.getElementById(
-    'register-form'
-  ) as HTMLFormElement | null;
+  const form = document.getElementById('register-form') as HTMLFormElement | null;
+  const noticeEl = document.getElementById('signupNotice');
+
+  function showNotice(msg: string, type: 'error' | 'success') {
+    if (!noticeEl) return;
+    noticeEl.className = 'mx-5 mb-4 px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-2 '
+      + (type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
+    noticeEl.innerHTML = (type === 'success' ? '✅ ' : '❌ ') + msg;
+    noticeEl.classList.remove('hidden');
+  }
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (noticeEl) noticeEl.classList.add('hidden');
 
     const formData = new FormData(form);
     const firstName = formData.get('firstName')?.toString().trim();
-    const lastName = formData.get('lastName')?.toString().trim();
-    const email = formData.get('email')?.toString().trim();
-    const password = formData.get('password')?.toString();
+    const lastName  = formData.get('lastName')?.toString().trim();
+    const email     = formData.get('email')?.toString().trim();
+    const password  = formData.get('password')?.toString();
 
     if (!firstName || !lastName || !email || !password) {
-      alert('Please fill in all fields.');
+      showNotice('Please fill in all fields.', 'error');
       return;
     }
 
@@ -131,7 +141,6 @@ import ShowButton from '../components/showButton.astro';
         redirect: 'follow',
       });
 
-      // API now auto signs-in and redirects to /dashboard
       if (res.redirected) {
         window.location.href = res.url;
         return;
@@ -141,10 +150,10 @@ import ShowButton from '../components/showButton.astro';
         window.location.href = '/dashboard';
       } else {
         const data = await res.json().catch(() => ({}));
-        alert('Signup failed: ' + (data.error ?? 'Please try again.'));
+        showNotice('Signup failed: ' + (data.error ?? 'Please try again.'), 'error');
       }
     } catch {
-      alert('Something went wrong. Please try again.');
+      showNotice('Something went wrong. Please try again.', 'error');
     }
   });
 </script>
