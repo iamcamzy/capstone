@@ -1,7 +1,6 @@
 ---
 import '../styles/global.css';
 import Header from '../components/Header.astro';
-import Footer from '../components/Footer.astro';
 ---
 
 <!doctype html>
@@ -26,7 +25,6 @@ import Footer from '../components/Footer.astro';
             window.matchMedia &&
             window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-          // Respect an explicit saved value. If none, fall back to OS pref.
           if (saved === 'dark') {
             document.documentElement.classList.add('dark');
           } else if (saved === 'light') {
@@ -37,8 +35,6 @@ import Footer from '../components/Footer.astro';
             document.documentElement.classList.remove('dark');
           }
 
-          // Listen for user-initiated theme changes so the layout doesn't
-          // re-apply a fallback later and override the user's explicit choice.
           if (typeof window !== 'undefined' && window.addEventListener) {
             window.addEventListener('theme-changed', function (ev) {
               try {
@@ -62,7 +58,6 @@ import Footer from '../components/Footer.astro';
   </head>
   <body class="w-screen min-h-screen m-0">
     <Header />
-    <main class="max-w-screen min-h-screen pt-35"><slot /></main>
-    <Footer />
+    <main class="max-w-screen min-h-screen pt-[70px]"><slot /></main>
   </body>
 </html>
