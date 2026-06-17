@@ -253,18 +253,12 @@ const adminName = profile.first_name
           </div>
         </div>
 
-        <!-- Info callout about order badges -->
-        <div class="flex items-center gap-2 mb-3 px-1">
-          <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-xs font-black text-blue-600">1</div>
-          <p class="text-xs text-gray-400">The <strong class="text-gray-500">numbered badge</strong> shows booking order on the same date — #1 booked first. Contact #1 first when dates conflict.</p>
-        </div>
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
                 <tr style="background:#f8f9fa;border-bottom:2px solid #f3f4f6;">
-                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">#</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Guest</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Venue</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Package</th>
@@ -279,13 +273,7 @@ const adminName = profile.first_name
               </thead>
               <tbody id="bookingsTableBody">
                 {(() => {
-                  // Group by event_date to determine order within same date
-                  const dateGroups = {} as {[k:string]:number};
-                  return enrichedBookings.map((b, globalIdx) => {
-                    const dateKey = b.event_date?.split('T')[0] ?? b.start_date?.split('T')[0] ?? 'nodate';
-                    dateGroups[dateKey] = (dateGroups[dateKey] ?? 0) + 1;
-                    const orderOnDate = dateGroups[dateKey];
-                    const isFirst = orderOnDate === 1;
+                  return enrichedBookings.map((b) => {
                     const statusColors = {
                       booked:'bg-green-100 text-green-700',
                       contract_signing:'bg-blue-100 text-blue-700',
@@ -301,17 +289,6 @@ const adminName = profile.first_name
                         class="booking-row border-t border-gray-50 hover:bg-amber-50 transition-colors"
                         style={b.status==='cancelled'?'opacity:0.6':''}
                       >
-                        {/* Order badge */}
-                        <td class="px-4 py-3">
-                          <div class="flex flex-col items-center gap-1">
-                            <div class={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ${isFirst ? 'text-white' : 'text-blue-600'}`}
-                              style={isFirst ? 'background:linear-gradient(135deg,#3b82f6,#1d4ed8);box-shadow:0 2px 6px rgba(59,130,246,0.4);' : 'background:#dbeafe;'}>
-                              {orderOnDate}
-                            </div>
-                            {isFirst && <span class="text-xs font-bold" style="color:#3b82f6;">FIRST</span>}
-                          </div>
-                        </td>
-
                         {/* Guest */}
                         <td class="px-4 py-3">
                           <p class="font-bold" style="color:var(--jet-primary);">{b.full_name??'—'}</p>

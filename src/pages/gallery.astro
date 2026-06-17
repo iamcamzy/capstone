@@ -1,162 +1,103 @@
 ---
 import '../styles/global.css';
 import Layout from '../layouts/Layout.astro';
+
+const photos = [
+  { src: '/woodberyPics/pool_and_house.jpg', title: 'Pool & House', category: 'resort', className: 'tall' },
+  { src: '/woodberyPics/banquet_1.jpg', title: 'Banquet Hall', category: 'events', className: '' },
+  { src: '/woodberyPics/pool_1.jpg', title: 'Pool', category: 'resort', className: '' },
+  { src: '/woodberyPics/stage_1.jpg', title: 'Stage', category: 'events', className: 'wide' },
+  { src: '/woodberyPics/entrance_1.jpg', title: 'Entrance', category: 'resort', className: '' },
+  { src: '/woodberyPics/tables_1.jpg', title: 'Event Setup', category: 'events', className: '' },
+  { src: '/woodberyPics/tree_house.jpg', title: 'Tree House', category: 'resort', className: 'tall' },
+  { src: '/woodberyPics/afternoon_pool_1.jpg', title: 'Afternoon Pool', category: 'resort', className: '' },
+  { src: '/woodberyPics/stage_2.jpg', title: 'Decorated Stage', category: 'events', className: 'wide' },
+  { src: '/woodberyPics/entrance_2.jpg', title: 'Resort Entrance', category: 'resort', className: '' },
+];
 ---
 
-<Layout>
+<Layout title="Gallery">
   <div class="gallery-page">
     <div class="gallery-header">
+      <p class="gallery-eyebrow">WOODBERRY MOMENTS</p>
       <h1>Our Gallery</h1>
       <p>A glimpse into the beauty of Woodberry Resorts & Events</p>
     </div>
 
+    <div class="gallery-filters" aria-label="Gallery filters">
+      <button class="filter-btn active" type="button" data-filter="all">All</button>
+      <button class="filter-btn" type="button" data-filter="resort">Resort</button>
+      <button class="filter-btn" type="button" data-filter="events">Events</button>
+    </div>
+
     <div class="gallery-grid">
-      <div class="gallery-item tall">
-        <img src="/woodberyPics/pool_and_house.jpg" alt="Pool and house" />
-        <div class="gallery-overlay"><span>Pool & House</span></div>
-      </div>
-      <div class="gallery-item">
-        <img src="/woodberyPics/banquet_1.jpg" alt="Banquet hall" />
-        <div class="gallery-overlay"><span>Banquet Hall</span></div>
-      </div>
-      <div class="gallery-item">
-        <img src="/woodberyPics/pool_1.jpg" alt="Pool" />
-        <div class="gallery-overlay"><span>Pool</span></div>
-      </div>
-      <div class="gallery-item wide">
-        <img src="/woodberyPics/stage_1.jpg" alt="Stage" />
-        <div class="gallery-overlay"><span>Stage</span></div>
-      </div>
-      <div class="gallery-item">
-        <img src="/woodberyPics/entrance_1.jpg" alt="Entrance" />
-        <div class="gallery-overlay"><span>Entrance</span></div>
-      </div>
-      <div class="gallery-item">
-        <img src="/woodberyPics/tables_1.jpg" alt="Tables setup" />
-        <div class="gallery-overlay"><span>Event Setup</span></div>
-      </div>
-      <div class="gallery-item tall">
-        <img src="/woodberyPics/tree_house.jpg" alt="Tree house" />
-        <div class="gallery-overlay"><span>Tree House</span></div>
-      </div>
-      <div class="gallery-item">
-        <img src="/woodberyPics/afternoon_pool_1.jpg" alt="Afternoon pool" />
-        <div class="gallery-overlay"><span>Afternoon Pool</span></div>
-      </div>
-      <div class="gallery-item wide">
-        <img src="/woodberyPics/stage_2.jpg" alt="Decorated stage" />
-        <div class="gallery-overlay"><span>Decorated Stage</span></div>
-      </div>
-      <div class="gallery-item">
-        <img src="/woodberyPics/entrance_2.jpg" alt="Resort entrance" />
-        <div class="gallery-overlay"><span>Resort Entrance</span></div>
-      </div>
+      {photos.map((photo, index) => (
+        <button class={`gallery-item ${photo.className}`} type="button" data-category={photo.category} data-src={photo.src} data-title={photo.title} aria-label={`Open ${photo.title} image`}>
+          <img src={photo.src} alt={photo.title} width="800" height="600" loading={index < 2 ? 'eager' : 'lazy'} decoding="async" />
+          <div class="gallery-overlay"><span>{photo.title}</span><small>Click to zoom</small></div>
+        </button>
+      ))}
+    </div>
+  </div>
+
+  <div id="lightbox" class="lightbox" hidden>
+    <button id="lightboxClose" class="lightbox__close" type="button" aria-label="Close image">×</button>
+    <div class="lightbox__content">
+      <img id="lightboxImg" src="" alt="" />
+      <p id="lightboxTitle"></p>
+      <p class="lightbox__hint">Click the image to zoom in/out</p>
     </div>
   </div>
 </Layout>
 
+<script>
+  const filterButtons = document.querySelectorAll<HTMLButtonElement>('.filter-btn');
+  const items = document.querySelectorAll<HTMLElement>('.gallery-item');
+  const lightbox = document.getElementById('lightbox') as HTMLElement | null;
+  const lightboxImg = document.getElementById('lightboxImg') as HTMLImageElement | null;
+  const lightboxTitle = document.getElementById('lightboxTitle');
+  const lightboxClose = document.getElementById('lightboxClose');
+
+  filterButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const filter = btn.dataset.filter || 'all';
+      filterButtons.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      items.forEach((item) => {
+        const show = filter === 'all' || item.dataset.category === filter;
+        item.hidden = !show;
+      });
+    });
+  });
+
+  function openLightbox(src: string, title: string) {
+    if (!lightbox || !lightboxImg || !lightboxTitle) return;
+    lightboxImg.src = src;
+    lightboxImg.alt = title;
+    lightboxImg.classList.remove('is-zoomed');
+    lightboxTitle.textContent = title;
+    lightbox.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeLightbox() {
+    if (!lightbox || !lightboxImg) return;
+    lightbox.hidden = true;
+    lightboxImg.src = '';
+    document.body.style.overflow = '';
+  }
+
+  items.forEach((item) => {
+    item.addEventListener('click', () => openLightbox(item.dataset.src || '', item.dataset.title || 'Gallery image'));
+  });
+  lightboxImg?.addEventListener('click', () => lightboxImg.classList.toggle('is-zoomed'));
+  lightboxClose?.addEventListener('click', closeLightbox);
+  lightbox?.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
+</script>
+
 <style>
-  .gallery-page {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2.5rem 2rem 4rem;
-  }
-
-  .gallery-header {
-    text-align: center;
-    margin-bottom: 2.5rem;
-  }
-
-  .gallery-header h1 {
-    font-family: Georgia, 'Times New Roman', serif;
-    font-size: clamp(2rem, 4vw, 3rem);
-    font-weight: 800;
-    color: #1a2e10;
-    margin-bottom: 0.5rem;
-  }
-
-  .gallery-header p {
-    color: #4a7c3f;
-    font-size: 1rem;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-  }
-
-  .gallery-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-auto-rows: 220px;
-    gap: 0.8rem;
-  }
-
-  .gallery-item {
-    position: relative;
-    overflow: hidden;
-    border-radius: 14px;
-    cursor: pointer;
-  }
-
-  .gallery-item.tall {
-    grid-row: span 2;
-  }
-
-  .gallery-item.wide {
-    grid-column: span 2;
-  }
-
-  .gallery-item img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.4s ease;
-    display: block;
-  }
-
-  .gallery-item:hover img {
-    transform: scale(1.06);
-  }
-
-  .gallery-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, rgba(26,46,16,0.65) 0%, transparent 50%);
-    display: flex;
-    align-items: flex-end;
-    padding: 1rem 1.2rem;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-
-  .gallery-item:hover .gallery-overlay {
-    opacity: 1;
-  }
-
-  .gallery-overlay span {
-    color: white;
-    font-weight: 600;
-    font-size: 0.95rem;
-    letter-spacing: 0.04em;
-  }
-
-  @media (max-width: 768px) {
-    .gallery-grid {
-      grid-template-columns: repeat(2, 1fr);
-      grid-auto-rows: 180px;
-    }
-    .gallery-item.wide {
-      grid-column: span 2;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .gallery-grid {
-      grid-template-columns: 1fr;
-      grid-auto-rows: 200px;
-    }
-    .gallery-item.tall,
-    .gallery-item.wide {
-      grid-column: span 1;
-      grid-row: span 1;
-    }
-  }
+  .gallery-page{max-width:1200px;margin:0 auto;padding:2.5rem 2rem 4rem}.gallery-header{text-align:center;margin-bottom:1.5rem}.gallery-eyebrow{color:#4a7c3f;font-size:.75rem;font-weight:800;letter-spacing:.18em;margin-bottom:.4rem}.gallery-header h1{font-family:Georgia,'Times New Roman',serif;font-size:clamp(2rem,4vw,3rem);font-weight:800;color:#1a2e10;margin-bottom:.5rem}.gallery-header p{color:#4a7c3f;font-size:1rem;font-weight:500;letter-spacing:.04em}.gallery-filters{display:flex;justify-content:center;gap:.6rem;flex-wrap:wrap;margin:0 0 1.5rem}.filter-btn{border:1px solid #d8e5cf;background:#fff;color:#2d5a27;border-radius:999px;padding:.65rem 1rem;font-weight:800;cursor:pointer;transition:.2s ease}.filter-btn.active,.filter-btn:hover{background:#2d5a27;color:#fff}.gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:220px;gap:.8rem}.gallery-item{position:relative;overflow:hidden;border-radius:14px;cursor:zoom-in;border:0;padding:0;background:#e8f0e3;text-align:left;box-shadow:0 10px 26px rgba(26,46,16,.08);content-visibility:auto;contain-intrinsic-size:220px}.gallery-item.tall{grid-row:span 2}.gallery-item.wide{grid-column:span 2}.gallery-item img{width:100%;height:100%;object-fit:cover;transition:transform .4s ease;display:block}.gallery-item:hover img{transform:scale(1.06)}.gallery-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(26,46,16,.72) 0%,transparent 55%);display:flex;align-items:flex-start;justify-content:flex-end;flex-direction:column;padding:1rem 1.2rem;opacity:0;transition:opacity .3s ease}.gallery-item:hover .gallery-overlay{opacity:1}.gallery-overlay span{color:white;font-weight:800;font-size:.95rem;letter-spacing:.04em}.gallery-overlay small{color:rgba(255,255,255,.86);font-size:.75rem;margin-top:.15rem}.lightbox{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.86);display:flex;align-items:center;justify-content:center;padding:1rem}.lightbox[hidden]{display:none}.lightbox__content{text-align:center;max-width:min(94vw,1100px);max-height:92vh;overflow:auto}.lightbox__content img{max-width:100%;max-height:76vh;object-fit:contain;border-radius:16px;cursor:zoom-in;transition:transform .2s ease}.lightbox__content img.is-zoomed{transform:scale(1.55);cursor:zoom-out}.lightbox__content p{color:#fff;font-weight:800;margin-top:.9rem}.lightbox__hint{font-size:.78rem!important;opacity:.7;margin-top:.25rem!important}.lightbox__close{position:fixed;top:1rem;right:1rem;width:44px;height:44px;border:0;border-radius:999px;background:#fff;color:#1a2e10;font-size:2rem;line-height:1;cursor:pointer}
+  @media(max-width:768px){.gallery-page{padding:2rem 1rem 3rem}.gallery-grid{grid-template-columns:repeat(2,1fr);grid-auto-rows:180px}.gallery-item.wide{grid-column:span 2}}
+  @media(max-width:480px){.gallery-grid{grid-template-columns:1fr;grid-auto-rows:210px}.gallery-item.tall,.gallery-item.wide{grid-column:span 1;grid-row:span 1}.lightbox__content img.is-zoomed{transform:scale(1.2)}}
 </style>

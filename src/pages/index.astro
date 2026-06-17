@@ -27,19 +27,24 @@ if (user) {
         <p class="wb-hero__eyebrow">WELCOME TO WOODBERRY</p>
         <h1 class="wb-hero__heading">Memorable Stays.<br/>Seamless Events.</h1>
         <p class="wb-hero__sub">Your perfect venue for every occasion — from intimate gatherings to grand celebrations, nestled in nature.</p>
+        <div class="wb-booking-highlight" aria-label="Booking benefits">
+          <span>✓ Easy date checking</span>
+          <span>✓ Fast request review</span>
+          <span>✓ Perfect for events</span>
+        </div>
         <div class="wb-hero__actions">
-          <a href="/gallery" class="wb-btn wb-btn--primary">
-            Explore Resort <span>→</span>
-          </a>
           {isAdmin ? (
-            <a href="/admin" class="wb-btn wb-btn--outline">
+            <a href="/admin" class="wb-btn wb-btn--primary">
               Admin Dashboard <span>⚙️</span>
             </a>
           ) : (
-            <a href="/events_and_booking/events" class="wb-btn wb-btn--outline">
+            <a href="/events_and_booking/events" class="wb-btn wb-btn--primary wb-btn--booking">
               Book Now <span>🗓</span>
             </a>
           )}
+          <a href="/gallery" class="wb-btn wb-btn--outline">
+            Explore Resort <span>→</span>
+          </a>
         </div>
       </div>
 
@@ -60,7 +65,7 @@ if (user) {
             </clipPath>
           </defs>
         </svg>
-        <img src="/woodberyPics/pool_and_house.jpg" alt="Woodberry resort" class="wb-hero__img" />
+        <img src="/woodberyPics/pool_and_house.jpg" alt="Woodberry resort" class="wb-hero__img" width="1200" height="800" loading="eager" decoding="async" fetchpriority="high" />
         <div class="wb-hero__leaf-top" aria-hidden="true">
           <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M200 0 Q80 20 60 100 Q80 160 160 200 Q200 140 200 0Z" fill="#5a8a3a" opacity="0.85"/>
@@ -208,6 +213,24 @@ if (user) {
     max-width: 380px;
   }
 
+  .wb-booking-highlight {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin: 0 0 1rem;
+    max-width: 430px;
+  }
+  .wb-booking-highlight span {
+    background: rgba(255,255,255,0.78);
+    border: 1px solid #dce8d4;
+    color: #2d5a27;
+    border-radius: 999px;
+    padding: 0.42rem 0.65rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(74,124,63,0.08);
+  }
+
   .wb-hero__actions {
     display: flex;
     gap: 0.75rem;
@@ -227,6 +250,8 @@ if (user) {
   }
   .wb-btn--primary { background: #1a1a1a; color: white; }
   .wb-btn--primary:hover { background: #333; transform: translateY(-1px); }
+  .wb-btn--booking { background: linear-gradient(135deg,#2d5a27,#4a7c3f); box-shadow: 0 10px 24px rgba(45,90,39,.22); }
+  .wb-btn--booking:hover { background: linear-gradient(135deg,#23491f,#3f7135); }
   .wb-btn--outline { background: transparent; color: #2d4a1e; border: 2px solid #4a7c3f; }
   .wb-btn--outline:hover { background: #e8f0e3; }
 

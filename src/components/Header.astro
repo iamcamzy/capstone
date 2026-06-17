@@ -18,118 +18,94 @@ if (user) {
 }
 ---
 
-<header
-  id="navbar"
-  class="fixed top-0 left-0 w-full transition-transform duration-300 z-100 max-w-screen"
-  style="background: #f5f7f1; box-shadow: 0 2px 12px rgba(74,124,63,0.10);"
->
-  <!-- Main row -->
-  <div class="flex items-center w-full" style="height: 70px; padding: 0 1.5rem;">
+<header id="navbar" class="site-header">
+  <div class="site-header__inner">
+    <a href="/" class="site-header__logo" aria-label="Woodberry home">
+      <img src="/company-logo-clean.png" alt="Woodberry logo" width="190" height="56" loading="eager" decoding="async" />
+    </a>
 
-    <!-- Logo -->
-    <div id="company_logo" class="flex items-center" style="width: 240px; flex-shrink: 0;">
-      <a href="/" target="_self" class="hover:opacity-80 transition-opacity">
-        <img src="/company-logo-clean.png" alt="company logo" style="max-height: 56px; width: auto;" />
-      </a>
-    </div>
-
-    <!-- Nav -->
-    <nav id="navigation" class="flex items-center justify-center flex-1 gap-8">
+    <nav id="desktopNav" class="site-header__nav" aria-label="Main navigation">
       <a href="/" class="navigation-link"><span class="navigation-button">HOME</span></a>
-      <a href="/events_and_booking/events" class="navigation-link"><span class="navigation-button">BOOKINGS</span></a>
+      <a href="/events_and_booking/events" class="navigation-link"><span class="navigation-button">EVENTS</span></a>
       <a href="/gallery" class="navigation-link"><span class="navigation-button">GALLERY</span></a>
       <a href="/contact-us" class="navigation-link"><span class="navigation-button">CONTACT US</span></a>
     </nav>
 
-    <!-- Auth buttons + theme -->
-    <div id="user_buttons" class="flex items-center gap-2" style="flex-shrink: 0;">
-      <!-- Calendar availability button — fixed width prevents layout shift -->
-      <button
-        id="preview"
-        class="flex items-center justify-center gap-1.5 rounded-lg font-semibold transition-all duration-200"
-        style="border: 2px solid #4a7c3f; color: #4a7c3f; font-size: 0.85rem; white-space: nowrap; background: transparent; cursor: pointer; width: 120px; height: 34px; flex-shrink: 0;"
-      >
-        <!-- Calendar icon (shown when closed) -->
-        <svg id="previewIconCal" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="4" width="18" height="18" rx="2"/>
-          <line x1="3" y1="10" x2="21" y2="10"/>
-          <line x1="8" y1="2" x2="8" y2="6"/>
-          <line x1="16" y1="2" x2="16" y2="6"/>
+    <div class="site-header__actions">
+      <button id="preview" class="availability-btn" type="button" aria-label="Toggle availability calendar" aria-expanded="false">
+        <svg id="previewIconCal" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
         </svg>
-        <!-- X icon (shown when open) -->
-        <svg id="previewIconX" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none;">
-          <line x1="18" y1="6" x2="6" y2="18"/>
-          <line x1="6" y1="6" x2="18" y2="18"/>
+        <svg id="previewIconX" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none;">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
         <span id="previewText">Availability</span>
       </button>
 
-      {!user && (
-        <a href="/signin"
-          class="flex items-center justify-center px-4 py-1.5 rounded-lg font-semibold transition-all duration-300"
-          style="border: 2px solid #4a7c3f; color: #4a7c3f; font-size: 0.85rem; white-space: nowrap;">
-          Log In
-        </a>
-      )}
-      {!user && (
-        <a href="/signup"
-          class="flex items-center justify-center px-4 py-1.5 rounded-lg font-semibold transition-all duration-300 text-white"
-          style="background-color: #1a1a1a; font-size: 0.85rem; white-space: nowrap;">
-          Sign Up
-        </a>
-      )}
-      {user && isAdmin && (
-        <a href="/dashboard"
-          class="flex items-center justify-center px-4 py-1.5 rounded-lg font-semibold transition-all duration-300 text-white"
-          style="background-color: #4a7c3f; font-size: 0.85rem;">
-          Dashboard
-        </a>
-      )}
-      {user && isAdmin && (
-        <a href="/admin"
-          class="flex items-center justify-center px-4 py-1.5 rounded-lg font-semibold transition-all duration-300 text-white"
-          style="background-color: #1a1a1a; font-size: 0.85rem;">
-          Admin
-        </a>
-      )}
-      {user && !isAdmin && (
-        <a href="/dashboard"
-          class="flex items-center justify-center px-4 py-1.5 rounded-lg font-semibold transition-all duration-300 text-white"
-          style="background-color: #1a1a1a; font-size: 0.85rem;">
-          My Dashboard
-        </a>
-      )}
-      <span class="flex items-center">
-        <Theme />
-      </span>
+      {!user && <a href="/signin" class="auth-btn auth-btn--ghost">Log In</a>}
+      {!user && <a href="/signup" class="auth-btn auth-btn--dark">Sign Up</a>}
+      {user && isAdmin && <a href="/dashboard" class="auth-btn auth-btn--green">Dashboard</a>}
+      {user && isAdmin && <a href="/admin" class="auth-btn auth-btn--dark">Admin</a>}
+      {user && !isAdmin && <a href="/dashboard" class="auth-btn auth-btn--dark">My Dashboard</a>}
+
+      <Theme />
+
+      <button id="mobileMenuBtn" class="mobile-menu-btn" type="button" aria-label="Open menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </div>
+
+  <div id="mobileMenuBackdrop" class="mobile-menu-backdrop" hidden></div>
+  <aside id="mobileMenu" class="mobile-menu" aria-hidden="true">
+    <div class="mobile-menu__top">
+      <img src="/company-logo-clean.png" alt="Woodberry logo" width="150" height="44" loading="lazy" decoding="async" />
+      <button id="mobileMenuClose" class="mobile-menu__close" type="button" aria-label="Close menu">×</button>
+    </div>
+    <nav class="mobile-menu__nav" aria-label="Mobile navigation">
+      <a href="/">Home</a>
+      <a href="/events_and_booking/events">Events</a>
+      <a href="/gallery">Gallery</a>
+      <a href="/contact-us">Contact Us</a>
+      {user ? <a href="/dashboard">My Dashboard</a> : <a href="/signin">Log In</a>}
+      {user && isAdmin && <a href="/admin">Admin Panel</a>}
+    </nav>
+  </aside>
 </header>
 <CalendarPreview />
 
 <script>
-  // Calendar open/close is handled by calendarPreview.astro
-  // Keeping only smooth scroll for in-page anchor links
-  function updatePreviewButton() {
-    // noop — handled in calendarPreview
-    if (false) {
-    }
+  const menuBtn = document.getElementById('mobileMenuBtn');
+  const menu = document.getElementById('mobileMenu');
+  const backdrop = document.getElementById('mobileMenuBackdrop');
+  const closeBtn = document.getElementById('mobileMenuClose');
+
+  function setMenu(open: boolean) {
+    if (!menu || !backdrop || !menuBtn) return;
+    menu.classList.toggle('is-open', open);
+    backdrop.hidden = !open;
+    menu.setAttribute('aria-hidden', String(!open));
+    menuBtn.setAttribute('aria-expanded', String(open));
+    document.body.style.overflow = open ? 'hidden' : '';
   }
 
-  // Smooth scroll for in-page anchor links
-  document.querySelectorAll('.scroll-link').forEach((link) => {
-    link.addEventListener('click', (e) => {
-      const href = (link as HTMLAnchorElement).getAttribute('href') || '';
-      if (href.startsWith('/#') && window.location.pathname === '/') {
-        e.preventDefault();
-        const targetId = href.slice(2);
-        const target = document.getElementById(targetId);
-        if (target) {
-          const navHeight = document.getElementById('navbar')?.offsetHeight || 52;
-          const top = target.getBoundingClientRect().top + window.scrollY - navHeight;
-          window.scrollTo({ top, behavior: 'smooth' });
-        }
-      }
-    });
-  });
+  menuBtn?.addEventListener('click', () => setMenu(true));
+  closeBtn?.addEventListener('click', () => setMenu(false));
+  backdrop?.addEventListener('click', () => setMenu(false));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setMenu(false); });
 </script>
+
+<style>
+  .site-header{position:fixed;top:0;left:0;width:100%;z-index:100;background:#f5f7f1;box-shadow:0 2px 12px rgba(74,124,63,.10)}
+  .site-header__inner{height:70px;padding:0 clamp(1rem,3vw,1.5rem);display:flex;align-items:center;gap:1rem}
+  .site-header__logo{width:220px;flex-shrink:0;display:flex;align-items:center}.site-header__logo img{max-height:56px;width:auto}
+  .site-header__nav{display:flex;align-items:center;justify-content:center;flex:1;gap:clamp(1rem,2.5vw,2rem)}
+  .navigation-link{text-decoration:none}.navigation-button{font-weight:700;font-size:.85rem;color:#1a2e10;letter-spacing:.05em}.navigation-link:hover .navigation-button{color:#2d5a27}
+  .site-header__actions{display:flex;align-items:center;gap:.5rem;flex-shrink:0}.availability-btn,.auth-btn{height:36px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;font-weight:700;font-size:.82rem;text-decoration:none;white-space:nowrap;transition:.2s ease}.availability-btn{gap:.4rem;width:120px;border:2px solid #4a7c3f;color:#4a7c3f;background:transparent;cursor:pointer}.auth-btn{padding:0 .9rem}.auth-btn--ghost{border:2px solid #4a7c3f;color:#4a7c3f}.auth-btn--dark{background:#1a1a1a;color:#fff}.auth-btn--green{background:#4a7c3f;color:#fff}
+  .mobile-menu-btn{display:none;width:40px;height:40px;border:0;background:#1a2e10;border-radius:10px;padding:9px;cursor:pointer}.mobile-menu-btn span{display:block;height:2px;background:#fff;margin:5px 0;border-radius:999px}.mobile-menu-backdrop{position:fixed;inset:70px 0 0;background:rgba(0,0,0,.38);z-index:101}.mobile-menu{position:fixed;top:70px;right:0;width:min(86vw,340px);height:calc(100vh - 70px);background:#fff;z-index:102;transform:translateX(100%);transition:transform .25s ease;box-shadow:-12px 0 30px rgba(0,0,0,.16);padding:1rem}.mobile-menu.is-open{transform:translateX(0)}.mobile-menu__top{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e5e7eb;padding-bottom:1rem}.mobile-menu__close{border:0;background:#f3f4f6;width:36px;height:36px;border-radius:999px;font-size:1.6rem;line-height:1;cursor:pointer}.mobile-menu__nav{display:grid;gap:.75rem;padding-top:1rem}.mobile-menu__nav a{padding:.9rem 1rem;border-radius:14px;background:#f8faf6;color:#1a2e10;text-decoration:none;font-weight:800}
+  @media(max-width:980px){.site-header__nav,.availability-btn,.auth-btn{display:none}.site-header__inner{justify-content:space-between}.site-header__logo{width:auto}.mobile-menu-btn{display:block}}
+</style>

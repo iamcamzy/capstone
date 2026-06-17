@@ -3,9 +3,15 @@ const { venueId, venueName, pricePerNight } = Astro.props;
 ---
 
 <div id="booking-form">
-  <h2 class="text-2xl font-bold mb-6" style="color: var(--jet-primary);">
+  <h2 class="text-2xl font-bold mb-3" style="color: var(--jet-primary);">
     Complete Your Booking
   </h2>
+  <div class="form-stepper" aria-label="Booking form progress">
+    <div class="form-step is-active">Guest</div>
+    <div class="form-step">Dates</div>
+    <div class="form-step">Review</div>
+    <div class="form-step">Done</div>
+  </div>
 
   <!-- Notification banner -->
   <div id="bookingNotice" class="hidden mb-4 px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-2"></div>
@@ -225,11 +231,19 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     <h3 class="text-2xl font-black mb-2" style="color:var(--jet-primary);">Booking Submitted!</h3>
     <p class="text-gray-500 text-sm mb-2">Your booking request has been successfully recorded.</p>
     <p class="text-gray-500 text-sm mb-6">Our staff will review and book your request. You can track your booking status in your dashboard.</p>
+    <h3 class="text-2xl font-black mb-2" style="color:var(--jet-primary);">🎉 Booking Request Received!</h3>
+    <p class="text-gray-500 text-sm mb-2">Your request was submitted successfully and is now pending staff review.</p>
+    <p class="text-gray-500 text-sm mb-6">Save your reference number below. You can monitor updates anytime from your dashboard.</p>
     <div class="bg-gray-50 rounded-xl p-4 mb-6 text-left">
       <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Booking Reference</p>
       <p id="success-ref" class="font-mono font-bold text-sm" style="color:var(--butterscotch-primary);"></p>
       <p id="success-venue" class="text-sm text-gray-600 mt-1"></p>
       <p id="success-dates" class="text-sm text-gray-600"></p>
+    </div>
+    <div class="grid grid-cols-1 gap-2 text-left text-sm mb-5">
+      <div class="success-check">✓ Booking saved</div>
+      <div class="success-check">✓ Staff review pending</div>
+      <div class="success-check">✓ Status available in your dashboard</div>
     </div>
     <p class="text-xs text-gray-400 mb-5">Redirecting to your dashboard in <span id="success-countdown">5</span>s...</p>
     <a href="/dashboard"
@@ -286,8 +300,32 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     return 0;
   }
 
-  checkInInput.addEventListener('change', calculateNights);
-  checkOutInput.addEventListener('change', calculateNights);
+  var todayISO = new Date().toISOString().split('T')[0];
+  [checkInInput, checkOutInput, eventDateInput].forEach(function(input) { if (input) input.min = todayISO; });
+
+  function updateFormStepper(step) {
+    document.querySelectorAll('.form-step').forEach(function(el, index) {
+      el.classList.toggle('is-active', index + 1 === step);
+      el.classList.toggle('is-done', index + 1 < step);
+    });
+  }
+
+  function validateDates() {
+    if (checkInInput.value && checkOutInput.value && checkOutInput.value <= checkInInput.value) {
+      checkOutInput.setCustomValidity('Check-out must be after check-in.');
+    } else {
+      checkOutInput.setCustomValidity('');
+    }
+  }
+
+  checkInInput.addEventListener('change', function() {
+    if (checkInInput.value) checkOutInput.min = checkInInput.value;
+    validateDates();
+    calculateNights();
+    updateFormStepper(2);
+  });
+  checkOutInput.addEventListener('change', function() { validateDates(); calculateNights(); updateFormStepper(2); });
+  eventDateInput.addEventListener('change', function() { updateFormStepper(2); });
 
   // ── STEP 1: form submit → show confirmation modal ──────────────────
   form.addEventListener('submit', function(e) {
@@ -319,12 +357,14 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       reqWrap.classList.add('hidden');
     }
 
+    updateFormStepper(3);
     confirmModal.classList.remove('hidden');
   });
 
   // ── Go back & edit ─────────────────────────────────────────────────
   confBackBtn.addEventListener('click', function() {
     confirmModal.classList.add('hidden');
+    updateFormStepper(2);
   });
 
   // Close modal on backdrop click
@@ -366,6 +406,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
         document.getElementById('success-venue').textContent = venueName || '';
         document.getElementById('success-dates').textContent =
           fmtDate(checkInInput.value) + ' → ' + fmtDate(checkOutInput.value);
+        updateFormStepper(4);
         successScreen.classList.remove('hidden');
         form.reset();
         nightsCountEl.textContent = '0';
@@ -398,11 +439,63 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     --butterscotch-primary: #ed9b40;
     --jet-primary: #363537;
   }
+  .form-stepper {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .form-step {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    color: #6b7280;
+    border-radius: 999px;
+    padding: 0.5rem 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+  .form-step span {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: #e5e7eb;
+    color: #6b7280;
+    font-size: 0.7rem;
+  }
+  .form-step.is-active,
+  .form-step.is-done {
+    border-color: #2d5a27;
+    color: #1a2e10;
+    background: #f0fdf4;
+  }
+  .form-step.is-active span,
+  .form-step.is-done span {
+    background: #2d5a27;
+    color: #fff;
+  }
+  .success-check {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.75rem;
+    font-weight: 700;
+  }
   #bookingForm input:focus,
   #bookingForm select:focus,
   #bookingForm textarea:focus {
     outline: none;
-    ring: 2px solid var(--butterscotch-primary);
+    box-shadow: 0 0 0 3px rgba(237,155,64,.25);
+    border-color: var(--butterscotch-primary);
+  }
+  @media (max-width: 520px) {
+    .form-stepper { grid-template-columns: repeat(2, 1fr); }
   }
 </style>
 

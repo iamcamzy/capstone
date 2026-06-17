@@ -21,34 +21,60 @@ const isAdmin = !!adminRow;
 
 const { data: bookings } = await db
   .from('bookings')
-  .select('id, start_date, end_date, event_type, status, total_price, venue_id, event_date, created_at')
+  .select('id, start_date, end_date, event_type, status, total_price, venue_id, event_date, created_at, updated_at, cancelled_at, rescheduled_at, pax, full_name, phone, special_requests, package_id')
   .eq('user_id', user.id)
   .order('created_at', { ascending: false })
   .limit(20);
 
+<<<<<<< Updated upstream
 const normalizedBookings = (bookings ?? []).map((booking) => ({
   ...booking,
   status: normalizeBookingStatus(booking.status),
 }));
 
 const venueIds = [...new Set(normalizedBookings.map(b => b.venue_id))];
+=======
+const venueIds = [...new Set((bookings ?? []).map((b: any) => b.venue_id).filter(Boolean))];
+>>>>>>> Stashed changes
 const { data: venues } = venueIds.length > 0
-  ? await db.from('venues').select('id, name, image_url').in('id', venueIds)
+  ? await db.from('venues').select('id, name, image_url, location, capacity, price_per_night').in('id', venueIds)
   : { data: [] };
-const venueMap = Object.fromEntries((venues ?? []).map(v => [v.id, v]));
+const venueMap = Object.fromEntries((venues ?? []).map((v: any) => [v.id, v]));
 
+<<<<<<< Updated upstream
 const bookingIds = normalizedBookings.map(b => b.id);
+=======
+const packageIds = [...new Set((bookings ?? []).map((b: any) => b.package_id).filter(Boolean))];
+const { data: packages } = packageIds.length > 0
+  ? await db.from('packages').select('id, name, price').in('id', packageIds)
+  : { data: [] };
+const packageMap = Object.fromEntries((packages ?? []).map((p: any) => [p.id, p]));
+
+const bookingIds = (bookings ?? []).map((b: any) => b.id);
+>>>>>>> Stashed changes
 const { data: existingReviews } = bookingIds.length > 0
   ? await db.from('reviews').select('booking_id').eq('user_id', user.id).in('booking_id', bookingIds)
   : { data: [] };
 const reviewedSet = new Set((existingReviews ?? []).map((r: any) => r.booking_id));
 
+const totalBookings = bookings?.length ?? 0;
+const pendingBookings = (bookings ?? []).filter((b: any) => b.status === 'pending').length;
+const upcomingBookings = (bookings ?? []).filter((b: any) => {
+  const d = new Date(b.start_date);
+  const today = new Date(); today.setHours(0,0,0,0);
+  return d >= today && b.status !== 'cancelled';
+}).length;
+const totalSpent = (bookings ?? []).reduce((sum: number, b: any) => sum + Number(b.total_price ?? 0), 0);
+
 const displayName = profile?.first_name
   ? `${profile.first_name} ${profile.last_name ?? ''}`.trim()
   : user.email;
 
-const fmtDate = (d: string) =>
-  new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+const fmtDate = (d?: string | null) =>
+  d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+
+const fmtDateTime = (d?: string | null) =>
+  d ? new Date(d).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 
 const statusConfig: Record<string, { bg: string; text: string; border: string; dot: string; label: string }> = {
   pending:          { bg: '#fffbeb', text: '#92400e', border: '#fde68a', dot: '#f59e0b', label: 'Pending' },
@@ -67,36 +93,29 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
 <div class="min-h-screen" style="background: linear-gradient(135deg, #f5f3f0 0%, #ede8e0 100%);">
   <div class="max-w-4xl mx-auto px-4 py-10">
 
-    <!-- ── Welcome header ── -->
     <div class="mb-8 flex items-center justify-between flex-wrap gap-4">
       <div>
         <p class="text-sm font-semibold mb-1" style="color:var(--butterscotch-primary);letter-spacing:0.08em;">MY DASHBOARD</p>
-        <h1 class="text-3xl font-black" style="color:var(--jet-primary);">
-          Welcome, {displayName}! 👋
-        </h1>
+        <h1 class="text-3xl font-black" style="color:var(--jet-primary);">Welcome, {displayName}! 👋</h1>
         <p class="text-gray-500 text-sm mt-1">{user.email}</p>
       </div>
       <form method="POST" action="/api/auth/signout">
-        <button type="submit"
-          class="px-5 py-2 rounded-xl text-sm font-semibold transition hover:opacity-80"
-          style="background:var(--jet-primary);color:#fff;">
-          Sign out
-        </button>
+        <button type="submit" class="px-5 py-2 rounded-xl text-sm font-semibold transition hover:opacity-80" style="background:var(--jet-primary);color:#fff;">Sign out</button>
       </form>
     </div>
 
-    <!-- ── Quick action cards ── -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div class="rounded-2xl p-5 bg-white border border-white shadow-sm"><p class="text-xs font-bold uppercase tracking-widest text-gray-400">Total</p><p class="text-3xl font-black mt-1" style="color:var(--jet-primary);">{totalBookings}</p><p class="text-xs text-gray-500 mt-1">All booking requests</p></div>
+      <div class="rounded-2xl p-5 bg-white border border-white shadow-sm"><p class="text-xs font-bold uppercase tracking-widest text-gray-400">Upcoming</p><p class="text-3xl font-black mt-1" style="color:#2d5a27;">{upcomingBookings}</p><p class="text-xs text-gray-500 mt-1">Active future stays</p></div>
+      <div class="rounded-2xl p-5 bg-white border border-white shadow-sm"><p class="text-xs font-bold uppercase tracking-widest text-gray-400">Pending</p><p class="text-3xl font-black mt-1" style="color:#dc7f14;">{pendingBookings}</p><p class="text-xs text-gray-500 mt-1">Waiting for review</p></div>
+      <div class="rounded-2xl p-5 bg-white border border-white shadow-sm"><p class="text-xs font-bold uppercase tracking-widest text-gray-400">Estimated Spend</p><p class="text-2xl font-black mt-2" style="color:#4f46e5;">₱{totalSpent.toLocaleString('en-PH')}</p><p class="text-xs text-gray-500 mt-1">Across your bookings</p></div>
+    </div>
+
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-      <a href="/events_and_booking/events"
-        class="group relative overflow-hidden rounded-2xl p-5 flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-lg"
-        style="background:linear-gradient(135deg,#2d5a27,#4a7c3f);color:white;text-decoration:none;">
-        <div class="text-3xl">🏖️</div>
-        <div>
-          <p class="font-bold text-base">Browse Venues</p>
-          <p class="text-xs opacity-75 mt-0.5">Find your perfect space</p>
-        </div>
-        <div class="absolute right-4 top-1/2 -translate-y-1/2 opacity-20 text-5xl">→</div>
+      <a href="/events_and_booking/events" class="group relative overflow-hidden rounded-2xl p-5 flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-lg" style="background:linear-gradient(135deg,#2d5a27,#4a7c3f);color:white;text-decoration:none;">
+        <div class="text-3xl">🏖️</div><div><p class="font-bold text-base">Browse Venues</p><p class="text-xs opacity-75 mt-0.5">Find your perfect space</p></div><div class="absolute right-4 top-1/2 -translate-y-1/2 opacity-20 text-5xl">→</div>
       </a>
+<<<<<<< Updated upstream
 
       <div class="rounded-2xl p-5 flex items-center gap-4"
         style="background:linear-gradient(135deg,#ed9b40,#dc7f14);color:white;">
@@ -107,28 +126,17 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
         </div>
       </div>
 
+=======
+      <div class="rounded-2xl p-5 flex items-center gap-4" style="background:linear-gradient(135deg,#ed9b40,#dc7f14);color:white;"><div class="text-3xl">📅</div><div><p class="font-bold text-base">My Bookings</p><p class="text-xs opacity-75 mt-0.5">{totalBookings} total bookings</p></div></div>
+>>>>>>> Stashed changes
       {isAdmin ? (
-        <a href="/admin"
-          class="rounded-2xl p-5 flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-lg"
-          style="background:linear-gradient(135deg,#363537,#5e5c60);color:white;text-decoration:none;">
-          <div class="text-3xl">⚙️</div>
-          <div>
-            <p class="font-bold text-base">Admin Panel</p>
-            <p class="text-xs opacity-75 mt-0.5">Manage bookings & venues</p>
-          </div>
-        </a>
+        <a href="/admin" class="rounded-2xl p-5 flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-lg" style="background:linear-gradient(135deg,#363537,#5e5c60);color:white;text-decoration:none;"><div class="text-3xl">⚙️</div><div><p class="font-bold text-base">Admin Panel</p><p class="text-xs opacity-75 mt-0.5">Manage bookings & venues</p></div></a>
       ) : (
-        <div class="rounded-2xl p-5 flex items-center gap-4"
-          style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;">
-          <div class="text-3xl">⭐</div>
-          <div>
-            <p class="font-bold text-base">My Reviews</p>
-            <p class="text-xs opacity-75 mt-0.5">{reviewedSet.size} review{reviewedSet.size !== 1 ? 's' : ''} left</p>
-          </div>
-        </div>
+        <div class="rounded-2xl p-5 flex items-center gap-4" style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;"><div class="text-3xl">⭐</div><div><p class="font-bold text-base">My Reviews</p><p class="text-xs opacity-75 mt-0.5">{reviewedSet.size} review{reviewedSet.size !== 1 ? 's' : ''} submitted</p></div></div>
       )}
     </div>
 
+<<<<<<< Updated upstream
     <!-- ── Bookings section ── -->
     <section class="mb-8 rounded-2xl p-5" style="background:white;border:1.5px solid #e5e7eb;">
       <div class="flex items-center justify-between gap-4 flex-wrap">
@@ -150,6 +158,8 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
       <p id="notificationPreferenceMessage" class="hidden text-sm font-semibold mt-4"></p>
     </section>
 
+=======
+>>>>>>> Stashed changes
     <div class="mb-3 flex items-center justify-between">
       <h2 class="text-lg font-black" style="color:var(--jet-primary);">My Bookings</h2>
       <span class="text-xs text-gray-400 font-medium">{normalizedBookings.length} bookings</span>
@@ -157,78 +167,71 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
 
     {normalizedBookings.length > 0 ? (
       <div class="space-y-3">
+<<<<<<< Updated upstream
         {normalizedBookings.map((b) => {
+=======
+        {bookings.map((b: any) => {
+>>>>>>> Stashed changes
           const todayD = new Date(); todayD.setHours(0,0,0,0);
           const endDate = new Date(b.end_date);
           const canReview = (b.status === 'booked' || b.status === 'completed') && !reviewedSet.has(b.id);
           const hasReview = reviewedSet.has(b.id);
-          const venue     = (venueMap as any)[b.venue_id];
+          const venue = (venueMap as any)[b.venue_id];
           const venueName = venue?.name ?? 'Unknown Venue';
+<<<<<<< Updated upstream
           const cfg       = statusConfig[b.status] ?? statusConfig.pending;
           const isCompleted = b.status === 'completed' || (b.status === 'booked' && endDate < todayD);
+=======
+          const pkg = (packageMap as any)[b.package_id];
+          const cfg = statusConfig[b.status] ?? statusConfig.pending;
+          const isCompleted = b.status === 'confirmed' && endDate < todayD;
+          const canManage = b.status !== 'cancelled' && !isCompleted;
+>>>>>>> Stashed changes
 
           return (
-            <div
-              class="group rounded-2xl overflow-hidden transition-all hover:shadow-md hover:-translate-y-0.5"
+            <div class="booking-card group rounded-2xl overflow-hidden transition-all hover:shadow-md hover:-translate-y-0.5"
               style={`background:white;border:1.5px solid ${cfg.border};`}
-            >
-              <!-- Coloured left accent bar -->
+              data-booking-id={b.id}
+              data-venue={venueName}
+              data-status={isCompleted ? 'Completed' : cfg.label}
+              data-start={fmtDate(b.start_date)}
+              data-end={fmtDate(b.end_date)}
+              data-start-raw={b.start_date}
+              data-end-raw={b.end_date}
+              data-event={fmtDate(b.event_date)}
+              data-event-raw={b.event_date ?? ''}
+              data-type={b.event_type ?? '—'}
+              data-pax={b.pax ?? '—'}
+              data-total={b.total_price ? `₱${Number(b.total_price).toLocaleString('en-PH')}` : '—'}
+              data-name={b.full_name ?? displayName}
+              data-phone={b.phone ?? '—'}
+              data-package={pkg?.name ?? '—'}
+              data-package-price={pkg?.price ? `₱${Number(pkg.price).toLocaleString('en-PH')}` : '—'}
+              data-location={venue?.location ?? '—'}
+              data-capacity={venue?.capacity ?? '—'}
+              data-created={fmtDateTime(b.created_at)}
+              data-updated={fmtDateTime(b.updated_at)}
+              data-requests={b.special_requests ?? '—'}
+              data-can-manage={canManage ? 'yes' : 'no'}>
               <div style={`height:4px;background:${cfg.dot};`}></div>
-
               <div class="p-5">
                 <div class="flex items-start justify-between gap-4 flex-wrap">
-
-                  <!-- Left: venue + dates -->
                   <div class="flex items-start gap-4 flex-1 min-w-0">
-                    <!-- Venue icon / initial -->
-                    <div class="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black text-white"
-                      style={`background:${cfg.dot};`}>
-                      {venueName.charAt(0)}
-                    </div>
+                    <div class="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black text-white" style={`background:${cfg.dot};`}>{venueName.charAt(0)}</div>
                     <div class="min-w-0">
                       <p class="font-bold text-base truncate" style="color:var(--jet-primary);">{venueName}</p>
-                      <p class="text-sm mt-0.5" style="color:#6b7280;">
-                        {fmtDate(b.start_date)} → {fmtDate(b.end_date)}
-                        {b.event_type ? <span class="text-xs ml-1 px-2 py-0.5 rounded-full" style="background:#f3f4f6;color:#374151;">{b.event_type}</span> : ''}
-                      </p>
-                      {b.event_date && (
-                        <p class="text-xs mt-1 flex items-center gap-1" style="color:#9ca3af;">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                          Event: {fmtDate(b.event_date)}
-                        </p>
-                      )}
+                      <p class="text-sm mt-0.5" style="color:#6b7280;">{fmtDate(b.start_date)} → {fmtDate(b.end_date)} {b.event_type ? <span class="text-xs ml-1 px-2 py-0.5 rounded-full" style="background:#f3f4f6;color:#374151;">{b.event_type}</span> : ''}</p>
+                      {b.event_date && <p class="text-xs mt-1" style="color:#9ca3af;">Event: {fmtDate(b.event_date)}</p>}
                     </div>
                   </div>
-
-                  <!-- Right: status + price + action -->
                   <div class="flex flex-col items-end gap-2 flex-shrink-0">
-                    <!-- Status badge -->
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
-                      style={`background:${cfg.bg};color:${cfg.text};border:1px solid ${cfg.border};`}>
-                      <span class="w-1.5 h-1.5 rounded-full" style={`background:${cfg.dot};`}></span>
-                      {isCompleted ? 'Completed' : cfg.label}
-                    </span>
-
-                    {b.total_price && (
-                      <p class="text-base font-black" style="color:var(--butterscotch-primary);">
-                        ₱{Number(b.total_price).toLocaleString()}
-                      </p>
-                    )}
-
-                    {canReview && (
-                      <button
-                        onclick={`openReviewModal('${b.id}','${venueName.replace(/'/g, "\\'")}')`}
-                        class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white transition hover:shadow-md hover:-translate-y-0.5"
-                        style="background:linear-gradient(135deg,#f59e0b,#d97706);"
-                      >
-                        ⭐ Leave a Review
-                      </button>
-                    )}
-                    {hasReview && (
-                      <span class="text-xs font-semibold flex items-center gap-1" style="color:#22c55e;">
-                        ✓ Reviewed
-                      </span>
-                    )}
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold" style={`background:${cfg.bg};color:${cfg.text};border:1px solid ${cfg.border};`}><span class="w-1.5 h-1.5 rounded-full" style={`background:${cfg.dot};`}></span>{isCompleted ? 'Completed' : cfg.label}</span>
+                    {b.total_price && <p class="text-base font-black" style="color:var(--butterscotch-primary);">₱{Number(b.total_price).toLocaleString()}</p>}
+                    <div class="flex flex-wrap justify-end gap-2">
+                      <button type="button" onclick="openBookingDetails(this)" class="px-4 py-2 rounded-xl text-xs font-bold transition hover:-translate-y-0.5" style="background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;">View Details</button>
+                      {canReview && <button onclick={`openReviewModal('${b.id}','${venueName.replace(/'/g, "\\'")}')`} class="px-4 py-2 rounded-xl text-xs font-bold text-white transition hover:shadow-md hover:-translate-y-0.5" style="background:linear-gradient(135deg,#f59e0b,#d97706);">⭐ Review</button>}
+                      {hasReview && <span class="text-xs font-semibold flex items-center gap-1" style="color:#22c55e;">✓ Reviewed</span>}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -237,18 +240,65 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
         })}
       </div>
     ) : (
-      <div class="rounded-2xl p-12 text-center" style="background:white;border:1.5px solid #e5e7eb;">
-        <div class="text-5xl mb-4">📭</div>
-        <p class="font-bold text-lg mb-1" style="color:var(--jet-primary);">No bookings yet</p>
-        <p class="text-sm text-gray-500 mb-5">Start by exploring our beautiful venues</p>
-        <a href="/events_and_booking/events"
-          class="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white transition hover:opacity-90"
-          style="background:linear-gradient(135deg,#2d5a27,#4a7c3f);text-decoration:none;">
-          Browse Venues →
-        </a>
-      </div>
+      <div class="rounded-2xl p-12 text-center" style="background:white;border:1.5px solid #e5e7eb;"><div class="text-5xl mb-4">📭</div><p class="font-bold text-lg mb-1" style="color:var(--jet-primary);">No bookings yet</p><p class="text-sm text-gray-500 mb-5">Start by exploring our beautiful venues</p><a href="/events_and_booking/events" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white transition hover:opacity-90" style="background:linear-gradient(135deg,#2d5a27,#4a7c3f);text-decoration:none;">Browse Venues →</a></div>
     )}
+  </div>
+</div>
 
+<div id="bookingDetailsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.58);">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[92vh] overflow-y-auto">
+    <div class="px-6 py-5 border-b border-gray-100 flex items-start justify-between gap-4">
+      <div><p class="text-xs font-bold uppercase tracking-widest text-gray-400">Booking Details</p><h3 id="detailVenue" class="text-2xl font-black mt-1" style="color:var(--jet-primary);"></h3><p id="detailStatus" class="text-sm text-gray-500 mt-1"></p></div>
+      <button type="button" onclick="closeBookingDetails()" class="text-3xl leading-none text-gray-300 hover:text-gray-600">&times;</button>
+    </div>
+    <div class="px-6 py-5 space-y-5">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="detail-box"><span>Check-in</span><p id="detailStart"></p></div>
+        <div class="detail-box"><span>Check-out</span><p id="detailEnd"></p></div>
+        <div class="detail-box"><span>Event Date</span><p id="detailEvent"></p></div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="detail-box"><span>Guest Name</span><p id="detailName"></p></div>
+        <div class="detail-box"><span>Phone</span><p id="detailPhone"></p></div>
+        <div class="detail-box"><span>Event Type</span><p id="detailType"></p></div>
+        <div class="detail-box"><span>Pax</span><p id="detailPax"></p></div>
+        <div class="detail-box"><span>Package</span><p id="detailPackage"></p></div>
+        <div class="detail-box"><span>Total</span><p id="detailTotal" style="color:var(--butterscotch-primary);"></p></div>
+      </div>
+      <div class="detail-box"><span>Special Requests / Notes</span><p id="detailRequests"></p></div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-gray-500">
+        <div>Submitted: <strong id="detailCreated"></strong></div>
+        <div>Last Updated: <strong id="detailUpdated"></strong></div>
+      </div>
+      <p id="detailActionNote" class="text-xs rounded-xl px-4 py-3" style="background:#f8fafc;color:#64748b;">You can request changes while this booking is still active.</p>
+    </div>
+    <div class="px-6 pb-6 flex flex-col sm:flex-row gap-3">
+      <button id="openRescheduleBtn" type="button" onclick="openRescheduleModal()" class="flex-1 py-3 rounded-xl font-bold text-sm" style="background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;">Request Reschedule</button>
+      <button id="cancelBookingBtn" type="button" onclick="cancelBooking()" class="flex-1 py-3 rounded-xl font-bold text-sm" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;">Cancel Booking</button>
+    </div>
+  </div>
+</div>
+
+<div id="rescheduleModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.62);">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+    <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-start"><div><h3 class="text-xl font-black" style="color:var(--jet-primary);">Request Reschedule</h3><p class="text-sm text-gray-500 mt-1">Submit your preferred new date. Staff will review it.</p></div><button type="button" onclick="closeRescheduleModal()" class="text-3xl leading-none text-gray-300 hover:text-gray-600">&times;</button></div>
+    <div class="p-6 space-y-4">
+      <div><label class="block text-sm font-bold mb-2">New Check-in</label><input id="newStartDate" type="date" class="w-full px-4 py-3 rounded-xl border border-gray-200" /></div>
+      <div><label class="block text-sm font-bold mb-2">New Check-out</label><input id="newEndDate" type="date" class="w-full px-4 py-3 rounded-xl border border-gray-200" /></div>
+      <div><label class="block text-sm font-bold mb-2">New Event Date</label><input id="newEventDate" type="date" class="w-full px-4 py-3 rounded-xl border border-gray-200" /></div>
+      <div><label class="block text-sm font-bold mb-2">Reason / Notes</label><textarea id="rescheduleReason" rows="3" class="w-full px-4 py-3 rounded-xl border border-gray-200 resize-none" placeholder="Why do you want to reschedule?"></textarea></div>
+      <p id="rescheduleError" class="hidden text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg"></p>
+      <button id="submitRescheduleBtn" type="button" onclick="submitRescheduleRequest()" class="w-full py-3 rounded-xl text-white font-bold" style="background:#2d5a27;">Send Reschedule Request</button>
+    </div>
+  </div>
+</div>
+
+<div id="reviewModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.55);">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+    <div style="height:4px;background:linear-gradient(90deg,#f59e0b,#d97706);"></div>
+    <div class="px-6 pt-5 pb-4 border-b border-gray-100"><div class="flex justify-between items-start"><div><h3 class="text-xl font-black" style="color:var(--jet-primary);">Leave a Review</h3><p id="reviewVenueName" class="text-sm text-gray-500 mt-0.5"></p></div><button onclick="closeReviewModal()" class="text-gray-300 hover:text-gray-500 text-2xl leading-none ml-4">&times;</button></div></div>
+    <div class="px-6 py-5 space-y-5"><div><label class="block text-sm font-bold mb-3" style="color:var(--jet-primary);">Your Rating</label><div class="flex gap-1">{[1,2,3,4,5].map(n => (<button data-star={n} class="star-btn text-4xl transition-all hover:scale-125 focus:outline-none" style="background:none;border:none;cursor:pointer;color:#e5e7eb;" aria-label={`${n} star`}>★</button>))}</div><input type="hidden" id="reviewRating" value="0" /></div><div><label class="block text-sm font-bold mb-2" style="color:var(--jet-primary);">Comment <span class="text-gray-400 font-normal">(optional)</span></label><textarea id="reviewComment" rows="4" placeholder="Tell us about your experience at Woodberry…" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm resize-none focus:outline-none" style="border-color:#e5e7eb;"></textarea></div><p id="reviewError" class="hidden text-sm text-red-600 font-medium bg-red-50 px-3 py-2 rounded-lg"></p></div>
+    <div class="px-6 pb-6 flex gap-3"><button onclick="closeReviewModal()" class="flex-1 py-3 rounded-xl border-2 font-bold text-sm" style="border-color:#e5e7eb;color:#6b7280;">Cancel</button><button onclick="submitReview()" id="submitReviewBtn" class="flex-1 py-3 rounded-xl text-white font-bold text-sm transition hover:opacity-90" style="background:linear-gradient(135deg,#f59e0b,#d97706);">Submit Review ⭐</button></div>
   </div>
 </div>
 </Layout>
@@ -339,93 +389,155 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
     </div>
   </div>
 </div>
+<style>
+  .detail-box { background:#f9fafb; border:1px solid #eef2f7; border-radius:14px; padding:14px; }
+  .detail-box span { display:block; font-size:.7rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#9ca3af; margin-bottom:4px; }
+  .detail-box p { font-weight:700; color:var(--jet-primary); }
+</style>
 
 <script>
   let _reviewBookingId = '';
+  let _activeBookingId = '';
 
-  function openReviewModal(bookingId: string, venueName: string) {
+  function toast(message, good = true) {
+    const t = document.createElement('div');
+    t.textContent = message;
+    t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;background:${good ? '#10b981' : '#ef4444'};color:white;padding:14px 20px;border-radius:14px;font-weight:700;font-size:0.875rem;box-shadow:0 8px 24px rgba(0,0,0,0.15);`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2400);
+  }
+
+  function openBookingDetails(btn) {
+    const card = btn.closest('.booking-card');
+    if (!card) return;
+    _activeBookingId = card.dataset.bookingId || '';
+    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value || '—'; };
+    set('detailVenue', card.dataset.venue);
+    set('detailStatus', card.dataset.status);
+    set('detailStart', card.dataset.start);
+    set('detailEnd', card.dataset.end);
+    set('detailEvent', card.dataset.event);
+    set('detailName', card.dataset.name);
+    set('detailPhone', card.dataset.phone);
+    set('detailType', card.dataset.type);
+    set('detailPax', card.dataset.pax);
+    set('detailPackage', card.dataset.package);
+    set('detailTotal', card.dataset.total);
+    set('detailRequests', card.dataset.requests);
+    set('detailCreated', card.dataset.created);
+    set('detailUpdated', card.dataset.updated);
+
+    const canManage = card.dataset.canManage === 'yes';
+    const cancelBtn = document.getElementById('cancelBookingBtn');
+    const rescheduleBtn = document.getElementById('openRescheduleBtn');
+    const note = document.getElementById('detailActionNote');
+    if (cancelBtn) cancelBtn.style.display = canManage ? '' : 'none';
+    if (rescheduleBtn) rescheduleBtn.style.display = canManage ? '' : 'none';
+    if (note) note.textContent = canManage ? 'You can cancel this booking or send a reschedule request while it is active.' : 'This booking can no longer be changed from the dashboard.';
+
+    const s = document.getElementById('newStartDate');
+    const e = document.getElementById('newEndDate');
+    const ev = document.getElementById('newEventDate');
+    if (s) s.value = card.dataset.startRaw || '';
+    if (e) e.value = card.dataset.endRaw || '';
+    if (ev) ev.value = card.dataset.eventRaw || '';
+
+    document.getElementById('bookingDetailsModal')?.classList.remove('hidden');
+  }
+
+  function closeBookingDetails() { document.getElementById('bookingDetailsModal')?.classList.add('hidden'); }
+  function openRescheduleModal() { document.getElementById('rescheduleModal')?.classList.remove('hidden'); }
+  function closeRescheduleModal() { document.getElementById('rescheduleModal')?.classList.add('hidden'); }
+
+  async function cancelBooking() {
+    if (!_activeBookingId) return;
+    if (!confirm('Are you sure you want to cancel this booking?')) return;
+    const btn = document.getElementById('cancelBookingBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Cancelling...'; }
+    try {
+      const res = await fetch('/api/bookings/CancelBookings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: _activeBookingId })
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.message || 'Unable to cancel booking.');
+      toast('Booking cancelled successfully.');
+      setTimeout(() => location.reload(), 900);
+    } catch (err) {
+      toast(err.message || 'Unable to cancel booking.', false);
+      if (btn) { btn.disabled = false; btn.textContent = 'Cancel Booking'; }
+    }
+  }
+
+  async function submitRescheduleRequest() {
+    const errEl = document.getElementById('rescheduleError');
+    const btn = document.getElementById('submitRescheduleBtn');
+    const newStartDate = document.getElementById('newStartDate')?.value;
+    const newEndDate = document.getElementById('newEndDate')?.value;
+    const newEventDate = document.getElementById('newEventDate')?.value;
+    const reason = document.getElementById('rescheduleReason')?.value.trim();
+    if (errEl) { errEl.classList.add('hidden'); errEl.textContent = ''; }
+    if (!newStartDate || !newEndDate) { if (errEl) { errEl.textContent = 'Please choose new check-in and check-out dates.'; errEl.classList.remove('hidden'); } return; }
+    if (new Date(newEndDate) <= new Date(newStartDate)) { if (errEl) { errEl.textContent = 'Check-out must be after check-in.'; errEl.classList.remove('hidden'); } return; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+    try {
+      const res = await fetch('/api/bookings/RequestReschedule', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: _activeBookingId, newStartDate, newEndDate, newEventDate, reason })
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.message || 'Unable to send reschedule request.');
+      toast('Reschedule request sent.');
+      setTimeout(() => location.reload(), 900);
+    } catch (err) {
+      if (errEl) { errEl.textContent = err.message || 'Unable to send reschedule request.'; errEl.classList.remove('hidden'); }
+      if (btn) { btn.disabled = false; btn.textContent = 'Send Reschedule Request'; }
+    }
+  }
+
+  function openReviewModal(bookingId, venueName) {
     _reviewBookingId = bookingId;
     const nameEl = document.getElementById('reviewVenueName');
     if (nameEl) nameEl.textContent = venueName;
-    (document.getElementById('reviewRating') as HTMLInputElement).value = '0';
-    (document.getElementById('reviewComment') as HTMLTextAreaElement).value = '';
+    document.getElementById('reviewRating').value = '0';
+    document.getElementById('reviewComment').value = '';
     const errEl = document.getElementById('reviewError');
     if (errEl) { errEl.classList.add('hidden'); errEl.textContent = ''; }
     updateStars(0);
     document.getElementById('reviewModal')?.classList.remove('hidden');
   }
-
-  function closeReviewModal() {
-    document.getElementById('reviewModal')?.classList.add('hidden');
-  }
-
-  function updateStars(rating: number) {
-    document.querySelectorAll<HTMLElement>('.star-btn').forEach(btn => {
-      const n = parseInt(btn.dataset.star ?? '0');
-      btn.style.color = n <= rating ? '#f59e0b' : '#e5e7eb';
-      btn.style.transform = n === rating ? 'scale(1.2)' : '';
-    });
-  }
-
-  document.querySelectorAll<HTMLElement>('.star-btn').forEach(btn => {
-    btn.addEventListener('mouseenter', () => updateStars(parseInt(btn.dataset.star ?? '0')));
-    btn.addEventListener('mouseleave', () => updateStars(parseInt((document.getElementById('reviewRating') as HTMLInputElement).value)));
-    btn.addEventListener('click', () => {
-      const n = parseInt(btn.dataset.star ?? '0');
-      (document.getElementById('reviewRating') as HTMLInputElement).value = String(n);
-      updateStars(n);
-    });
-  });
-
+  function closeReviewModal() { document.getElementById('reviewModal')?.classList.add('hidden'); }
+  function updateStars(rating) { document.querySelectorAll('.star-btn').forEach(btn => { const n = parseInt(btn.dataset.star || '0'); btn.style.color = n <= rating ? '#f59e0b' : '#e5e7eb'; btn.style.transform = n === rating ? 'scale(1.2)' : ''; }); }
+  document.querySelectorAll('.star-btn').forEach(btn => { btn.addEventListener('mouseenter', () => updateStars(parseInt(btn.dataset.star || '0'))); btn.addEventListener('mouseleave', () => updateStars(parseInt(document.getElementById('reviewRating').value))); btn.addEventListener('click', () => { const n = parseInt(btn.dataset.star || '0'); document.getElementById('reviewRating').value = String(n); updateStars(n); }); });
   async function submitReview() {
-    const rating  = parseInt((document.getElementById('reviewRating') as HTMLInputElement).value);
-    const comment = (document.getElementById('reviewComment') as HTMLTextAreaElement).value.trim();
-    const errEl   = document.getElementById('reviewError')!;
-    const btn     = document.getElementById('submitReviewBtn') as HTMLButtonElement;
-
-    if (rating < 1) {
-      errEl.textContent = 'Please select a star rating before submitting.';
-      errEl.classList.remove('hidden');
-      return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'Submitting…';
-
+    const rating = parseInt(document.getElementById('reviewRating').value);
+    const comment = document.getElementById('reviewComment').value.trim();
+    const errEl = document.getElementById('reviewError');
+    const btn = document.getElementById('submitReviewBtn');
+    if (rating < 1) { errEl.textContent = 'Please select a star rating before submitting.'; errEl.classList.remove('hidden'); return; }
+    btn.disabled = true; btn.textContent = 'Submitting…';
     try {
-      const res = await fetch('/api/reviews/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId: _reviewBookingId, rating, comment: comment || null }),
-      });
-
-      if (res.ok) {
-        closeReviewModal();
-        const t = document.createElement('div');
-        t.textContent = '⭐ Review submitted! Thank you.';
-        t.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;background:#10b981;color:white;padding:14px 20px;border-radius:14px;font-weight:700;font-size:0.875rem;box-shadow:0 8px 24px rgba(0,0,0,0.15);animation:slideUp 0.3s ease;';
-        document.body.appendChild(t);
-        setTimeout(() => { t.remove(); location.reload(); }, 2200);
-      } else {
-        const j = await res.json().catch(() => ({}));
-        errEl.textContent = j.message ?? 'Something went wrong. Please try again.';
-        errEl.classList.remove('hidden');
-        btn.disabled = false;
-        btn.textContent = 'Submit Review ⭐';
-      }
-    } catch {
-      errEl.textContent = 'Network error. Please try again.';
-      errEl.classList.remove('hidden');
-      btn.disabled = false;
-      btn.textContent = 'Submit Review ⭐';
-    }
+      const res = await fetch('/api/reviews/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: _reviewBookingId, rating, comment: comment || null }) });
+      if (res.ok) { closeReviewModal(); toast('⭐ Review submitted! Thank you.'); setTimeout(() => location.reload(), 1200); }
+      else { const j = await res.json().catch(() => ({})); errEl.textContent = j.message || 'Something went wrong. Please try again.'; errEl.classList.remove('hidden'); btn.disabled = false; btn.textContent = 'Submit Review ⭐'; }
+    } catch { errEl.textContent = 'Network error. Please try again.'; errEl.classList.remove('hidden'); btn.disabled = false; btn.textContent = 'Submit Review ⭐'; }
   }
 
-  document.getElementById('reviewModal')?.addEventListener('click', e => {
-    if (e.target === document.getElementById('reviewModal')) closeReviewModal();
-  });
+  document.getElementById('bookingDetailsModal')?.addEventListener('click', e => { if (e.target === document.getElementById('bookingDetailsModal')) closeBookingDetails(); });
+  document.getElementById('rescheduleModal')?.addEventListener('click', e => { if (e.target === document.getElementById('rescheduleModal')) closeRescheduleModal(); });
+  document.getElementById('reviewModal')?.addEventListener('click', e => { if (e.target === document.getElementById('reviewModal')) closeReviewModal(); });
 
+<<<<<<< Updated upstream
   (window as any).openReviewModal  = openReviewModal;
   (window as any).closeReviewModal = closeReviewModal;
   (window as any).submitReview     = submitReview;
+=======
+  window.openBookingDetails = openBookingDetails;
+  window.closeBookingDetails = closeBookingDetails;
+  window.openRescheduleModal = openRescheduleModal;
+  window.closeRescheduleModal = closeRescheduleModal;
+  window.cancelBooking = cancelBooking;
+  window.submitRescheduleRequest = submitRescheduleRequest;
+  window.openReviewModal = openReviewModal;
+  window.closeReviewModal = closeReviewModal;
+  window.submitReview = submitReview;
+>>>>>>> Stashed changes
 </script>
