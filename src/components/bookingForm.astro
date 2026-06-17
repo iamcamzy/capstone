@@ -198,7 +198,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       </div>
 
       <p class="text-xs text-gray-400 text-center">
-        Your booking will be <strong>pending review</strong> until confirmed by our staff. You will be notified once confirmed.
+        Your booking will be <strong>pending review</strong> until booked by our staff. You will be notified once booked.
       </p>
     </div>
 
@@ -224,7 +224,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     <div class="w-20 h-20 rounded-full flex items-center justify-center text-4xl mx-auto mb-4" style="background:#10b98120;">✅</div>
     <h3 class="text-2xl font-black mb-2" style="color:var(--jet-primary);">Booking Submitted!</h3>
     <p class="text-gray-500 text-sm mb-2">Your booking request has been successfully recorded.</p>
-    <p class="text-gray-500 text-sm mb-6">Our staff will review and confirm your request. You can track your booking status in your dashboard.</p>
+    <p class="text-gray-500 text-sm mb-6">Our staff will review and book your request. You can track your booking status in your dashboard.</p>
     <div class="bg-gray-50 rounded-xl p-4 mb-6 text-left">
       <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Booking Reference</p>
       <p id="success-ref" class="font-mono font-bold text-sm" style="color:var(--butterscotch-primary);"></p>
@@ -332,7 +332,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     if (e.target === confirmModal) confirmModal.classList.add('hidden');
   });
 
-  // ── STEP 2: confirmed → actually submit ────────────────────────────
+  // Step 2: user confirmed the summary, then submit
   confSubmitBtn.addEventListener('click', async function() {
     confSubmitBtn.disabled = true;
     confSubmitBtn.textContent = 'Submitting...';
@@ -405,3 +405,4 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     ring: 2px solid var(--butterscotch-primary);
   }
 </style>
+

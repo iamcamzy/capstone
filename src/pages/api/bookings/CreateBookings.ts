@@ -28,7 +28,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     .from("bookings")
     .select("id")
     .eq("venue_id", venueId)
-    .not("status", "in", '("cancelled","rescheduled")')
+    .neq("status", "cancelled")
     .lt("start_date", endDate)
     .gt("end_date", startDate)
     .limit(1);

@@ -2,6 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import { requireAuth } from '../lib/auth';
 import { supabaseAdmin, supabase } from '../lib/supabase';
+import { normalizeBookingStatus } from '../lib/bookingStatus';
 
 const user = await requireAuth(Astro.cookies);
 if (!user) return Astro.redirect('/signin');
@@ -10,7 +11,7 @@ const db = supabaseAdmin ?? supabase;
 
 const { data: profile } = await db
   .from('customers')
-  .select('first_name, last_name')
+  .select('first_name, last_name, email_notifications_enabled, sms_notifications_enabled')
   .eq('id', user.id)
   .single();
 
@@ -25,13 +26,18 @@ const { data: bookings } = await db
   .order('created_at', { ascending: false })
   .limit(20);
 
-const venueIds = [...new Set((bookings ?? []).map(b => b.venue_id))];
+const normalizedBookings = (bookings ?? []).map((booking) => ({
+  ...booking,
+  status: normalizeBookingStatus(booking.status),
+}));
+
+const venueIds = [...new Set(normalizedBookings.map(b => b.venue_id))];
 const { data: venues } = venueIds.length > 0
   ? await db.from('venues').select('id, name, image_url').in('id', venueIds)
   : { data: [] };
 const venueMap = Object.fromEntries((venues ?? []).map(v => [v.id, v]));
 
-const bookingIds = (bookings ?? []).map(b => b.id);
+const bookingIds = normalizedBookings.map(b => b.id);
 const { data: existingReviews } = bookingIds.length > 0
   ? await db.from('reviews').select('booking_id').eq('user_id', user.id).in('booking_id', bookingIds)
   : { data: [] };
@@ -45,11 +51,16 @@ const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
 
 const statusConfig: Record<string, { bg: string; text: string; border: string; dot: string; label: string }> = {
-  confirmed:   { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0', dot: '#22c55e', label: 'Confirmed'   },
-  pending:     { bg: '#fffbeb', text: '#92400e', border: '#fde68a', dot: '#f59e0b', label: 'Pending'     },
-  cancelled:   { bg: '#fef2f2', text: '#991b1b', border: '#fecaca', dot: '#ef4444', label: 'Cancelled'   },
-  rescheduled: { bg: '#f5f3ff', text: '#5b21b6', border: '#ddd6fe', dot: '#8b5cf6', label: 'Rescheduled' },
+  pending:          { bg: '#fffbeb', text: '#92400e', border: '#fde68a', dot: '#f59e0b', label: 'Pending' },
+  contract_signing: { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe', dot: '#3b82f6', label: 'Contract Signing' },
+  booked:           { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0', dot: '#22c55e', label: 'Booked' },
+  cancelled:        { bg: '#fef2f2', text: '#991b1b', border: '#fecaca', dot: '#ef4444', label: 'Cancelled' },
+  rescheduled:      { bg: '#f5f3ff', text: '#5b21b6', border: '#ddd6fe', dot: '#8b5cf6', label: 'Rescheduled' },
+  completed:        { bg: '#f8fafc', text: '#334155', border: '#cbd5e1', dot: '#64748b', label: 'Completed' },
 };
+
+const emailNotificationsEnabled = profile?.email_notifications_enabled ?? true;
+const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
 ---
 
 <Layout title="My Dashboard">
@@ -92,7 +103,7 @@ const statusConfig: Record<string, { bg: string; text: string; border: string; d
         <div class="text-3xl">📅</div>
         <div>
           <p class="font-bold text-base">My Bookings</p>
-          <p class="text-xs opacity-75 mt-0.5">{bookings?.length ?? 0} total bookings</p>
+          <p class="text-xs opacity-75 mt-0.5">{normalizedBookings.length} total bookings</p>
         </div>
       </div>
 
@@ -119,22 +130,42 @@ const statusConfig: Record<string, { bg: string; text: string; border: string; d
     </div>
 
     <!-- ── Bookings section ── -->
+    <section class="mb-8 rounded-2xl p-5" style="background:white;border:1.5px solid #e5e7eb;">
+      <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 class="text-base font-black" style="color:var(--jet-primary);">Notification Preferences</h2>
+          <p class="text-xs text-gray-500 mt-1">Choose how Woodberry sends booking updates.</p>
+        </div>
+        <div class="flex gap-3 flex-wrap">
+          <label class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold cursor-pointer">
+            <input id="emailNotificationsToggle" type="checkbox" checked={emailNotificationsEnabled} class="accent-green-700" />
+            Email
+          </label>
+          <label class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold cursor-pointer">
+            <input id="smsNotificationsToggle" type="checkbox" checked={smsNotificationsEnabled} class="accent-green-700" />
+            SMS
+          </label>
+        </div>
+      </div>
+      <p id="notificationPreferenceMessage" class="hidden text-sm font-semibold mt-4"></p>
+    </section>
+
     <div class="mb-3 flex items-center justify-between">
       <h2 class="text-lg font-black" style="color:var(--jet-primary);">My Bookings</h2>
-      <span class="text-xs text-gray-400 font-medium">{bookings?.length ?? 0} bookings</span>
+      <span class="text-xs text-gray-400 font-medium">{normalizedBookings.length} bookings</span>
     </div>
 
-    {bookings && bookings.length > 0 ? (
+    {normalizedBookings.length > 0 ? (
       <div class="space-y-3">
-        {bookings.map((b) => {
+        {normalizedBookings.map((b) => {
           const todayD = new Date(); todayD.setHours(0,0,0,0);
           const endDate = new Date(b.end_date);
-          const canReview = b.status === 'confirmed' && !reviewedSet.has(b.id);
+          const canReview = (b.status === 'booked' || b.status === 'completed') && !reviewedSet.has(b.id);
           const hasReview = reviewedSet.has(b.id);
           const venue     = (venueMap as any)[b.venue_id];
           const venueName = venue?.name ?? 'Unknown Venue';
           const cfg       = statusConfig[b.status] ?? statusConfig.pending;
-          const isCompleted = b.status === 'confirmed' && endDate < todayD;
+          const isCompleted = b.status === 'completed' || (b.status === 'booked' && endDate < todayD);
 
           return (
             <div
@@ -223,6 +254,50 @@ const statusConfig: Record<string, { bg: string; text: string; border: string; d
 </Layout>
 
 <!-- ── REVIEW MODAL ──────────────────────────────────────────────────────── -->
+<script>
+  const emailToggle = document.getElementById('emailNotificationsToggle') as HTMLInputElement | null;
+  const smsToggle = document.getElementById('smsNotificationsToggle') as HTMLInputElement | null;
+  const preferenceMessage = document.getElementById('notificationPreferenceMessage');
+
+  function setPreferenceMessage(message: string, isSuccess: boolean) {
+    if (!preferenceMessage) return;
+    preferenceMessage.textContent = message;
+    preferenceMessage.classList.remove('hidden', 'text-red-600', 'text-green-700');
+    preferenceMessage.classList.add(isSuccess ? 'text-green-700' : 'text-red-600');
+  }
+
+  async function saveNotificationPreferences(changedToggle: HTMLInputElement) {
+    if (!emailToggle || !smsToggle) return;
+
+    if (!emailToggle.checked && !smsToggle.checked) {
+      changedToggle.checked = true;
+      setPreferenceMessage('At least one notification channel must remain enabled.', false);
+      return;
+    }
+
+    const response = await fetch('/api/user/notification-preferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        emailNotificationsEnabled: emailToggle.checked,
+        smsNotificationsEnabled: smsToggle.checked,
+      }),
+    });
+
+    if (response.ok) {
+      setPreferenceMessage('Notification preferences updated.', true);
+      return;
+    }
+
+    const payload = await response.json().catch(() => ({}));
+    changedToggle.checked = !changedToggle.checked;
+    setPreferenceMessage(payload.error ?? 'Failed to update notification preferences.', false);
+  }
+
+  emailToggle?.addEventListener('change', () => saveNotificationPreferences(emailToggle));
+  smsToggle?.addEventListener('change', () => saveNotificationPreferences(smsToggle));
+</script>
+
 <div id="reviewModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.55);">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
     <div style="height:4px;background:linear-gradient(90deg,#f59e0b,#d97706);"></div>

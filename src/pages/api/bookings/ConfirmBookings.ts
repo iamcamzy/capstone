@@ -1,9 +1,11 @@
-// POST /api/bookings/ConfirmBookings — confirm a booking (admin only)
+// POST /api/bookings/ConfirmBookings - book a booking (admin only)
 import type { APIRoute } from "astro";
 import { supabaseAdmin, supabase } from "../../../lib/supabase";
 import { adminGuard } from "../../../lib/adminGuard";
 import { ok, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
+import { normalizeBookingStatus } from "../../../lib/bookingStatus";
+import { updateBookingStatusAndNotify } from "../../../services/notifications";
 
 export const prerender = false;
 
@@ -19,7 +21,6 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const { bookingId } = body.data;
   if (!bookingId) return error("bookingId is required", 400);
 
-  // Fetch current status
   const { data: booking, error: fetchError } = await db
     .from("bookings")
     .select("id, status")
@@ -27,23 +28,23 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     .single();
 
   if (fetchError || !booking) return error("Booking not found", 404);
-  if (booking.status === "confirmed") return error("Booking is already confirmed", 400);
-  if (booking.status === "cancelled") return error("Cannot confirm a cancelled booking", 400);
-
-  // Direct update — no RPC needed
-  const { error: updateError } = await db
-    .from("bookings")
-    .update({
-      status: "confirmed",
-      confirmed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", bookingId);
-
-  if (updateError) {
-    console.error("[ConfirmBookings]", updateError.message);
-    return error(updateError.message, 500);
+  if (normalizeBookingStatus(booking.status) === "booked") {
+    return error("Booking is already booked", 400);
+  }
+  if (normalizeBookingStatus(booking.status) === "cancelled") {
+    return error("Cannot book a cancelled booking", 400);
   }
 
-  return ok({ message: "Booking confirmed successfully" });
+  try {
+    const result = await updateBookingStatusAndNotify(bookingId, "booked", { client: db });
+    return ok({
+      message: "Booking booked successfully",
+      booking: result.booking,
+      ...(result.warning ? { warning: result.warning } : {}),
+    });
+  } catch (updateError) {
+    const message = updateError instanceof Error ? updateError.message : "Booking update failed";
+    console.error("[ConfirmBookings]", message);
+    return error(message, 500);
+  }
 };

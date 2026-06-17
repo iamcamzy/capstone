@@ -16,6 +16,8 @@ export type Database = {
           first_name: string | null;
           last_name: string | null;
           phone: string | null;
+          email_notifications_enabled: boolean;
+          sms_notifications_enabled: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -25,6 +27,8 @@ export type Database = {
           first_name?: string | null;
           last_name?: string | null;
           phone?: string | null;
+          email_notifications_enabled?: boolean;
+          sms_notifications_enabled?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -34,6 +38,8 @@ export type Database = {
           first_name?: string | null;
           last_name?: string | null;
           phone?: string | null;
+          email_notifications_enabled?: boolean;
+          sms_notifications_enabled?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -82,11 +88,12 @@ export type Database = {
           event_type: string | null;
           special_requests: string | null;
           total_price: number | null;
-          status: "pending" | "confirmed" | "cancelled" | "rescheduled";
+          status: "pending" | "contract_signing" | "booked" | "rescheduled" | "cancelled" | "completed";
           status_updated_at: string | null;
           confirmed_at: string | null;
           cancelled_at: string | null;
           rescheduled_at: string | null;
+          one_week_notice_sent_at: string | null;
           rescheduled_from_booking_id: string | null;
           created_at: string;
           updated_at: string;
@@ -106,11 +113,12 @@ export type Database = {
           event_type?: string | null;
           special_requests?: string | null;
           total_price?: number | null;
-          status?: "pending" | "confirmed" | "cancelled" | "rescheduled";
+          status?: "pending" | "contract_signing" | "booked" | "rescheduled" | "cancelled" | "completed";
           status_updated_at?: string | null;
           confirmed_at?: string | null;
           cancelled_at?: string | null;
           rescheduled_at?: string | null;
+          one_week_notice_sent_at?: string | null;
           rescheduled_from_booking_id?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -130,11 +138,12 @@ export type Database = {
           event_type?: string | null;
           special_requests?: string | null;
           total_price?: number | null;
-          status?: "pending" | "confirmed" | "cancelled" | "rescheduled";
+          status?: "pending" | "contract_signing" | "booked" | "rescheduled" | "cancelled" | "completed";
           status_updated_at?: string | null;
           confirmed_at?: string | null;
           cancelled_at?: string | null;
           rescheduled_at?: string | null;
+          one_week_notice_sent_at?: string | null;
           rescheduled_from_booking_id?: string | null;
           created_at?: string;
           updated_at?: string;

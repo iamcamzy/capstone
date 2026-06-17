@@ -122,7 +122,7 @@
       // Store combined: booked overrides pending
       const combined = new Set<string>();
       pending.forEach(d => combined.add('p:' + d));   // prefix p = pending
-      booked.forEach(d  => combined.add('b:' + d));   // prefix b = booked (confirmed/rescheduled)
+      booked.forEach(d  => combined.add('b:' + d));   // prefix b = booked/rescheduled
 
       cache[key] = combined;
       return combined;

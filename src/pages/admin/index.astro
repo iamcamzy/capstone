@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import { requireAuth } from '../../lib/auth';
 import { supabase, supabaseAdmin } from '../../lib/supabase';
+import { BOOKING_STATUS_LABELS, normalizeBookingStatus } from '../../lib/bookingStatus';
 
 export const prerender = false;
 
@@ -21,7 +22,7 @@ if (!profile) return Astro.redirect('/dashboard');
 
 const { data: bookings } = await adminClient
   .from('bookings')
-  .select('id, full_name, phone, pax, event_date, start_date, end_date, event_type, status, total_price, created_at, venue_id, user_id, package_id')
+  .select('id, full_name, phone, pax, event_date, start_date, end_date, event_type, status, total_price, created_at, updated_at, confirmed_at, cancelled_at, rescheduled_at, special_requests, venue_id, user_id, package_id')
   .order('created_at', { ascending: false })
   .limit(200);
 
@@ -50,10 +51,13 @@ const userById: Record<string, any> = {};
 // Attach names to bookings
 const enrichedBookings = (bookings ?? []).map(b => ({
   ...b,
+  status: normalizeBookingStatus(b.status),
   venueName: venueById[b.venue_id] ?? '—',
   packageName: b.package_id ? (packageById[b.package_id] ?? '—') : null,
   userName: userById[b.user_id] ?? null,
 }));
+
+const statusLabels = BOOKING_STATUS_LABELS;
 
 const { data: venues } = await adminClient.from('venues').select('*').order('name');
 const { data: packages } = await adminClient.from('packages').select('*').order('price');
@@ -97,13 +101,15 @@ const { data: allAdmins } = await adminClient
 const stats = {
   total:       enrichedBookings.length,
   pending:     enrichedBookings.filter(b => b.status === 'pending').length,
-  confirmed:   enrichedBookings.filter(b => b.status === 'confirmed').length,
+  contractSigning: enrichedBookings.filter(b => b.status === 'contract_signing').length,
+  booked:     enrichedBookings.filter(b => b.status === 'booked').length,
   cancelled:   enrichedBookings.filter(b => b.status === 'cancelled').length,
   rescheduled: enrichedBookings.filter(b => b.status === 'rescheduled').length,
-  revenue:     enrichedBookings.filter(b => b.status === 'confirmed')
+  completed: enrichedBookings.filter(b => b.status === 'completed').length,
+  revenue:     enrichedBookings.filter(b => b.status === 'booked' || b.status === 'completed')
                                .reduce((s, b) => s + (Number(b.total_price) ?? 0), 0),
   avgPax: (() => {
-    const w = enrichedBookings.filter(b => b.pax && b.status === 'confirmed');
+    const w = enrichedBookings.filter(b => b.pax && (b.status === 'booked' || b.status === 'completed'));
     return w.length ? Math.round(w.reduce((s,b) => s + (b.pax ?? 0), 0) / w.length) : 0;
   })(),
 };
@@ -164,12 +170,14 @@ const adminName = profile.first_name
           {[
             { label:'Total Bookings', value:stats.total,      color:'#ed9b40', icon:'📅' },
             { label:'Pending',        value:stats.pending,    color:'#f59e0b', icon:'⏳' },
-            { label:'Confirmed',      value:stats.confirmed,  color:'#10b981', icon:'✅' },
+            { label:'Contract Signing', value:stats.contractSigning, color:'#3b82f6', icon:'CS' },
+            { label:'Booked',      value:stats.booked,  color:'#10b981', icon:'BK' },
             { label:'Cancelled',      value:stats.cancelled,  color:'#ef4444', icon:'❌' },
             { label:'Rescheduled',    value:stats.rescheduled,color:'#8b5cf6', icon:'🔄' },
+            { label:'Completed',      value:stats.completed, color:'#64748b', icon:'OK' },
             { label:'Total Revenue',  value:`₱${stats.revenue.toLocaleString()}`, color:'#059669', icon:'💰' },
             { label:'Active Venues',  value:venues?.filter(v=>v.is_active).length??0, color:'#0ea5e9', icon:'🏖️' },
-            { label:'Avg Pax (confirmed)', value:stats.avgPax||'—', color:'#6366f1', icon:'👥' },
+            { label:'Avg Pax (Booked)', value:stats.avgPax||'—', color:'#6366f1', icon:'👥' },
           ].map(c => (
             <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center gap-4">
               <span class="text-3xl">{c.icon}</span>
@@ -204,7 +212,7 @@ const adminName = profile.first_name
                     <td class="px-4 py-3 text-gray-600">{b.pax ?? '—'}</td>
                     <td class="px-4 py-3 font-semibold" style="color:var(--butterscotch-primary);">{b.total_price ? `₱${Number(b.total_price).toLocaleString()}` : '—'}</td>
                     <td class="px-4 py-3">
-                      <span class={`px-2 py-0.5 rounded-full text-xs font-bold ${ b.status==='confirmed'?'bg-green-100 text-green-700': b.status==='cancelled'?'bg-red-100 text-red-700': b.status==='rescheduled'?'bg-purple-100 text-purple-700':'bg-yellow-100 text-yellow-700'}`}>{b.status}</span>
+                      <span class={`px-2 py-0.5 rounded-full text-xs font-bold ${ b.status==='booked'?'bg-green-100 text-green-700': b.status==='contract_signing'?'bg-blue-100 text-blue-700': b.status==='completed'?'bg-slate-100 text-slate-700': b.status==='cancelled'?'bg-red-100 text-red-700': b.status==='rescheduled'?'bg-purple-100 text-purple-700':'bg-yellow-100 text-yellow-700'}`}>{statusLabels[b.status] ?? b.status}</span>
                     </td>
                   </tr>
                 ))}
@@ -224,9 +232,11 @@ const adminName = profile.first_name
             {[
               { v:'all',         label:'All',          color:'#ed9b40' },
               { v:'pending',     label:'⏳ Pending',    color:'#f59e0b' },
-              { v:'confirmed',   label:'✅ Confirmed',  color:'#10b981' },
+              { v:'contract_signing', label:'Contract Signing', color:'#3b82f6' },
+              { v:'booked',   label:'✅ Booked',  color:'#10b981' },
               { v:'cancelled',   label:'❌ Cancelled',  color:'#ef4444' },
               { v:'rescheduled', label:'🔄 Rescheduled',color:'#8b5cf6' },
+              { v:'completed', label:'Completed', color:'#64748b' },
             ].map(s => (
               <button data-filter={s.v}
                 class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold border-2 transition-all"
@@ -277,7 +287,9 @@ const adminName = profile.first_name
                     const orderOnDate = dateGroups[dateKey];
                     const isFirst = orderOnDate === 1;
                     const statusColors = {
-                      confirmed:'bg-green-100 text-green-700',
+                      booked:'bg-green-100 text-green-700',
+                      contract_signing:'bg-blue-100 text-blue-700',
+                      completed:'bg-slate-100 text-slate-700',
                       cancelled:'bg-red-100 text-red-700',
                       rescheduled:'bg-purple-100 text-purple-700',
                       pending:'bg-yellow-100 text-yellow-700',
@@ -339,7 +351,7 @@ const adminName = profile.first_name
                         {/* Status */}
                         <td class="px-4 py-3">
                           <span class={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${statusColors[b.status]??'bg-gray-100 text-gray-600'}`}>
-                            {b.status}
+                            {statusLabels[b.status] ?? b.status}
                           </span>
                         </td>
 
@@ -357,7 +369,7 @@ const adminName = profile.first_name
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80 hover:-translate-y-0.5"
                                 style="background:#10b981;">✓ Confirm</button>
                             )}
-                            {(b.status==='pending'||b.status==='confirmed')&&(
+                            {(b.status==='pending'||b.status==='booked')&&(
                               <button onclick={`openReschedule('${b.id}')`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
                                 style="background:#8b5cf6;">↻</button>
@@ -581,7 +593,7 @@ const adminName = profile.first_name
           <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
             {[
               { id:'rpt-total',       label:'Total Requests', color:'#ed9b40', icon:'📅' },
-              { id:'rpt-confirmed',   label:'Confirmed',      color:'#10b981', icon:'✅' },
+              { id:'rpt-confirmed',   label:'Booked',      color:'#10b981', icon:'✅' },
               { id:'rpt-cancelled',   label:'Cancelled',      color:'#ef4444', icon:'❌' },
               { id:'rpt-rescheduled', label:'Rescheduled',    color:'#8b5cf6', icon:'🔄' },
               { id:'rpt-revenue',     label:'Revenue',        color:'#059669', icon:'💰' },
@@ -664,7 +676,7 @@ const adminName = profile.first_name
         <div class="flex gap-4 flex-wrap mb-5">
           {[
             { bg:'#dcfce7', ring:'#22c55e', label:'Available' },
-            { bg:'#fef2f2', ring:'#ef4444', label:'Confirmed' },
+            { bg:'#fef2f2', ring:'#ef4444', label:'Booked' },
             { bg:'#fffbeb', ring:'#f59e0b', label:'Pending' },
             { bg:'#f3e8ff', ring:'#a855f7', label:'Rescheduled' },
           ].map(l => (
@@ -749,7 +761,7 @@ const adminName = profile.first_name
         <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
           <div><span class="text-gray-400">Submitted</span><p id="bd-created" class="font-semibold mt-0.5"></p></div>
           <div><span class="text-gray-400">Last Updated</span><p id="bd-updated" class="font-semibold mt-0.5"></p></div>
-          <div id="bd-confirmed-wrap"><span class="text-gray-400">Confirmed At</span><p id="bd-confirmed" class="font-semibold mt-0.5 text-green-600"></p></div>
+          <div id="bd-confirmed-wrap"><span class="text-gray-400">Booked At</span><p id="bd-confirmed" class="font-semibold mt-0.5 text-green-600"></p></div>
           <div id="bd-cancelled-wrap"><span class="text-gray-400">Cancelled At</span><p id="bd-cancelled" class="font-semibold mt-0.5 text-red-500"></p></div>
           <div id="bd-rescheduled-wrap"><span class="text-gray-400">Rescheduled At</span><p id="bd-rescheduled" class="font-semibold mt-0.5 text-purple-600"></p></div>
         </div>
@@ -868,6 +880,28 @@ const adminName = profile.first_name
 </script>
 
 <script>
+const BOOKING_STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  contract_signing: 'Contract Signing',
+  booked: 'Booked',
+  rescheduled: 'Rescheduled',
+  cancelled: 'Cancelled',
+  completed: 'Completed',
+};
+
+const BOOKING_STATUS_CLASSES: Record<string, string> = {
+  pending: 'bg-yellow-100 text-yellow-700',
+  contract_signing: 'bg-blue-100 text-blue-700',
+  booked: 'bg-green-100 text-green-700',
+  rescheduled: 'bg-purple-100 text-purple-700',
+  cancelled: 'bg-red-100 text-red-700',
+  completed: 'bg-slate-100 text-slate-700',
+};
+
+function statusLabel(status: string): string {
+  return BOOKING_STATUS_LABELS[status] ?? status;
+}
+
 // ── NAVBAR KILL ──────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
   const nav = document.getElementById('navbar');
@@ -981,7 +1015,7 @@ async function confirmBooking(id: string) {
   });
   if (!ok) return;
   const r = await fetch('/api/bookings/ConfirmBookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: id }) });
-  if (r.ok) { toast('Booking confirmed ✓'); location.reload(); } else { toast('Failed to confirm', false); }
+  if (r.ok) { toast('Booking Booked ✓'); location.reload(); } else { toast('Failed to confirm', false); }
 }
 
 async function cancelBooking(id: string) {
@@ -1177,15 +1211,9 @@ function addActionBtn(container: HTMLElement, label: string, color: string, fn: 
 function openBookingDetail(jsonStr: string) {
   const b = JSON.parse(jsonStr);
 
-  const statusColors: Record<string, string> = {
-    confirmed: 'bg-green-100 text-green-700',
-    cancelled: 'bg-red-100 text-red-700',
-    rescheduled: 'bg-purple-100 text-purple-700',
-    pending: 'bg-yellow-100 text-yellow-700',
-  };
   const badge = document.getElementById('bd-status-badge')!;
-  badge.textContent = b.status;
-  badge.className = 'px-3 py-1 rounded-full text-sm font-bold ' + (statusColors[b.status] ?? 'bg-gray-100 text-gray-600');
+  badge.textContent = statusLabel(b.status);
+  badge.className = 'px-3 py-1 rounded-full text-sm font-bold ' + (BOOKING_STATUS_CLASSES[b.status] ?? 'bg-gray-100 text-gray-600');
 
   const fmt = function(d: string | null) {
     return d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
@@ -1227,10 +1255,10 @@ function openBookingDetail(jsonStr: string) {
   if (b.status === 'pending') {
     addActionBtn(actions, '✓ Confirm', '#10b981', function() { closeBookingDetail(); confirmBooking(b.id); });
   }
-  if (b.status === 'pending' || b.status === 'confirmed') {
+  if (b.status === 'pending' || b.status === 'booked') {
     addActionBtn(actions, '↻ Reschedule', '#8b5cf6', function() { closeBookingDetail(); openReschedule(b.id); });
   }
-  if (b.status !== 'cancelled' && b.status !== 'rescheduled') {
+  if (b.status !== 'cancelled' && b.status !== 'rescheduled' && b.status !== 'completed') {
     addActionBtn(actions, '✕ Cancel', '#ef4444', function() { closeBookingDetail(); cancelBooking(b.id); });
   }
   addActionBtn(actions, 'Close', '#64748b', closeBookingDetail, true);
@@ -1319,17 +1347,17 @@ function generateReport() {
   });
 
   const total       = inRange.length;
-  const confirmed   = inRange.filter(function(b) { return b.status === 'confirmed'; }).length;
+  const Booked   = inRange.filter(function(b) { return b.status === 'booked'; }).length;
   const cancelled   = inRange.filter(function(b) { return b.status === 'cancelled'; }).length;
   const rescheduled = inRange.filter(function(b) { return b.status === 'rescheduled'; }).length;
-  const revenue     = inRange.filter(function(b) { return b.status === 'confirmed'; })
+  const revenue     = inRange.filter(function(b) { return b.status === 'booked' || b.status === 'completed'; })
                              .reduce(function(s, b) { return s + Number(b.total_price ?? 0); }, 0);
 
   setText('rpt-title',       rptTitle);
   setText('rpt-period',      periodLabel);
   setText('rpt-generated',   new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' } as any));
   setText('rpt-total',       String(total));
-  setText('rpt-confirmed',   String(confirmed));
+  setText('rpt-confirmed',   String(Booked));
   setText('rpt-cancelled',   String(cancelled));
   setText('rpt-rescheduled', String(rescheduled));
   setText('rpt-revenue',     '₱' + revenue.toLocaleString());
@@ -1365,7 +1393,7 @@ function generateReport() {
     const key = b.packageName ?? b.event_type ?? 'Unspecified';
     if (!byType[key]) byType[key] = { count: 0, revenue: 0 };
     byType[key].count++;
-    if (b.status === 'confirmed') byType[key].revenue += Number(b.total_price ?? 0);
+    if (b.status === 'booked' || b.status === 'completed') byType[key].revenue += Number(b.total_price ?? 0);
   });
   const brkBody = document.getElementById('rpt-breakdown-body')!;
   const brkEntries = Object.entries(byType).sort(function(a, b) { return (b[1] as any).count - (a[1] as any).count; });
@@ -1385,15 +1413,9 @@ function generateReport() {
   const fmtDate = function(d: string | null) {
     return d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
   };
-  const statusClass: Record<string, string> = {
-    confirmed:   'bg-green-100 text-green-700',
-    cancelled:   'bg-red-100 text-red-700',
-    rescheduled: 'bg-purple-100 text-purple-700',
-    pending:     'bg-yellow-100 text-yellow-700',
-  };
   bkBody.innerHTML = inRange.length
     ? inRange.map(function(b) {
-        const sc = statusClass[b.status] ?? 'bg-gray-100 text-gray-600';
+        const sc = BOOKING_STATUS_CLASSES[b.status] ?? 'bg-gray-100 text-gray-600';
         return '<tr class="border-t border-gray-50 hover:bg-gray-50">'
           + '<td class="px-3 py-2 font-medium">' + (b.full_name ?? '—') + '</td>'
           + '<td class="px-3 py-2 text-gray-600">' + (b.venueName ?? '—') + '</td>'
@@ -1401,7 +1423,7 @@ function generateReport() {
           + '<td class="px-3 py-2 text-gray-600">' + fmtDate(b.event_date) + '</td>'
           + '<td class="px-3 py-2 text-gray-600">' + (b.pax ?? '—') + '</td>'
           + '<td class="px-3 py-2 font-semibold" style="color:var(--butterscotch-primary);">' + (b.total_price ? '₱' + Number(b.total_price).toLocaleString() : '—') + '</td>'
-          + '<td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-bold ' + sc + '">' + b.status + '</span></td></tr>';
+          + '<td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-bold ' + sc + '">' + statusLabel(b.status) + '</span></td></tr>';
       }).join('')
     : '<tr><td colspan="7" class="px-3 py-8 text-center text-gray-400">No bookings in this period.</td></tr>';
 
@@ -1495,9 +1517,11 @@ function admBuildDateMap(bookings: any[]): Record<string, any[]> {
 }
 
 const STATUS_CELL: Record<string, { bg: string; ring: string; text: string }> = {
-  confirmed:   { bg: '#fef2f2', ring: '#ef4444', text: '#991b1b' },
+  booked:   { bg: '#f0fdf4', ring: '#22c55e', text: '#15803d' },
+  contract_signing: { bg: '#eff6ff', ring: '#3b82f6', text: '#1d4ed8' },
   pending:     { bg: '#fffbeb', ring: '#f59e0b', text: '#92400e' },
   rescheduled: { bg: '#f3e8ff', ring: '#a855f7', text: '#6b21a8' },
+  completed: { bg: '#f8fafc', ring: '#64748b', text: '#334155' },
 };
 
 async function admRenderCalendar() {
@@ -1543,7 +1567,7 @@ async function admRenderCalendar() {
       for (const b of shown) {
         const s = STATUS_CELL[b.status] ?? STATUS_CELL.pending;
         const chip = document.createElement('div');
-        chip.textContent = b.status === 'confirmed' ? '● Booked' : b.status === 'pending' ? '○ Pending' : '◐ Resch.';
+        chip.textContent = statusLabel(b.status);
         chip.style.cssText = `font-size:0.65rem;font-weight:700;padding:1px 5px;border-radius:4px;background:${s.bg};color:${s.text};outline:1px solid ${s.ring};margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
         cell.appendChild(chip);
       }
@@ -1588,7 +1612,7 @@ function admShowDayDetail(iso: string, bookings: any[]) {
     const actionBtns = b.status === 'pending'
       ? `<button onclick="confirmBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#10b981;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✓ Confirm</button>
          <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#ef4444;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>`
-      : b.status === 'confirmed'
+      : b.status === 'booked'
       ? `<button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#ef4444;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>`
       : '';
     return `<div style="padding:12px 16px;border-radius:12px;background:${s.bg};outline:1.5px solid ${s.ring};display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
@@ -1598,7 +1622,7 @@ function admShowDayDetail(iso: string, bookings: any[]) {
         <div style="color:#9ca3af;font-size:0.72rem;margin-top:2px;">${new Date(b.start_date+'T00:00:00').toLocaleDateString('en-PH',{month:'short',day:'numeric'})} → ${new Date(b.end_date+'T00:00:00').toLocaleDateString('en-PH',{month:'short',day:'numeric'})}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
-        <span style="font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:9999px;background:${s.bg};color:${s.text};outline:1px solid ${s.ring};">${b.status}</span>
+        <span style="font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:9999px;background:${s.bg};color:${s.text};outline:1px solid ${s.ring};">${statusLabel(b.status)}</span>
         <div style="display:flex;gap:4px;flex-wrap:wrap;">${actionBtns}</div>
       </div>
     </div>`;
@@ -1625,3 +1649,5 @@ document.querySelectorAll<HTMLElement>('.nav-btn[data-tab="calendar"]').forEach(
   btn.addEventListener('click', () => admRenderCalendar());
 });
 </script>
+
+
