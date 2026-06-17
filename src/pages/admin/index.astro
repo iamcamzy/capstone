@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import { requireAuth } from '../../lib/auth';
 import { supabase, supabaseAdmin } from '../../lib/supabase';
+import { BOOKING_STATUS_LABELS, normalizeBookingStatus } from '../../lib/bookingStatus';
 
 export const prerender = false;
 
@@ -21,7 +22,7 @@ if (!profile) return Astro.redirect('/dashboard');
 
 const { data: bookings } = await adminClient
   .from('bookings')
-  .select('id, full_name, phone, pax, event_date, start_date, end_date, event_type, status, total_price, created_at, venue_id, user_id, package_id')
+  .select('id, full_name, phone, pax, event_date, start_date, end_date, event_type, status, total_price, created_at, updated_at, confirmed_at, cancelled_at, rescheduled_at, special_requests, venue_id, user_id, package_id')
   .order('created_at', { ascending: false })
   .limit(200);
 
@@ -47,13 +48,31 @@ const { data: userMap } = userIds.length > 0
 const userById: Record<string, any> = {};
 (userMap ?? []).forEach((u: any) => { userById[u.id] = u; });
 
-// Attach names to bookings
-const enrichedBookings = (bookings ?? []).map(b => ({
-  ...b,
-  venueName: venueById[b.venue_id] ?? '—',
-  packageName: b.package_id ? (packageById[b.package_id] ?? '—') : null,
-  userName: userById[b.user_id] ?? null,
-}));
+// Booking form email is saved on customers. Fetch it separately so admin modals
+// and email notifications use the address the customer typed during booking.
+const { data: customerMap } = userIds.length > 0
+  ? await adminClient.from('customers').select('id, email, first_name, last_name, phone').in('id', userIds)
+  : { data: [] };
+const customerById: Record<string, any> = {};
+(customerMap ?? []).forEach((c: any) => { customerById[c.id] = c; });
+
+// Attach names/contact info to bookings
+const enrichedBookings = (bookings ?? []).map(b => {
+  const customer = customerById[b.user_id] ?? null;
+  const userInfo = userById[b.user_id] ?? null;
+  return {
+    ...b,
+    status: normalizeBookingStatus(b.status),
+    venueName: venueById[b.venue_id] ?? '—',
+    packageName: b.package_id ? (packageById[b.package_id] ?? '—') : null,
+    userName: userInfo,
+    customer,
+    customerEmail: customer?.email ?? userInfo?.email ?? null,
+    customerPhone: b.phone ?? customer?.phone ?? null,
+  };
+});
+
+const statusLabels = BOOKING_STATUS_LABELS;
 
 const { data: venues } = await adminClient.from('venues').select('*').order('name');
 const { data: packages } = await adminClient.from('packages').select('*').order('price');
@@ -97,13 +116,15 @@ const { data: allAdmins } = await adminClient
 const stats = {
   total:       enrichedBookings.length,
   pending:     enrichedBookings.filter(b => b.status === 'pending').length,
-  confirmed:   enrichedBookings.filter(b => b.status === 'confirmed').length,
+  contractSigning: enrichedBookings.filter(b => b.status === 'contract_signing').length,
+  booked:     enrichedBookings.filter(b => b.status === 'booked').length,
   cancelled:   enrichedBookings.filter(b => b.status === 'cancelled').length,
   rescheduled: enrichedBookings.filter(b => b.status === 'rescheduled').length,
-  revenue:     enrichedBookings.filter(b => b.status === 'confirmed')
+  completed: enrichedBookings.filter(b => b.status === 'completed').length,
+  revenue:     enrichedBookings.filter(b => b.status === 'booked' || b.status === 'completed')
                                .reduce((s, b) => s + (Number(b.total_price) ?? 0), 0),
   avgPax: (() => {
-    const w = enrichedBookings.filter(b => b.pax && b.status === 'confirmed');
+    const w = enrichedBookings.filter(b => b.pax && (b.status === 'booked' || b.status === 'completed'));
     return w.length ? Math.round(w.reduce((s,b) => s + (b.pax ?? 0), 0) / w.length) : 0;
   })(),
 };
@@ -132,6 +153,7 @@ const adminName = profile.first_name
         { id:'reviews',   icon:'⭐', label:'Reviews'    },
         { id:'users',     icon:'👥', label:'Users'      },
         { id:'reports',   icon:'📈', label:'Reports'    },
+        { id:'calendar',  icon:'🗓️', label:'Availability'},
       ].map(nav => (
         <button data-tab={nav.id} class="nav-btn w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium transition-all hover:bg-white/10">
           <span>{nav.icon}</span><span>{nav.label}</span>
@@ -163,12 +185,14 @@ const adminName = profile.first_name
           {[
             { label:'Total Bookings', value:stats.total,      color:'#ed9b40', icon:'📅' },
             { label:'Pending',        value:stats.pending,    color:'#f59e0b', icon:'⏳' },
-            { label:'Confirmed',      value:stats.confirmed,  color:'#10b981', icon:'✅' },
+            { label:'Contract Signing', value:stats.contractSigning, color:'#3b82f6', icon:'CS' },
+            { label:'Booked',      value:stats.booked,  color:'#10b981', icon:'BK' },
             { label:'Cancelled',      value:stats.cancelled,  color:'#ef4444', icon:'❌' },
             { label:'Rescheduled',    value:stats.rescheduled,color:'#8b5cf6', icon:'🔄' },
+            { label:'Completed',      value:stats.completed, color:'#64748b', icon:'OK' },
             { label:'Total Revenue',  value:`₱${stats.revenue.toLocaleString()}`, color:'#059669', icon:'💰' },
             { label:'Active Venues',  value:venues?.filter(v=>v.is_active).length??0, color:'#0ea5e9', icon:'🏖️' },
-            { label:'Avg Pax (confirmed)', value:stats.avgPax||'—', color:'#6366f1', icon:'👥' },
+            { label:'Avg Pax (Booked)', value:stats.avgPax||'—', color:'#6366f1', icon:'👥' },
           ].map(c => (
             <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center gap-4">
               <span class="text-3xl">{c.icon}</span>
@@ -203,7 +227,7 @@ const adminName = profile.first_name
                     <td class="px-4 py-3 text-gray-600">{b.pax ?? '—'}</td>
                     <td class="px-4 py-3 font-semibold" style="color:var(--butterscotch-primary);">{b.total_price ? `₱${Number(b.total_price).toLocaleString()}` : '—'}</td>
                     <td class="px-4 py-3">
-                      <span class={`px-2 py-0.5 rounded-full text-xs font-bold ${ b.status==='confirmed'?'bg-green-100 text-green-700': b.status==='cancelled'?'bg-red-100 text-red-700': b.status==='rescheduled'?'bg-purple-100 text-purple-700':'bg-yellow-100 text-yellow-700'}`}>{b.status}</span>
+                      <span class={`px-2 py-0.5 rounded-full text-xs font-bold ${ b.status==='booked'?'bg-green-100 text-green-700': b.status==='contract_signing'?'bg-blue-100 text-blue-700': b.status==='completed'?'bg-slate-100 text-slate-700': b.status==='cancelled'?'bg-red-100 text-red-700': b.status==='rescheduled'?'bg-purple-100 text-purple-700':'bg-yellow-100 text-yellow-700'}`}>{statusLabels[b.status] ?? b.status}</span>
                     </td>
                   </tr>
                 ))}
@@ -215,60 +239,182 @@ const adminName = profile.first_name
 
       <!-- TAB: BOOKINGS -->
       <section id="tab-bookings" class="tab-section hidden">
-        <div class="flex flex-wrap gap-3 mb-6 items-center justify-between">
-          <div class="flex gap-2 flex-wrap">
-            {['all','pending','confirmed','cancelled','rescheduled'].map(s => (
-              <button data-filter={s} class="filter-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 transition-all capitalize" style="border-color:var(--lion-light);">
-                {s==='all'?'All':s}
+
+        <!-- Filters + Search bar -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4 mb-5 flex flex-wrap gap-3 items-center justify-between">
+          <div class="flex gap-2 flex-wrap items-center">
+            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider mr-1">Filter:</span>
+            {[
+              { v:'all',         label:'All',          color:'#ed9b40' },
+              { v:'pending',     label:'⏳ Pending',    color:'#f59e0b' },
+              { v:'contract_signing', label:'Contract Signing', color:'#3b82f6' },
+              { v:'booked',   label:'✅ Booked',  color:'#10b981' },
+              { v:'cancelled',   label:'❌ Cancelled',  color:'#ef4444' },
+              { v:'rescheduled', label:'🔄 Rescheduled',color:'#8b5cf6' },
+              { v:'completed', label:'Completed', color:'#64748b' },
+            ].map(s => (
+              <button data-filter={s.v}
+                class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold border-2 transition-all"
+                style="border-color:#e5e7eb;color:#6b7280;">
+                {s.label}
               </button>
             ))}
           </div>
-          <input id="bookingSearch" type="text" placeholder="Search guest, venue…" class="px-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 w-60" />
+          <div class="relative">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input id="bookingSearch" type="text" placeholder="Search guest, venue, email, phone…"
+              class="pl-9 pr-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 w-64"
+              style="focus-ring-color:var(--butterscotch-primary);" />
+          </div>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+
+        <!-- Info callout about order badges -->
+        <div class="flex items-center gap-2 mb-3 px-1">
+          <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-xs font-black text-blue-600">1</div>
+          <p class="text-xs text-gray-400">The <strong class="text-gray-500">numbered badge</strong> shows booking order on the same date — #1 booked first. Contact #1 first when dates conflict.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
-              <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-                <th class="px-4 py-3 text-left">Guest / Phone</th>
-                <th class="px-4 py-3 text-left">Venue</th>
-                <th class="px-4 py-3 text-left">Package</th>
-                <th class="px-4 py-3 text-left">Event Date</th>
-                <th class="px-4 py-3 text-left">Hold Period</th>
-                <th class="px-4 py-3 text-left">Pax</th>
-                <th class="px-4 py-3 text-left">Total</th>
-                <th class="px-4 py-3 text-left">Status</th>
-                <th class="px-4 py-3 text-left">Booked On</th>
-                <th class="px-4 py-3 text-left">Actions</th>
-              </tr></thead>
-              <tbody>
-                {enrichedBookings.map(b => (
-                  <tr data-status={b.status} data-search={`${b.full_name??''} ${b.venueName??''} ${b.phone??''} ${b.event_type??''}`} class="booking-row border-t border-gray-50 hover:bg-gray-50">
-                    <td class="px-4 py-3"><p class="font-medium">{b.full_name??'—'}</p><p class="text-xs text-gray-400">{b.phone??(b.userName as any)?.email??''}</p></td>
-                    <td class="px-4 py-3 text-gray-600">{b.venueName??'—'}</td>
-                    <td class="px-4 py-3 text-gray-600">{b.packageName??b.packageName??b.event_type??'—'}</td>
-                    <td class="px-4 py-3 text-gray-600">{b.event_date?new Date(b.event_date).toLocaleDateString('en-PH'):'—'}</td>
-                    <td class="px-4 py-3 text-gray-500 text-xs">{new Date(b.start_date).toLocaleDateString('en-PH',{month:'short',day:'numeric'})} → {new Date(b.end_date).toLocaleDateString('en-PH',{month:'short',day:'numeric'})}</td>
-                    <td class="px-4 py-3 text-gray-600">{b.pax??'—'}</td>
-                    <td class="px-4 py-3 font-semibold" style="color:var(--butterscotch-primary);">{b.total_price?`₱${Number(b.total_price).toLocaleString()}`:'—'}</td>
-                    <td class="px-4 py-3">
-                      <span class={`px-2 py-0.5 rounded-full text-xs font-bold ${b.status==='confirmed'?'bg-green-100 text-green-700':b.status==='cancelled'?'bg-red-100 text-red-700':b.status==='rescheduled'?'bg-purple-100 text-purple-700':'bg-yellow-100 text-yellow-700'}`}>{b.status}</span>
-                    </td>
-                    <td class="px-4 py-3 text-gray-400 text-xs">{new Date(b.created_at).toLocaleDateString('en-PH')}</td>
-                    <td class="px-4 py-3">
-                      <div class="flex gap-1 flex-wrap">
-                        {b.status==='pending'&&(<button onclick={`confirmBooking('${b.id}')`} class="px-2 py-1 rounded text-xs font-bold text-white hover:opacity-80" style="background:#10b981;">✓ Confirm</button>)}
-                        {(b.status==='pending'||b.status==='confirmed')&&(<button onclick={`openReschedule('${b.id}')`} class="px-2 py-1 rounded text-xs font-bold text-white hover:opacity-80" style="background:#8b5cf6;">↻ Reschedule</button>)}
-                        {b.status!=='cancelled'&&b.status!=='rescheduled'&&(<button onclick={`cancelBooking('${b.id}')`} class="px-2 py-1 rounded text-xs font-bold text-white hover:opacity-80" style="background:#ef4444;">✕ Cancel</button>)}
-                        <button onclick={`openBookingDetail(${JSON.stringify(JSON.stringify(b))})`} class="px-2 py-1 rounded text-xs font-bold hover:opacity-80 border" style="border-color:#64748b;color:#64748b;">👁 View</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+              <thead>
+                <tr style="background:#f8f9fa;border-bottom:2px solid #f3f4f6;">
+                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">#</th>
+                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Guest</th>
+                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Venue</th>
+                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Package</th>
+                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Event Date</th>
+                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Hold Period</th>
+                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Pax</th>
+                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Total</th>
+                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Booked On</th>
+                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="bookingsTableBody">
+                {(() => {
+                  // Group by event_date to determine order within same date
+                  const dateGroups = {} as {[k:string]:number};
+                  return enrichedBookings.map((b, globalIdx) => {
+                    const dateKey = b.event_date?.split('T')[0] ?? b.start_date?.split('T')[0] ?? 'nodate';
+                    dateGroups[dateKey] = (dateGroups[dateKey] ?? 0) + 1;
+                    const orderOnDate = dateGroups[dateKey];
+                    const isFirst = orderOnDate === 1;
+                    const statusColors = {
+                      booked:'bg-green-100 text-green-700',
+                      contract_signing:'bg-blue-100 text-blue-700',
+                      completed:'bg-slate-100 text-slate-700',
+                      cancelled:'bg-red-100 text-red-700',
+                      rescheduled:'bg-purple-100 text-purple-700',
+                      pending:'bg-yellow-100 text-yellow-700',
+                    };
+                    return (
+                      <tr
+                        data-status={b.status}
+                        data-search={`${b.full_name??''} ${b.venueName??''} ${b.customerEmail??''} ${b.customerPhone??b.phone??''} ${b.event_type??''}`}
+                        class="booking-row border-t border-gray-50 hover:bg-amber-50 transition-colors"
+                        style={b.status==='cancelled'?'opacity:0.6':''}
+                      >
+                        {/* Order badge */}
+                        <td class="px-4 py-3">
+                          <div class="flex flex-col items-center gap-1">
+                            <div class={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ${isFirst ? 'text-white' : 'text-blue-600'}`}
+                              style={isFirst ? 'background:linear-gradient(135deg,#3b82f6,#1d4ed8);box-shadow:0 2px 6px rgba(59,130,246,0.4);' : 'background:#dbeafe;'}>
+                              {orderOnDate}
+                            </div>
+                            {isFirst && <span class="text-xs font-bold" style="color:#3b82f6;">FIRST</span>}
+                          </div>
+                        </td>
+
+                        {/* Guest */}
+                        <td class="px-4 py-3">
+                          <p class="font-bold" style="color:var(--jet-primary);">{b.full_name??'—'}</p>
+                          <p class="text-xs text-gray-400 mt-0.5">{b.customerEmail ?? 'No email saved'}</p>
+                          <p class="text-xs text-gray-400 mt-0.5">{b.customerPhone ?? 'No phone saved'}</p>
+                        </td>
+
+                        {/* Venue */}
+                        <td class="px-4 py-3">
+                          <span class="font-medium text-gray-700">{b.venueName??'—'}</span>
+                        </td>
+
+                        {/* Package */}
+                        <td class="px-4 py-3 text-gray-500">{b.packageName??b.event_type??'—'}</td>
+
+                        {/* Event date */}
+                        <td class="px-4 py-3 font-medium text-gray-700">
+                          {b.event_date ? new Date(b.event_date).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '—'}
+                        </td>
+
+                        {/* Hold period */}
+                        <td class="px-4 py-3">
+                          <div class="text-xs text-gray-500 whitespace-nowrap">
+                            {new Date(b.start_date).toLocaleDateString('en-PH',{month:'short',day:'numeric'})}
+                            <span class="text-gray-300 mx-1">→</span>
+                            {new Date(b.end_date).toLocaleDateString('en-PH',{month:'short',day:'numeric'})}
+                          </div>
+                        </td>
+
+                        {/* Pax */}
+                        <td class="px-4 py-3 text-gray-600 text-center">{b.pax??'—'}</td>
+
+                        {/* Total */}
+                        <td class="px-4 py-3 font-bold" style="color:var(--butterscotch-primary);">
+                          {b.total_price?`₱${Number(b.total_price).toLocaleString()}`:'—'}
+                        </td>
+
+                        {/* Status */}
+                        <td class="px-4 py-3">
+                          <span class={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${statusColors[b.status]??'bg-gray-100 text-gray-600'}`}>
+                            {statusLabels[b.status] ?? b.status}
+                          </span>
+                        </td>
+
+                        {/* Booked on */}
+                        <td class="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                          {new Date(b.created_at).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})}
+                          <div class="text-gray-300">{new Date(b.created_at).toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})}</div>
+                        </td>
+
+                        {/* Actions */}
+                        <td class="px-4 py-3">
+                          <div class="flex gap-1.5 flex-wrap">
+                            {b.status==='pending'&&(
+                              <button onclick={`setBookingContractSigning('${b.id}')`}
+                                class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80 hover:-translate-y-0.5"
+                                style="background:#3b82f6;">📝 Contract</button>
+                            )}
+                            {(b.status==='pending'||b.status==='contract_signing')&&(
+                              <button onclick={`confirmBooking('${b.id}')`}
+                                class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80 hover:-translate-y-0.5"
+                                style="background:#10b981;">✓ Confirm</button>
+                            )}
+                            {(b.status==='pending'||b.status==='booked')&&(
+                              <button onclick={`openReschedule('${b.id}')`}
+                                class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
+                                style="background:#8b5cf6;">↻</button>
+                            )}
+                            {b.status!=='cancelled'&&b.status!=='rescheduled'&&(
+                              <button onclick={`cancelBooking('${b.id}')`}
+                                class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
+                                style="background:#ef4444;">✕</button>
+                            )}
+                            <button onclick={`openBookingDetail(${JSON.stringify(JSON.stringify(b))})`}
+                              class="px-2.5 py-1.5 rounded-lg text-xs font-bold border-2 transition hover:bg-gray-50"
+                              style="border-color:#cbd5e1;color:#64748b;">👁</button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>
         </div>
       </section>
+
 
       <!-- TAB: VENUES -->
       <section id="tab-venues" class="tab-section hidden">
@@ -468,7 +614,7 @@ const adminName = profile.first_name
           <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
             {[
               { id:'rpt-total',       label:'Total Requests', color:'#ed9b40', icon:'📅' },
-              { id:'rpt-confirmed',   label:'Confirmed',      color:'#10b981', icon:'✅' },
+              { id:'rpt-confirmed',   label:'Booked',      color:'#10b981', icon:'✅' },
               { id:'rpt-cancelled',   label:'Cancelled',      color:'#ef4444', icon:'❌' },
               { id:'rpt-rescheduled', label:'Rescheduled',    color:'#8b5cf6', icon:'🔄' },
               { id:'rpt-revenue',     label:'Revenue',        color:'#059669', icon:'💰' },
@@ -530,6 +676,57 @@ const adminName = profile.first_name
 
       </section>
 
+      <!-- TAB: AVAILABILITY CALENDAR -->
+      <section id="tab-calendar" class="tab-section hidden">
+        <div class="flex flex-wrap gap-4 items-start justify-between mb-6">
+          <div>
+            <h2 class="text-xl font-bold" style="color:var(--jet-primary);">Availability Calendar</h2>
+            <p class="text-sm text-gray-500 mt-0.5">Click any date to view bookings. Confirm, cancel, or reschedule from here.</p>
+          </div>
+          <div class="flex gap-2 flex-wrap items-center">
+            <button id="adm-prev-month" class="w-9 h-9 rounded-lg border-2 border-gray-200 flex items-center justify-center hover:bg-gray-50 transition text-gray-600">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span id="adm-month-label" class="font-bold text-lg px-3" style="color:var(--jet-primary);min-width:160px;text-align:center;"></span>
+            <button id="adm-next-month" class="w-9 h-9 rounded-lg border-2 border-gray-200 flex items-center justify-center hover:bg-gray-50 transition text-gray-600">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex gap-4 flex-wrap mb-5">
+          {[
+            { bg:'#dcfce7', ring:'#22c55e', label:'Available' },
+            { bg:'#fef2f2', ring:'#ef4444', label:'Booked' },
+            { bg:'#fffbeb', ring:'#f59e0b', label:'Pending' },
+            { bg:'#f3e8ff', ring:'#a855f7', label:'Rescheduled' },
+          ].map(l => (
+            <div class="flex items-center gap-2">
+              <div class="w-5 h-5 rounded-md" style={`background:${l.bg};outline:1.5px solid ${l.ring};`}></div>
+              <span class="text-sm font-medium text-gray-600">{l.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);background:#f9fafb;border-bottom:1px solid #f3f4f6;">
+            {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => (
+              <div style="text-align:center;font-size:0.78rem;font-weight:700;color:#6b7280;padding:10px 0;">{d}</div>
+            ))}
+          </div>
+          <div id="adm-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);"></div>
+          <div id="adm-cal-loading" style="display:none;text-align:center;padding:20px;color:#888;font-size:0.875rem;">Loading bookings…</div>
+        </div>
+
+        <div id="adm-day-detail" class="hidden mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 id="adm-detail-date" class="text-lg font-bold" style="color:var(--jet-primary);"></h3>
+            <button id="adm-detail-close" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+          </div>
+          <div id="adm-detail-content" class="space-y-3 text-sm"></div>
+        </div>
+      </section>
+
     </div>
   </main>
 </div>
@@ -585,7 +782,7 @@ const adminName = profile.first_name
         <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
           <div><span class="text-gray-400">Submitted</span><p id="bd-created" class="font-semibold mt-0.5"></p></div>
           <div><span class="text-gray-400">Last Updated</span><p id="bd-updated" class="font-semibold mt-0.5"></p></div>
-          <div id="bd-confirmed-wrap"><span class="text-gray-400">Confirmed At</span><p id="bd-confirmed" class="font-semibold mt-0.5 text-green-600"></p></div>
+          <div id="bd-confirmed-wrap"><span class="text-gray-400">Booked At</span><p id="bd-confirmed" class="font-semibold mt-0.5 text-green-600"></p></div>
           <div id="bd-cancelled-wrap"><span class="text-gray-400">Cancelled At</span><p id="bd-cancelled" class="font-semibold mt-0.5 text-red-500"></p></div>
           <div id="bd-rescheduled-wrap"><span class="text-gray-400">Rescheduled At</span><p id="bd-rescheduled" class="font-semibold mt-0.5 text-purple-600"></p></div>
         </div>
@@ -704,6 +901,28 @@ const adminName = profile.first_name
 </script>
 
 <script>
+const BOOKING_STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  contract_signing: 'Contract Signing',
+  booked: 'Booked',
+  rescheduled: 'Rescheduled',
+  cancelled: 'Cancelled',
+  completed: 'Completed',
+};
+
+const BOOKING_STATUS_CLASSES: Record<string, string> = {
+  pending: 'bg-yellow-100 text-yellow-700',
+  contract_signing: 'bg-blue-100 text-blue-700',
+  booked: 'bg-green-100 text-green-700',
+  rescheduled: 'bg-purple-100 text-purple-700',
+  cancelled: 'bg-red-100 text-red-700',
+  completed: 'bg-slate-100 text-slate-700',
+};
+
+function statusLabel(status: string): string {
+  return BOOKING_STATUS_LABELS[status] ?? status;
+}
+
 // ── NAVBAR KILL ──────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
   const nav = document.getElementById('navbar');
@@ -807,6 +1026,33 @@ function showConfirm(opts: ConfirmOptions): Promise<boolean> {
 }
 
 // ── BOOKING ACTIONS ───────────────────────────────────────────────────────────
+async function updateBookingStatus(id: string, status: string, label: string) {
+  const r = await fetch('/api/admin/update-booking-status', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bookingId: id, status }),
+  });
+  const payload = await r.json().catch(() => ({}));
+  if (r.ok) {
+    toast(payload.warning ? `${label} saved, but email warning: ${payload.warning}` : `${label} saved ✓`);
+    location.reload();
+  } else {
+    toast(payload.error ?? payload.message ?? `Failed to update booking to ${label}`, false);
+  }
+}
+
+async function setBookingContractSigning(id: string) {
+  const ok = await showConfirm({
+    title: 'Set Contract Signing',
+    message: 'Move this booking to Contract Signing? The client will be notified by email if an email is saved.',
+    okLabel: 'Yes, Set Status',
+    okColor: '#3b82f6',
+    icon: '📝',
+  });
+  if (!ok) return;
+  await updateBookingStatus(id, 'contract_signing', 'Contract signing');
+}
+
 async function confirmBooking(id: string) {
   const ok = await showConfirm({
     title: 'Confirm Booking',
@@ -817,7 +1063,13 @@ async function confirmBooking(id: string) {
   });
   if (!ok) return;
   const r = await fetch('/api/bookings/ConfirmBookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: id }) });
-  if (r.ok) { toast('Booking confirmed ✓'); location.reload(); } else { toast('Failed to confirm', false); }
+  const payload = await r.json().catch(() => ({}));
+  if (r.ok) {
+    toast(payload.warning ? `Booking booked, but email warning: ${payload.warning}` : 'Booking Booked ✓');
+    location.reload();
+  } else {
+    toast(payload.error ?? payload.message ?? 'Failed to confirm', false);
+  }
 }
 
 async function cancelBooking(id: string) {
@@ -1013,15 +1265,9 @@ function addActionBtn(container: HTMLElement, label: string, color: string, fn: 
 function openBookingDetail(jsonStr: string) {
   const b = JSON.parse(jsonStr);
 
-  const statusColors: Record<string, string> = {
-    confirmed: 'bg-green-100 text-green-700',
-    cancelled: 'bg-red-100 text-red-700',
-    rescheduled: 'bg-purple-100 text-purple-700',
-    pending: 'bg-yellow-100 text-yellow-700',
-  };
   const badge = document.getElementById('bd-status-badge')!;
-  badge.textContent = b.status;
-  badge.className = 'px-3 py-1 rounded-full text-sm font-bold ' + (statusColors[b.status] ?? 'bg-gray-100 text-gray-600');
+  badge.textContent = statusLabel(b.status);
+  badge.className = 'px-3 py-1 rounded-full text-sm font-bold ' + (BOOKING_STATUS_CLASSES[b.status] ?? 'bg-gray-100 text-gray-600');
 
   const fmt = function(d: string | null) {
     return d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
@@ -1031,8 +1277,8 @@ function openBookingDetail(jsonStr: string) {
   };
 
   setText('bd-name', b.full_name ?? '—');
-  setText('bd-phone', b.phone ?? '—');
-  setText('bd-email', b.userName?.email ?? '—');
+  setText('bd-phone', b.customerPhone ?? b.phone ?? '—');
+  setText('bd-email', b.customerEmail ?? b.customer?.email ?? b.userName?.email ?? '—');
   setText('bd-pax', b.pax ? b.pax + ' pax' : '—');
   setText('bd-venue', b.venueName ?? '—');
   setText('bd-package', b.packageName ?? b.event_type ?? '—');
@@ -1061,12 +1307,15 @@ function openBookingDetail(jsonStr: string) {
   const actions = document.getElementById('bd-actions')!;
   actions.innerHTML = '';
   if (b.status === 'pending') {
+    addActionBtn(actions, '📝 Contract Signing', '#3b82f6', function() { closeBookingDetail(); setBookingContractSigning(b.id); });
+  }
+  if (b.status === 'pending' || b.status === 'contract_signing') {
     addActionBtn(actions, '✓ Confirm', '#10b981', function() { closeBookingDetail(); confirmBooking(b.id); });
   }
-  if (b.status === 'pending' || b.status === 'confirmed') {
+  if (b.status === 'pending' || b.status === 'booked' || b.status === 'contract_signing') {
     addActionBtn(actions, '↻ Reschedule', '#8b5cf6', function() { closeBookingDetail(); openReschedule(b.id); });
   }
-  if (b.status !== 'cancelled' && b.status !== 'rescheduled') {
+  if (b.status !== 'cancelled' && b.status !== 'rescheduled' && b.status !== 'completed') {
     addActionBtn(actions, '✕ Cancel', '#ef4444', function() { closeBookingDetail(); cancelBooking(b.id); });
   }
   addActionBtn(actions, 'Close', '#64748b', closeBookingDetail, true);
@@ -1155,17 +1404,17 @@ function generateReport() {
   });
 
   const total       = inRange.length;
-  const confirmed   = inRange.filter(function(b) { return b.status === 'confirmed'; }).length;
+  const Booked   = inRange.filter(function(b) { return b.status === 'booked'; }).length;
   const cancelled   = inRange.filter(function(b) { return b.status === 'cancelled'; }).length;
   const rescheduled = inRange.filter(function(b) { return b.status === 'rescheduled'; }).length;
-  const revenue     = inRange.filter(function(b) { return b.status === 'confirmed'; })
+  const revenue     = inRange.filter(function(b) { return b.status === 'booked' || b.status === 'completed'; })
                              .reduce(function(s, b) { return s + Number(b.total_price ?? 0); }, 0);
 
   setText('rpt-title',       rptTitle);
   setText('rpt-period',      periodLabel);
   setText('rpt-generated',   new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' } as any));
   setText('rpt-total',       String(total));
-  setText('rpt-confirmed',   String(confirmed));
+  setText('rpt-confirmed',   String(Booked));
   setText('rpt-cancelled',   String(cancelled));
   setText('rpt-rescheduled', String(rescheduled));
   setText('rpt-revenue',     '₱' + revenue.toLocaleString());
@@ -1201,7 +1450,7 @@ function generateReport() {
     const key = b.packageName ?? b.event_type ?? 'Unspecified';
     if (!byType[key]) byType[key] = { count: 0, revenue: 0 };
     byType[key].count++;
-    if (b.status === 'confirmed') byType[key].revenue += Number(b.total_price ?? 0);
+    if (b.status === 'booked' || b.status === 'completed') byType[key].revenue += Number(b.total_price ?? 0);
   });
   const brkBody = document.getElementById('rpt-breakdown-body')!;
   const brkEntries = Object.entries(byType).sort(function(a, b) { return (b[1] as any).count - (a[1] as any).count; });
@@ -1221,15 +1470,9 @@ function generateReport() {
   const fmtDate = function(d: string | null) {
     return d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
   };
-  const statusClass: Record<string, string> = {
-    confirmed:   'bg-green-100 text-green-700',
-    cancelled:   'bg-red-100 text-red-700',
-    rescheduled: 'bg-purple-100 text-purple-700',
-    pending:     'bg-yellow-100 text-yellow-700',
-  };
   bkBody.innerHTML = inRange.length
     ? inRange.map(function(b) {
-        const sc = statusClass[b.status] ?? 'bg-gray-100 text-gray-600';
+        const sc = BOOKING_STATUS_CLASSES[b.status] ?? 'bg-gray-100 text-gray-600';
         return '<tr class="border-t border-gray-50 hover:bg-gray-50">'
           + '<td class="px-3 py-2 font-medium">' + (b.full_name ?? '—') + '</td>'
           + '<td class="px-3 py-2 text-gray-600">' + (b.venueName ?? '—') + '</td>'
@@ -1237,7 +1480,7 @@ function generateReport() {
           + '<td class="px-3 py-2 text-gray-600">' + fmtDate(b.event_date) + '</td>'
           + '<td class="px-3 py-2 text-gray-600">' + (b.pax ?? '—') + '</td>'
           + '<td class="px-3 py-2 font-semibold" style="color:var(--butterscotch-primary);">' + (b.total_price ? '₱' + Number(b.total_price).toLocaleString() : '—') + '</td>'
-          + '<td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-bold ' + sc + '">' + b.status + '</span></td></tr>';
+          + '<td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-bold ' + sc + '">' + statusLabel(b.status) + '</span></td></tr>';
       }).join('')
     : '<tr><td colspan="7" class="px-3 py-8 text-center text-gray-400">No bookings in this period.</td></tr>';
 
@@ -1249,15 +1492,15 @@ function printReport() {
   const output = document.getElementById('report-output');
   if (!output || output.classList.contains('hidden')) { toast('Generate a report first', false); return; }
   const w = window.open('', '_blank', 'width=900,height=700')!;
-  const reportHtml = '<html><head><title>Booking Report</title><style>'
+  w.document.write('<html><head><title>Booking Report</title><style>'
     + 'body{font-family:system-ui,sans-serif;padding:2rem;color:#1c1c1c;}'
     + 'table{border-collapse:collapse;width:100%;}'
     + 'th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #f0f0f0;}'
     + 'th{background:#f9f9f9;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#888;}'
     + '@media print{button{display:none;}}'
-    + '</style></head><body>' + output.innerHTML + '</body></html>';
-  w.document.open();
-  w.document.documentElement.innerHTML = reportHtml;
+    + '</style></head><body>');
+  w.document.write(output.innerHTML);
+  w.document.write('</body></html>');
   w.document.close();
   w.focus();
   w.print();
@@ -1293,4 +1536,175 @@ switchReport('weekly');
 (window as any).switchReport      = switchReport;
 (window as any).generateReport    = generateReport;
 (window as any).printReport       = printReport;
+
+// ── ADMIN AVAILABILITY CALENDAR ───────────────────────────────────────────────
+const admMonths = ['January','February','March','April','May','June',
+                   'July','August','September','October','November','December'];
+let admYear  = new Date().getFullYear();
+let admMonth = new Date().getMonth(); // 0-indexed
+const admCache: Record<string, any[]> = {};
+
+async function admFetchBookings(year: number, month: number): Promise<any[]> {
+  const key = `${year}-${month}`;
+  if (admCache[key]) return admCache[key];
+  const loading = document.getElementById('adm-cal-loading')!;
+  loading.style.display = 'block';
+  try {
+    const res  = await fetch(`/api/bookings/availability?year=${year}&month=${month + 1}`);
+    const json = await res.json();
+    admCache[key] = json.bookings ?? [];
+    return admCache[key];
+  } catch { return []; }
+  finally { loading.style.display = 'none'; }
+}
+
+// Build a map of dateISO -> bookings[]
+function admBuildDateMap(bookings: any[]): Record<string, any[]> {
+  const map: Record<string, any[]> = {};
+  for (const b of bookings) {
+    const start = new Date((b.start_date ?? b.event_date) + 'T00:00:00');
+    const end   = new Date((b.end_date   ?? b.event_date) + 'T00:00:00');
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const iso = d.toISOString().split('T')[0];
+      if (!map[iso]) map[iso] = [];
+      map[iso].push(b);
+    }
+  }
+  return map;
+}
+
+const STATUS_CELL: Record<string, { bg: string; ring: string; text: string }> = {
+  booked:   { bg: '#f0fdf4', ring: '#22c55e', text: '#15803d' },
+  contract_signing: { bg: '#eff6ff', ring: '#3b82f6', text: '#1d4ed8' },
+  pending:     { bg: '#fffbeb', ring: '#f59e0b', text: '#92400e' },
+  rescheduled: { bg: '#f3e8ff', ring: '#a855f7', text: '#6b21a8' },
+  completed: { bg: '#f8fafc', ring: '#64748b', text: '#334155' },
+};
+
+async function admRenderCalendar() {
+  const label = document.getElementById('adm-month-label')!;
+  label.textContent = `${admMonths[admMonth]} ${admYear}`;
+  const grid  = document.getElementById('adm-cal-grid')!;
+  grid.innerHTML = '';
+
+  const bookings = await admFetchBookings(admYear, admMonth);
+  const dateMap  = admBuildDateMap(bookings);
+
+  const firstDow  = new Date(admYear, admMonth, 1).getDay();
+  const offset    = (firstDow + 6) % 7;
+  const daysInMo  = new Date(admYear, admMonth + 1, 0).getDate();
+  const total     = Math.ceil((offset + daysInMo) / 7) * 7;
+  const todayISO  = new Date().toISOString().split('T')[0];
+
+  for (let i = 0; i < total; i++) {
+    const dayNum = i - offset + 1;
+    const cell   = document.createElement('div');
+    cell.style.cssText = 'min-height:90px;padding:6px;border:1px solid #f3f4f6;position:relative;cursor:pointer;transition:background 0.15s;';
+
+    if (dayNum < 1 || dayNum > daysInMo) {
+      cell.style.background = '#fafafa';
+      cell.style.cursor = 'default';
+    } else {
+      const iso = `${admYear}-${String(admMonth+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+      const dayBookings = dateMap[iso] ?? [];
+      const isPast  = iso < todayISO;
+      const isToday = iso === todayISO;
+
+      cell.style.background = isPast ? '#fafafa' : '#fff';
+      if (isToday) cell.style.background = '#f0fdf4';
+
+      // Day number
+      const num = document.createElement('div');
+      num.textContent = String(dayNum);
+      num.style.cssText = `font-size:0.8rem;font-weight:${isToday?'800':'600'};color:${isToday?'#2d5a27':'#374151'};margin-bottom:3px;`;
+      cell.appendChild(num);
+
+      // Booking chips (max 3)
+      const shown = dayBookings.slice(0, 3);
+      for (const b of shown) {
+        const s = STATUS_CELL[b.status] ?? STATUS_CELL.pending;
+        const chip = document.createElement('div');
+        chip.textContent = statusLabel(b.status);
+        chip.style.cssText = `font-size:0.65rem;font-weight:700;padding:1px 5px;border-radius:4px;background:${s.bg};color:${s.text};outline:1px solid ${s.ring};margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
+        cell.appendChild(chip);
+      }
+      if (dayBookings.length > 3) {
+        const more = document.createElement('div');
+        more.textContent = `+${dayBookings.length - 3} more`;
+        more.style.cssText = 'font-size:0.6rem;color:#9ca3af;font-weight:600;';
+        cell.appendChild(more);
+      }
+
+      cell.addEventListener('mouseenter', () => { if (!isPast) cell.style.background = '#f8faff'; });
+      cell.addEventListener('mouseleave', () => { cell.style.background = isToday ? '#f0fdf4' : isPast ? '#fafafa' : '#fff'; });
+      cell.addEventListener('click', () => admShowDayDetail(iso, dayBookings));
+    }
+
+    grid.appendChild(cell);
+  }
+}
+
+function admShowDayDetail(iso: string, bookings: any[]) {
+  const panel   = document.getElementById('adm-day-detail')!;
+  const dateEl  = document.getElementById('adm-detail-date')!;
+  const content = document.getElementById('adm-detail-content')!;
+
+  const formatted = new Date(iso + 'T00:00:00').toLocaleDateString('en-PH', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+  dateEl.textContent = formatted;
+  panel.classList.remove('hidden');
+
+  if (bookings.length === 0) {
+    content.innerHTML = '<p class="text-gray-400 py-4 text-center">No bookings on this date — it\'s available! ✅</p>';
+    return;
+  }
+
+  // Fetch full booking data from window.__allBookings for names
+  const allB: any[] = (window as any).__allBookings ?? [];
+  const byId: Record<string, any> = {};
+  allB.forEach((b: any) => { byId[b.id] = b; });
+
+  content.innerHTML = bookings.map(b => {
+    const full = byId[b.id] ?? b;
+    const s = STATUS_CELL[b.status] ?? STATUS_CELL.pending;
+    const actionBtns = b.status === 'pending'
+      ? `<button onclick="confirmBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#10b981;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✓ Confirm</button>
+         <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#ef4444;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>`
+      : b.status === 'booked'
+      ? `<button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#ef4444;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>`
+      : '';
+    return `<div style="padding:12px 16px;border-radius:12px;background:${s.bg};outline:1.5px solid ${s.ring};display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+      <div>
+        <div style="font-weight:700;color:${s.text};font-size:0.85rem;">${full.full_name ?? full.venueName ?? 'Guest'}</div>
+        <div style="color:#6b7280;font-size:0.75rem;margin-top:2px;">${full.venueName ?? ''} ${full.event_type ? '· ' + full.event_type : ''}</div>
+        <div style="color:#9ca3af;font-size:0.72rem;margin-top:2px;">${new Date(b.start_date+'T00:00:00').toLocaleDateString('en-PH',{month:'short',day:'numeric'})} → ${new Date(b.end_date+'T00:00:00').toLocaleDateString('en-PH',{month:'short',day:'numeric'})}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
+        <span style="font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:9999px;background:${s.bg};color:${s.text};outline:1px solid ${s.ring};">${statusLabel(b.status)}</span>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">${actionBtns}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('adm-detail-close')?.addEventListener('click', () => {
+  document.getElementById('adm-day-detail')?.classList.add('hidden');
+});
+document.getElementById('adm-prev-month')?.addEventListener('click', () => {
+  if (admMonth === 0) { admMonth = 11; admYear--; } else { admMonth--; }
+  admRenderCalendar();
+  document.getElementById('adm-day-detail')?.classList.add('hidden');
+});
+document.getElementById('adm-next-month')?.addEventListener('click', () => {
+  if (admMonth === 11) { admMonth = 0; admYear++; } else { admMonth++; }
+  admRenderCalendar();
+  document.getElementById('adm-day-detail')?.classList.add('hidden');
+});
+
+// Render calendar when the tab becomes active
+const _origSwitchTab = (window as any).switchTab;
+document.querySelectorAll<HTMLElement>('.nav-btn[data-tab="calendar"]').forEach(btn => {
+  btn.addEventListener('click', () => admRenderCalendar());
+});
 </script>
+
+

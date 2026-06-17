@@ -3,11 +3,12 @@ import type { APIRoute } from "astro";
 import { supabaseAdmin, supabase } from "../../../lib/supabase";
 import { adminGuard } from "../../../lib/adminGuard";
 import { ok, error } from "../../../lib/response";
+import { BOOKING_STATUSES, normalizeBookingStatus, type BookingStatus } from "../../../lib/bookingStatus";
 
 export const prerender = false;
 
 const db = supabaseAdmin ?? supabase;
-const VALID_STATUSES = ["pending", "confirmed", "cancelled", "rescheduled"];
+const VALID_STATUSES = [...BOOKING_STATUSES, "confirmed"];
 
 export const GET: APIRoute = async ({ cookies, url }) => {
   const guard = await adminGuard(cookies);
@@ -16,9 +17,10 @@ export const GET: APIRoute = async ({ cookies, url }) => {
   const page   = Math.max(1, parseInt(url.searchParams.get("page")  ?? "1"));
   const limit  = Math.min(100, parseInt(url.searchParams.get("limit") ?? "20"));
   const status = url.searchParams.get("status");
+  const normalizedStatus = status ? normalizeBookingStatus(status) : null;
   const offset = (page - 1) * limit;
 
-  if (status && !VALID_STATUSES.includes(status)) {
+  if (status && !VALID_STATUSES.includes(status as BookingStatus | "confirmed")) {
     return error(`Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`, 400);
   }
 
@@ -34,7 +36,7 @@ export const GET: APIRoute = async ({ cookies, url }) => {
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (status) query = query.eq("status", status as "pending" | "confirmed" | "cancelled" | "rescheduled");
+  if (normalizedStatus) query = query.eq("status", normalizedStatus);
 
   const { data, error: dbError, count } = await query;
   if (dbError) {
@@ -43,7 +45,10 @@ export const GET: APIRoute = async ({ cookies, url }) => {
   }
 
   return ok({
-    bookings: data ?? [],
+    bookings: (data ?? []).map((booking) => ({
+      ...booking,
+      status: normalizeBookingStatus(booking.status),
+    })),
     pagination: {
       page,
       limit,

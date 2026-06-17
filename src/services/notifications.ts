@@ -174,7 +174,11 @@ export async function notifyBookingStatusChange(
 
   const result: NotificationResult = {};
 
-  if (booking.emailNotificationsEnabled && booking.email) {
+  if (!booking.emailNotificationsEnabled) {
+    result.email = { ok: true, skipped: true, reason: "Email notifications are disabled for this customer" };
+  } else if (!booking.email) {
+    result.email = { ok: false, error: "No customer email is saved for this booking" };
+  } else {
     const content = buildEmailContent(booking, status);
     result.email = await sendTransactionalEmail({
       toEmail: booking.email,
@@ -199,7 +203,11 @@ export async function sendOneWeekReminder(
 
   const result: NotificationResult = {};
 
-  if (booking.emailNotificationsEnabled && booking.email) {
+  if (!booking.emailNotificationsEnabled) {
+    result.email = { ok: true, skipped: true, reason: "Email notifications are disabled for this customer" };
+  } else if (!booking.email) {
+    result.email = { ok: false, error: "No customer email is saved for this booking" };
+  } else {
     const content = buildEmailContent(booking, "reminder");
     result.email = await sendTransactionalEmail({
       toEmail: booking.email,
@@ -267,6 +275,9 @@ export async function updateBookingStatusAndNotify(
     if (result.notification.email && !result.notification.email.ok) {
       result.warning = result.notification.email.error;
       console.error("[Notifications]", result.notification.email.error);
+    } else if (result.notification.email?.skipped) {
+      result.warning = result.notification.email.reason;
+      console.warn("[Notifications]", result.notification.email.reason);
     }
   } catch (notificationError) {
     const message =

@@ -47,6 +47,7 @@ alter table public.bookings
       'pending',
       'contract_signing',
       'booked',
+      'confirmed',
       'rescheduled',
       'cancelled',
       'completed'

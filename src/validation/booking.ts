@@ -16,6 +16,7 @@ export const createBookingSchema = z
     pax:             z.number().int().min(1, "pax must be at least 1").optional().nullable(),
     guests:          z.number().int().min(1).optional().nullable(),
     fullName:        z.string().min(1).max(200).optional().nullable(),
+    email:           z.string().email("Invalid email address").max(254).optional().nullable(),
     phone:           z.string().max(30).optional().nullable(),
     // Special requests is fully optional — users can leave it blank
     specialRequests: z.string().max(1000).optional().nullable(),

@@ -104,11 +104,11 @@ Only `venueId`, `startDate`, `endDate` are required. All others optional.
 Get the logged-in user's bookings.
 
 **Query params:**
-- `status` (optional): `pending` | `confirmed` | `cancelled` | `rescheduled`
+- `status` (optional): `pending` | `contract_signing` | `booked` | `rescheduled` | `cancelled` | `completed`
 
 ```
 GET /api/bookings/GetUserBookings
-GET /api/bookings/GetUserBookings?status=confirmed
+GET /api/bookings/GetUserBookings?status=booked
 ```
 
 | Status | Body |
@@ -249,7 +249,7 @@ Deactivate a package.
 ## Reviews
 
 ### `POST /api/reviews/add` 🔒
-Add a review. Only works on confirmed bookings you own.
+Add a review. Only works on booked or completed bookings you own.
 
 ```json
 {
@@ -262,7 +262,7 @@ Add a review. Only works on confirmed bookings you own.
 | Status | Body |
 |--------|------|
 | 201 | `{ "reviewId": "uuid", "message": "..." }` |
-| 400 | `{ "error": "You can only review confirmed bookings" }` |
+| 400 | `{ "error": "You can only review booked or completed bookings" }` |
 | 409 | `{ "error": "You have already reviewed this booking" }` |
 
 ---
@@ -319,7 +319,7 @@ Change a user's role.
 
 ```json
 {
-  "bookings":  { "total", "pending", "confirmed", "cancelled", "rescheduled", "thisMonth" },
+  "bookings":  { "total", "pending", "booked", "contractSigning", "cancelled", "rescheduled", "completed", "thisMonth" },
   "revenue":   { "total": 125000 },
   "venues":    { "active": 5 },
   "users":     { "total": 48 },
@@ -333,3 +333,4 @@ Change a user's role.
 - 🌐 **Public** — no auth needed
 - 🔒 **User** — must be logged in (session cookie)
 - 🔒 **Admin** — must be logged in AND have `role = "admin"`
+

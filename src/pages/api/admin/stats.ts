@@ -19,7 +19,9 @@ export const GET: APIRoute = async ({ cookies }) => {
   const [
     { count: total },
     { count: pending },
-    { count: confirmed },
+    { count: booked },
+    { count: contractSigning },
+    { count: completed },
     { count: cancelled },
     { count: rescheduled },
     { count: thisMonth },
@@ -30,15 +32,17 @@ export const GET: APIRoute = async ({ cookies }) => {
   ] = await Promise.all([
     db.from("bookings").select("*", { count: "exact", head: true }),
     db.from("bookings").select("*", { count: "exact", head: true }).eq("status", "pending"),
-    db.from("bookings").select("*", { count: "exact", head: true }).eq("status", "confirmed"),
+    db.from("bookings").select("*", { count: "exact", head: true }).eq("status", "booked"),
+    db.from("bookings").select("*", { count: "exact", head: true }).eq("status", "contract_signing"),
+    db.from("bookings").select("*", { count: "exact", head: true }).eq("status", "completed"),
     db.from("bookings").select("*", { count: "exact", head: true }).eq("status", "cancelled"),
     db.from("bookings").select("*", { count: "exact", head: true }).eq("status", "rescheduled"),
     db.from("bookings").select("*", { count: "exact", head: true })
       .gte("created_at", monthStart).lte("created_at", monthEnd),
-    db.from("bookings").select("total_price").eq("status", "confirmed"),
+    db.from("bookings").select("total_price").in("status", ["booked", "completed"]),
     db.from("venues").select("*", { count: "exact", head: true }).eq("is_active", true),
     db.from("customers").select("*", { count: "exact", head: true }),
-    db.from("bookings").select("pax").eq("status", "confirmed").not("pax", "is", null),
+    db.from("bookings").select("pax").in("status", ["booked", "completed"]).not("pax", "is", null),
   ]);
 
   const totalRevenue = (revenue ?? []).reduce((s, b) => s + Number(b.total_price ?? 0), 0);
@@ -47,7 +51,7 @@ export const GET: APIRoute = async ({ cookies }) => {
     : 0;
 
   return ok({
-    bookings:  { total, pending, confirmed, cancelled, rescheduled, thisMonth },
+    bookings: { total, pending, booked, contractSigning, cancelled, rescheduled, completed, thisMonth },
     revenue:   { total: totalRevenue },
     venues:    { active: activeVenues ?? 0 },
     users:     { total: totalUsers ?? 0 },

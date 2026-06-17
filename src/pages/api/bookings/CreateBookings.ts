@@ -1,6 +1,6 @@
 // POST /api/bookings/CreateBookings — create a booking (requires auth)
 import type { APIRoute } from "astro";
-import { supabase } from "../../../lib/supabase";
+import { supabase, supabaseAdmin } from "../../../lib/supabase";
 import { getUser } from "../../../lib/auth";
 import { createBookingSchema } from "../../../validation/booking";
 import { created, error } from "../../../lib/response";
@@ -21,14 +21,40 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   const { venueId, startDate, endDate, eventDate, eventType, packageId, pax,
-          fullName, phone, specialRequests } = parsed.data;
+          fullName, email, phone, specialRequests } = parsed.data;
+
+  const db = supabaseAdmin ?? supabase;
+  const now = new Date().toISOString();
+
+  // Keep the latest booking contact info on the customer profile.
+  // The notification service reads customers.email, so the email typed in
+  // the booking form must be saved there before admin confirms the booking.
+  if (email || fullName || phone) {
+    const [firstName, ...lastNameParts] = (fullName ?? "").trim().split(/\s+/).filter(Boolean);
+    const profileUpdate = {
+      id: user.id,
+      ...(email ? { email } : {}),
+      ...(phone ? { phone } : {}),
+      ...(firstName ? { first_name: firstName } : {}),
+      ...(lastNameParts.length ? { last_name: lastNameParts.join(" ") } : {}),
+      updated_at: now,
+    };
+
+    const { error: profileError } = await db
+      .from("customers")
+      .upsert(profileUpdate, { onConflict: "id" });
+
+    if (profileError) {
+      console.warn("[CreateBookings] Customer contact update failed", profileError.message);
+    }
+  }
 
   // Overlap check
   const { data: overlap } = await supabase
     .from("bookings")
     .select("id")
     .eq("venue_id", venueId)
-    .not("status", "in", '("cancelled","rescheduled")')
+    .neq("status", "cancelled")
     .lt("start_date", endDate)
     .gt("end_date", startDate)
     .limit(1);
@@ -81,8 +107,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       special_requests: specialRequests  ?? null,
       total_price:      totalPrice + packagePrice,
       status:           "pending",
-      created_at:       new Date().toISOString(),
-      updated_at:       new Date().toISOString(),
+      created_at:       now,
+      updated_at:       now,
     })
     .select("id")
     .single();

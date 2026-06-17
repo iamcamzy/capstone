@@ -1,230 +1,236 @@
 ---
-import ExpandedCalendar from './expandedCalendar.astro';
-
 /**
- * Calendar Preview Component
- * Opens when #preview is clicked, closes when clicking outside or pressing ESC.
+ * Woodberry Availability Calendar — real data from Supabase
+ * Drops down below navbar. No layout shift.
  */
 ---
 
-<!-- 
-COLORS
-
-lion: #aa8f66
-butterscotch: #ed9b40
-jet: #363537 
--->
-<div class="relative w-full h-auto">
-  <div
-    id="previewBox"
-    class="fixed right-20 top-40 w-[90%] sm:w-[300px] bg-white text-black rounded-md shadow-lg ring opacity-0 pointer-events-none transition-all duration-300 -translate-y-2.5 z-9"
-  >
-    <div class="p-4 -pb-2">
-      <!-- Header -->
-      <h2 class="text-center font-bold text-lg mb-2 text-black">month</h2>
-      <!-- Calendar grid -->
+<div
+  id="availabilityPanel"
+  class="fixed left-0 right-0 z-50 opacity-0 pointer-events-none transition-all duration-300 -translate-y-2"
+  style="top: 70px;"
+>
+  <div style="max-width: 480px; margin-left: auto; margin-right: 1.5rem;">
+    <div
+      class="rounded-2xl shadow-2xl overflow-hidden"
+      style="background:#fff; border:1px solid rgba(74,124,63,0.15); box-shadow:0 20px 60px rgba(0,0,0,0.15),0 4px 16px rgba(74,124,63,0.1);"
+    >
+      <!-- Header with month nav -->
       <div
-        id="days-of-the-week"
-        class="grid grid-cols-7 gap-1 text-center font-semibold"
+        class="flex items-center justify-between px-5 py-4"
+        style="background:linear-gradient(135deg,#2d5a27 0%,#4a7c3f 60%,#5a9e50 100%);"
       >
-        <div>M</div>
-        <div>T</div>
-        <div>W</div>
-        <div>TH</div>
-        <div>F</div>
-        <div>S</div>
-        <div>S</div>
-      </div>
-      <div class="relative group">
-        <div class="grid grid-cols-7 grid-rows-5 gap-1 mt-2">
-          {
-            Array.from({ length: 35 }).map(() => (
-              <div class="ring shadow-sm rounded h-6" />
-            ))
-          }
+        <button id="prevMonth" style="background:rgba(255,255,255,0.15);color:#fff;border:none;cursor:pointer;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;" aria-label="Previous month">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="text-center">
+          <div id="calMonthYear" style="color:#fff;font-weight:700;font-size:1.1rem;font-family:Georgia,serif;letter-spacing:0.04em;"></div>
+          <div style="color:rgba(255,255,255,0.7);font-size:0.72rem;margin-top:2px;">Availability Overview</div>
         </div>
-        <button
-          id="expandBox"
-          class="absolute left-1/2 -translate-x-1/2 top-0 opacity-0 group-hover:opacity-100 bg-blue-50 text-xs px-2 py-1 rounded whitespace-nowrap transition ease-in-out duration:350 h-full w-full group-hover:cursor-pointer font-bold scale-40 group-hover:scale-100 ring-2"
-          >EXPAND</button
-        >
+        <button id="nextMonth" style="background:rgba(255,255,255,0.15);color:#fff;border:none;cursor:pointer;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;" aria-label="Next month">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
       </div>
-    </div>
-    <div id="legends" class="w-full h-auto px-3.75">
-      <div class="bg-lion-900 ring ring-gray-600 gap-x-2 rounded">
-        <span class="flex justify-around items-center mb-2">
-          <h3 class="font-bold">Legends</h3><p class="text-[0.75em]">
-            (hover for descriptions)
-          </p>
-        </span><div class="w-full h-auto flex justify-center items-center mb-5">
-          <div
-            class="w-[80%] flex justify-around ring p-1 rounded ring-gray-400 mb-2"
-          >
-            <div class="relative
-        group
-        inline-block">
-              <!-- Colored box -->
-              <div class="w-9 h-6 bg-green-500 rounded cursor-pointer"></div>
 
-              <!-- Tooltip -->
-              <div
-                class="absolute left-1/2 -translate-x-1/2 top-8
-           opacity-0 group-hover:opacity-100
-           pointer-events-none
-           bg-gray-900 text-white text-xs px-2 py-1 rounded
-           whitespace-nowrap transition"
-              >
-                Available
-              </div>
-            </div>
-            <div class="relative group inline-block">
-              <!-- Colored box -->
-              <div class="w-9 h-6 bg-red-500 rounded cursor-pointer"></div>
+      <!-- Day headers -->
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);padding:12px 16px 4px;">
+        {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => (
+          <div style="text-align:center;font-size:0.72rem;font-weight:600;color:#999;letter-spacing:0.05em;">{d}</div>
+        ))}
+      </div>
 
-              <!-- Tooltip -->
-              <div
-                class="absolute left-1/2 -translate-x-1/2 top-8
-           opacity-0 group-hover:opacity-100
-           pointer-events-none
-           bg-gray-900 text-white text-xs px-2 py-1 rounded
-           whitespace-nowrap transition"
-              >
-                Closed/Fully Booked
-              </div>
-            </div>
-            <div class="relative group inline-block">
-              <!-- Colored box -->
-              <div class="w-9 h-6 bg-yellow-500 rounded cursor-pointer"></div>
+      <!-- Calendar grid -->
+      <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:4px 16px 12px;"></div>
 
-              <!-- Tooltip -->
-              <div
-                class="absolute left-1/2 -translate-x-1/2 top-8
-           opacity-0 group-hover:opacity-100
-           pointer-events-none
-           bg-gray-900 text-white text-xs px-2 py-1 rounded
-           whitespace-nowrap transition"
-              >
-                PROMO!
-              </div>
-            </div>
-            <div class="relative group inline-block">
-              <!-- Colored box -->
-              <div class="w-9 h-6 bg-pink-500 rounded cursor-pointer"></div>
+      <!-- Loading indicator -->
+      <div id="calLoading" style="display:none;text-align:center;padding:8px;font-size:0.75rem;color:#888;">Loading…</div>
 
-              <!-- Tooltip -->
-              <div
-                class="absolute left-1/2 -translate-x-1/2 top-8
-           opacity-0 group-hover:opacity-100
-           pointer-events-none
-           bg-gray-900 text-white text-xs px-2 py-1 rounded
-           whitespace-nowrap transition"
-              >
-                Open for a limited time
-              </div>
-            </div>
+      <div style="height:1px;background:rgba(74,124,63,0.1);margin:0 1rem;"></div>
+
+      <!-- Legend -->
+      <div style="padding:10px 20px;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;">
+        <span style="font-size:0.7rem;font-weight:700;color:#aaa;letter-spacing:0.05em;">LEGEND</span>
+        {[
+          { color:'#22c55e', label:'Available' },
+          { color:'#ef4444', label:'Booked' },
+          { color:'#f59e0b', label:'Pending' },
+          { color:'#e5e7eb', label:'Past' },
+        ].map(item => (
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div style={`width:10px;height:10px;border-radius:50%;background:${item.color};flex-shrink:0;`}></div>
+            <span style="font-size:0.75rem;color:#555;">{item.label}</span>
           </div>
-        </div>
+        ))}
+      </div>
+
+      <!-- CTA -->
+      <div style="padding:4px 20px 16px;">
+        <a href="/events_and_booking/events" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:10px;border-radius:12px;background:linear-gradient(135deg,#2d5a27,#4a7c3f);color:#fff;text-decoration:none;font-weight:600;font-size:0.875rem;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
+          Book a Date
+        </a>
       </div>
     </div>
   </div>
-
-  <ExpandedCalendar />
-
-  <script>
-    const box = document.getElementById('previewBox');
-    const expandBtn = document.getElementById('expandBox'); // your expand button ID
-
-    let previewWasOpen = false;
-
-    if (box) {
-      document.addEventListener('click', (e) => {
-        const target = e.target;
-        if (!target || !(target instanceof Element)) return;
-
-        const clickedPreviewButton = target.closest('#preview');
-        const clickedInside = box.contains(target);
-
-        // Toggle preview from header button
-        if (clickedPreviewButton) {
-          const isOpen = box.classList.contains('opacity-100');
-
-          if (isOpen) {
-            previewWasOpen = false;
-            closePreview();
-          } else {
-            previewWasOpen = true;
-            openPreview();
-          }
-          return;
-        }
-
-        // Click outside preview closes it
-        if (!clickedInside) {
-          previewWasOpen = false;
-          closePreview();
-        }
-      });
-    }
-
-    // EXPAND button hides preview ONLY visually
-    if (expandBtn) {
-      expandBtn.addEventListener('click', () => {
-        if (box) {
-          if (box.classList.contains('opacity-100')) {
-            previewWasOpen = true; // remember it was open
-            box.classList.add('opacity-0', 'pointer-events-none');
-            box.classList.remove('opacity-100');
-          } else {
-            previewWasOpen = false;
-          }
-        }
-
-        // tell expanded calendar to open
-        document.dispatchEvent(new CustomEvent('open-expanded-calendar'));
-      });
-    }
-
-    // When expanded calendar closes, restore preview ONLY if it was open before
-    document.addEventListener('expanded-calendar-closed', () => {
-      if (box && previewWasOpen) {
-        box.classList.remove('opacity-0', 'pointer-events-none');
-        box.classList.add('opacity-100');
-      }
-      previewWasOpen = false;
-    });
-
-    function openPreview() {
-      box?.classList.add('opacity-100');
-      box?.classList.remove('opacity-0', 'pointer-events-none');
-    }
-
-    function closePreview() {
-      box?.classList.add('opacity-0', 'pointer-events-none');
-      box?.classList.remove('opacity-100');
-    }
-  </script>
-
-  <!-- OPTIONAL: Dynamic month rendering (kept OFF for now) -->
-  <!--
-<script>
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
-
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDay = new Date(year, month, 1).getDay(); // 0–6
-
-  const grid = document.querySelector('#calendar-grid');
-
-  // Fill empty slots before first day
-  for (let i = 0; i < firstDay; i++) {
-    grid.innerHTML += `<div></div>`;
-  }
-
-  // Fill days
-  for (let i = 1; i <= daysInMonth; i++) {
-    grid.innerHTML += `<div class="ring shadow-sm rounded">${i}</div>`;
-  }
-</script>
--->
 </div>
+
+<script>
+  const today     = new Date();
+  let viewYear    = today.getFullYear();
+  let viewMonth   = today.getMonth(); // 0-indexed
+
+  const panel      = document.getElementById('availabilityPanel')!;
+  const grid       = document.getElementById('calGrid')!;
+  const loading    = document.getElementById('calLoading')!;
+  const monthLabel = document.getElementById('calMonthYear')!;
+  const prevBtn    = document.getElementById('prevMonth')!;
+  const nextBtn    = document.getElementById('nextMonth')!;
+
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+
+  // Cache fetched data per "YYYY-MM" key
+  const cache: Record<string, Set<string>> = {};
+
+  async function fetchBookedDates(year: number, month: number): Promise<Set<string>> {
+    const key = `${year}-${month}`;
+    if (cache[key]) return cache[key];
+
+    loading.style.display = 'block';
+    try {
+      const res  = await fetch(`/api/bookings/availability?year=${year}&month=${month + 1}`);
+      const json = await res.json();
+      const booked = new Set<string>();
+      const pending = new Set<string>();
+
+      for (const b of (json.bookings ?? [])) {
+        // Mark every day in start_date..end_date range
+        const start = new Date(b.start_date + 'T00:00:00');
+        const end   = new Date(b.end_date   + 'T00:00:00');
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          const iso = d.toISOString().split('T')[0];
+          if (b.status === 'pending') pending.add(iso);
+          else booked.add(iso);
+        }
+        // Also mark event_date if set
+        if (b.event_date) {
+          if (b.status === 'pending') pending.add(b.event_date.split('T')[0]);
+          else booked.add(b.event_date.split('T')[0]);
+        }
+      }
+
+      // Store combined: booked overrides pending
+      const combined = new Set<string>();
+      pending.forEach(d => combined.add('p:' + d));   // prefix p = pending
+      booked.forEach(d  => combined.add('b:' + d));   // prefix b = booked/rescheduled
+
+      cache[key] = combined;
+      return combined;
+    } catch {
+      return new Set();
+    } finally {
+      loading.style.display = 'none';
+    }
+  }
+
+  async function renderCalendar() {
+    monthLabel.textContent = `${MONTHS[viewMonth]} ${viewYear}`;
+    grid.innerHTML = '';
+
+    const bookedSet = await fetchBookedDates(viewYear, viewMonth);
+
+    const firstDow  = new Date(viewYear, viewMonth, 1).getDay();
+    const offset    = (firstDow + 6) % 7; // Mon-start
+    const daysInMo  = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const total     = Math.ceil((offset + daysInMo) / 7) * 7;
+    const todayISO  = today.toISOString().split('T')[0];
+
+    for (let i = 0; i < total; i++) {
+      const dayNum = i - offset + 1;
+      const cell   = document.createElement('div');
+      cell.style.cssText = 'aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:0.78rem;font-weight:600;position:relative;transition:transform 0.12s,box-shadow 0.12s;';
+
+      if (dayNum < 1 || dayNum > daysInMo) {
+        cell.style.background = 'transparent';
+      } else {
+        const dateISO = `${viewYear}-${String(viewMonth + 1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+        const isToday = dateISO === todayISO;
+        const isPast  = dateISO < todayISO;
+        const isBooked   = bookedSet.has('b:' + dateISO);
+        const isPending  = !isBooked && bookedSet.has('p:' + dateISO);
+
+        let bg = '#f0fdf4', textColor = '#166534', ring = '#22c55e'; // available
+        if (isPast) {
+          bg = '#f9fafb'; textColor = '#d1d5db'; ring = '#e5e7eb';
+        } else if (isBooked) {
+          bg = '#fef2f2'; textColor = '#991b1b'; ring = '#ef4444';
+        } else if (isPending) {
+          bg = '#fffbeb'; textColor = '#92400e'; ring = '#f59e0b';
+        }
+
+        cell.style.background = bg;
+        cell.style.color = textColor;
+        cell.style.outline = isToday ? `2.5px solid #2d5a27` : `1.5px solid ${ring}`;
+        if (isToday) cell.style.boxShadow = '0 0 0 3px rgba(45,90,39,0.18)';
+        cell.textContent = String(dayNum);
+
+        if (!isPast) {
+          cell.style.cursor = 'pointer';
+          cell.addEventListener('mouseenter', () => {
+            cell.style.transform = 'scale(1.12)';
+            cell.style.boxShadow = `0 4px 12px rgba(0,0,0,0.12)`;
+            cell.style.zIndex = '10';
+          });
+          cell.addEventListener('mouseleave', () => {
+            cell.style.transform = '';
+            cell.style.boxShadow = isToday ? '0 0 0 3px rgba(45,90,39,0.18)' : '';
+            cell.style.zIndex = '';
+          });
+        }
+      }
+      grid.appendChild(cell);
+    }
+  }
+
+  // ── Button state ──────────────────────────────────────────────────────────
+  function setButtonOpen(open: boolean) {
+    const txt     = document.getElementById('previewText');
+    const iconCal = document.getElementById('previewIconCal') as HTMLElement | null;
+    const iconX   = document.getElementById('previewIconX')   as HTMLElement | null;
+    if (txt)     txt.textContent       = open ? 'Close'  : 'Availability';
+    if (iconCal) iconCal.style.display = open ? 'none'   : 'block';
+    if (iconX)   iconX.style.display   = open ? 'block'  : 'none';
+  }
+
+  function openPanel() {
+    panel.classList.remove('opacity-0','pointer-events-none','-translate-y-2');
+    panel.classList.add('opacity-100','pointer-events-auto','translate-y-0');
+    setButtonOpen(true);
+  }
+  function closePanel() {
+    panel.classList.add('opacity-0','pointer-events-none','-translate-y-2');
+    panel.classList.remove('opacity-100','pointer-events-auto','translate-y-0');
+    setButtonOpen(false);
+  }
+
+  prevBtn.addEventListener('click', () => {
+    if (viewMonth === 0) { viewMonth = 11; viewYear--; } else { viewMonth--; }
+    renderCalendar();
+  });
+  nextBtn.addEventListener('click', () => {
+    if (viewMonth === 11) { viewMonth = 0; viewYear++; } else { viewMonth++; }
+    renderCalendar();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!(e.target instanceof Element)) return;
+    const clickedToggle  = e.target.closest('#preview');
+    const clickedInPanel = panel.contains(e.target);
+    const isOpen = panel.classList.contains('opacity-100');
+    if (clickedToggle) { isOpen ? closePanel() : openPanel(); return; }
+    if (!clickedInPanel && isOpen) closePanel();
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel(); });
+
+  renderCalendar();
+</script>

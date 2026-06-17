@@ -2,119 +2,558 @@
 import Layout from '../layouts/Layout.astro';
 import { requireAuth } from '../lib/auth';
 import { supabaseAdmin, supabase } from '../lib/supabase';
+import { normalizeBookingStatus } from '../lib/bookingStatus';
 
 const user = await requireAuth(Astro.cookies);
 if (!user) return Astro.redirect('/signin');
 
-// Use service role so RLS never blocks the profile read
 const db = supabaseAdmin ?? supabase;
 
 const { data: profile } = await db
   .from('customers')
-  .select('first_name, last_name')
+  .select('first_name, last_name, email, phone, email_notifications_enabled, sms_notifications_enabled')
   .eq('id', user.id)
-  .maybeSingle();
+  .single();
 
-// Check if this user is an admin
 const { data: adminRow } = await db
-  .from('admins')
-  .select('id')
-  .eq('id', user.id)
-  .maybeSingle();
-
+  .from('admins').select('id').eq('id', user.id).single();
 const isAdmin = !!adminRow;
 
 const { data: bookings } = await db
   .from('bookings')
-  .select('id, start_date, end_date, event_type, status, total_price, venue_id')
+  .select('id, full_name, phone, pax, start_date, end_date, event_type, status, total_price, venue_id, event_date, special_requests, created_at, updated_at')
   .eq('user_id', user.id)
   .order('created_at', { ascending: false })
-  .limit(5);
+  .limit(20);
 
-// Fetch venue names separately to avoid join type issues
-const venueIds = [...new Set((bookings ?? []).map(b => b.venue_id).filter(Boolean))];
+const normalizedBookings = (bookings ?? []).map((booking) => ({
+  ...booking,
+  status: normalizeBookingStatus(booking.status),
+}));
+
+const venueIds = [...new Set(normalizedBookings.map(b => b.venue_id))];
 const { data: venues } = venueIds.length > 0
-  ? await db.from('venues').select('id, name').in('id', venueIds)
+  ? await db.from('venues').select('id, name, image_url').in('id', venueIds)
   : { data: [] };
-const venueMap = Object.fromEntries((venues ?? []).map(v => [v.id, v.name]));
+const venueMap = Object.fromEntries((venues ?? []).map(v => [v.id, v]));
+
+const bookingIds = normalizedBookings.map(b => b.id);
+const { data: existingReviews } = bookingIds.length > 0
+  ? await db.from('reviews').select('booking_id').eq('user_id', user.id).in('booking_id', bookingIds)
+  : { data: [] };
+const reviewedSet = new Set((existingReviews ?? []).map((r: any) => r.booking_id));
 
 const displayName = profile?.first_name
   ? `${profile.first_name} ${profile.last_name ?? ''}`.trim()
   : user.email;
+
+const fmtDate = (d: string) =>
+  new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+
+const statusConfig: Record<string, { bg: string; text: string; border: string; dot: string; label: string }> = {
+  pending:          { bg: '#fffbeb', text: '#92400e', border: '#fde68a', dot: '#f59e0b', label: 'Pending' },
+  contract_signing: { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe', dot: '#3b82f6', label: 'Contract Signing' },
+  booked:           { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0', dot: '#22c55e', label: 'Booked' },
+  cancelled:        { bg: '#fef2f2', text: '#991b1b', border: '#fecaca', dot: '#ef4444', label: 'Cancelled' },
+  rescheduled:      { bg: '#f5f3ff', text: '#5b21b6', border: '#ddd6fe', dot: '#8b5cf6', label: 'Rescheduled' },
+  completed:        { bg: '#f8fafc', text: '#334155', border: '#cbd5e1', dot: '#64748b', label: 'Completed' },
+};
+
+const emailNotificationsEnabled = profile?.email_notifications_enabled ?? true;
+const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
 ---
 
-<Layout title="Dashboard">
-  <div class="max-w-5xl mx-auto px-4 py-12">
-    <div class="mb-10">
-      <h1 class="text-3xl font-bold" style="color: var(--jet-primary);">
-        Welcome back, {displayName}!
-      </h1>
-      <p class="text-gray-500 mt-1">{user.email}</p>
-    </div>
+<Layout title="My Dashboard">
+<div class="min-h-screen" style="background: linear-gradient(135deg, #f5f3f0 0%, #ede8e0 100%);">
+  <div class="max-w-4xl mx-auto px-4 py-10">
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-      <a href="/events_and_booking/events" class="card-container p-6 text-center hover:cursor-pointer">
-        <div class="text-3xl mb-2">🏖️</div>
-        <h3 class="font-bold" style="color: var(--butterscotch-primary);">Browse Venues</h3>
-        <p class="text-sm text-gray-500 mt-1">Find your perfect event space</p>
-      </a>
-      <div class="card-container p-6 text-center">
-        <div class="text-3xl mb-2">📅</div>
-        <h3 class="font-bold" style="color: var(--butterscotch-primary);">My Bookings</h3>
-        <p class="text-sm text-gray-500 mt-1">{bookings?.length ?? 0} recent bookings</p>
+    <!-- ── Welcome header ── -->
+    <div class="mb-8 flex items-center justify-between flex-wrap gap-4">
+      <div>
+        <p class="text-sm font-semibold mb-1" style="color:var(--butterscotch-primary);letter-spacing:0.08em;">MY DASHBOARD</p>
+        <h1 class="text-3xl font-black" style="color:var(--jet-primary);">
+          Welcome, {displayName}! 👋
+        </h1>
+        <p class="text-gray-500 text-sm mt-1">{user.email}</p>
       </div>
-      {isAdmin && (
-        <a href="/admin" class="card-container p-6 text-center hover:cursor-pointer">
-          <div class="text-3xl mb-2">⚙️</div>
-          <h3 class="font-bold" style="color: var(--butterscotch-primary);">Admin Panel</h3>
-          <p class="text-sm text-gray-500 mt-1">Manage bookings & venues</p>
-        </a>
-      )}
-    </div>
-
-    <div class="card-container p-6">
-      <h2 class="text-xl font-bold mb-4" style="color: var(--jet-primary);">Recent Bookings</h2>
-      {bookings && bookings.length > 0 ? (
-        <div class="space-y-3">
-          {bookings.map((b) => (
-            <div class="flex justify-between items-center py-3 border-b border-gray-100 last:border-0">
-              <div>
-                <p class="font-semibold">{venueMap[b.venue_id] ?? 'Unknown Venue'}</p>
-                <p class="text-sm text-gray-500">
-                  {new Date(b.start_date).toLocaleDateString()} – {new Date(b.end_date).toLocaleDateString()}
-                  {b.event_type ? ` · ${b.event_type}` : ''}
-                </p>
-              </div>
-              <div class="text-right">
-                <span class={`text-xs font-bold px-2 py-1 rounded-full ${
-                  b.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                  b.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                  'bg-yellow-100 text-yellow-700'
-                }`}>
-                  {b.status}
-                </span>
-                {b.total_price !== null && b.total_price !== undefined && (
-                  <p class="text-sm font-semibold mt-1" style="color: var(--butterscotch-primary);">
-                    ₱{b.total_price.toLocaleString()}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p class="text-gray-500 text-center py-6">No bookings yet. <a href="/events_and_booking/events" class="underline" style="color: var(--butterscotch-primary);">Browse venues</a></p>
-      )}
-    </div>
-
-    <div class="mt-8 text-right">
-      <form method="POST" action="/api/auth/signout" style="display:inline;">
+      <form method="POST" action="/api/auth/signout">
         <button type="submit"
-          class="inline-block px-6 py-2 rounded-lg text-white font-semibold transition hover:opacity-80"
-          style="background-color: var(--jet-primary);">
+          class="px-5 py-2 rounded-xl text-sm font-semibold transition hover:opacity-80"
+          style="background:var(--jet-primary);color:#fff;">
           Sign out
         </button>
       </form>
     </div>
+
+    <!-- ── Quick action cards ── -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <a href="/events_and_booking/events"
+        class="group relative overflow-hidden rounded-2xl p-5 flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-lg"
+        style="background:linear-gradient(135deg,#2d5a27,#4a7c3f);color:white;text-decoration:none;">
+        <div class="text-3xl">🏖️</div>
+        <div>
+          <p class="font-bold text-base">Browse Venues</p>
+          <p class="text-xs opacity-75 mt-0.5">Find your perfect space</p>
+        </div>
+        <div class="absolute right-4 top-1/2 -translate-y-1/2 opacity-20 text-5xl">→</div>
+      </a>
+
+      <div class="rounded-2xl p-5 flex items-center gap-4"
+        style="background:linear-gradient(135deg,#ed9b40,#dc7f14);color:white;">
+        <div class="text-3xl">📅</div>
+        <div>
+          <p class="font-bold text-base">My Bookings</p>
+          <p class="text-xs opacity-75 mt-0.5">{normalizedBookings.length} total bookings</p>
+        </div>
+      </div>
+
+      {isAdmin ? (
+        <a href="/admin"
+          class="rounded-2xl p-5 flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-lg"
+          style="background:linear-gradient(135deg,#363537,#5e5c60);color:white;text-decoration:none;">
+          <div class="text-3xl">⚙️</div>
+          <div>
+            <p class="font-bold text-base">Admin Panel</p>
+            <p class="text-xs opacity-75 mt-0.5">Manage bookings & venues</p>
+          </div>
+        </a>
+      ) : (
+        <div class="rounded-2xl p-5 flex items-center gap-4"
+          style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;">
+          <div class="text-3xl">⭐</div>
+          <div>
+            <p class="font-bold text-base">My Reviews</p>
+            <p class="text-xs opacity-75 mt-0.5">{reviewedSet.size} review{reviewedSet.size !== 1 ? 's' : ''} left</p>
+          </div>
+        </div>
+      )}
+    </div>
+
+    <!-- ── Bookings section ── -->
+    <section class="mb-8 rounded-2xl p-5" style="background:white;border:1.5px solid #e5e7eb;">
+      <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 class="text-base font-black" style="color:var(--jet-primary);">Notification Preferences</h2>
+          <p class="text-xs text-gray-500 mt-1">Choose how Woodberry sends booking updates.</p>
+        </div>
+        <div class="flex gap-3 flex-wrap">
+          <label class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold cursor-pointer">
+            <input id="emailNotificationsToggle" type="checkbox" checked={emailNotificationsEnabled} class="accent-green-700" />
+            Email
+          </label>
+          <label class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold cursor-pointer">
+            <input id="smsNotificationsToggle" type="checkbox" checked={smsNotificationsEnabled} class="accent-green-700" />
+            SMS
+          </label>
+        </div>
+      </div>
+      <p id="notificationPreferenceMessage" class="hidden text-sm font-semibold mt-4"></p>
+    </section>
+
+    <div class="mb-3 flex items-center justify-between">
+      <h2 class="text-lg font-black" style="color:var(--jet-primary);">My Bookings</h2>
+      <span class="text-xs text-gray-400 font-medium">{normalizedBookings.length} bookings</span>
+    </div>
+
+    {normalizedBookings.length > 0 ? (
+      <div class="space-y-3">
+        {normalizedBookings.map((b) => {
+          const todayD = new Date(); todayD.setHours(0,0,0,0);
+          const endDate = new Date(b.end_date);
+          const canReview = (b.status === 'booked' || b.status === 'completed') && !reviewedSet.has(b.id);
+          const hasReview = reviewedSet.has(b.id);
+          const venue     = (venueMap as any)[b.venue_id];
+          const venueName = venue?.name ?? 'Unknown Venue';
+          const cfg       = statusConfig[b.status] ?? statusConfig.pending;
+          const isCompleted = b.status === 'completed' || (b.status === 'booked' && endDate < todayD);
+
+          return (
+            <div
+              class="group rounded-2xl overflow-hidden transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+              style={`background:white;border:1.5px solid ${cfg.border};`}
+              onclick={`openUserBookingDetail(${JSON.stringify(JSON.stringify({ ...b, venueName, customerEmail: profile?.email ?? user.email, customerPhone: profile?.phone ?? b.phone ?? null }))})`}
+            >
+              <!-- Coloured left accent bar -->
+              <div style={`height:4px;background:${cfg.dot};`}></div>
+
+              <div class="p-5">
+                <div class="flex items-start justify-between gap-4 flex-wrap">
+
+                  <!-- Left: venue + dates -->
+                  <div class="flex items-start gap-4 flex-1 min-w-0">
+                    <!-- Venue icon / initial -->
+                    <div class="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black text-white"
+                      style={`background:${cfg.dot};`}>
+                      {venueName.charAt(0)}
+                    </div>
+                    <div class="min-w-0">
+                      <p class="font-bold text-base truncate" style="color:var(--jet-primary);">{venueName}</p>
+                      <p class="text-sm mt-0.5" style="color:#6b7280;">
+                        {fmtDate(b.start_date)} → {fmtDate(b.end_date)}
+                        {b.event_type ? <span class="text-xs ml-1 px-2 py-0.5 rounded-full" style="background:#f3f4f6;color:#374151;">{b.event_type}</span> : ''}
+                      </p>
+                      {b.event_date && (
+                        <p class="text-xs mt-1 flex items-center gap-1" style="color:#9ca3af;">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                          Event: {fmtDate(b.event_date)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <!-- Right: status + price + action -->
+                  <div class="flex flex-col items-end gap-2 flex-shrink-0">
+                    <!-- Status badge -->
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
+                      style={`background:${cfg.bg};color:${cfg.text};border:1px solid ${cfg.border};`}>
+                      <span class="w-1.5 h-1.5 rounded-full" style={`background:${cfg.dot};`}></span>
+                      {isCompleted ? 'Completed' : cfg.label}
+                    </span>
+
+                    {b.total_price && (
+                      <p class="text-base font-black" style="color:var(--butterscotch-primary);">
+                        ₱{Number(b.total_price).toLocaleString()}
+                      </p>
+                    )}
+
+                    <button
+                      onclick={`event.stopPropagation();openUserBookingDetail(${JSON.stringify(JSON.stringify({ ...b, venueName, customerEmail: profile?.email ?? user.email, customerPhone: profile?.phone ?? b.phone ?? null }))})`}
+                      class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border-2 transition hover:bg-gray-50"
+                      style="border-color:#cbd5e1;color:#64748b;background:white;"
+                    >
+                      👁 View Details
+                    </button>
+
+                    {canReview && (
+                      <button
+                        onclick={`event.stopPropagation();openReviewModal('${b.id}','${venueName.replace(/'/g, "\'")}')`}
+                        class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white transition hover:shadow-md hover:-translate-y-0.5"
+                        style="background:linear-gradient(135deg,#f59e0b,#d97706);"
+                      >
+                        ⭐ Leave a Review
+                      </button>
+                    )}
+                    {hasReview && (
+                      <span class="text-xs font-semibold flex items-center gap-1" style="color:#22c55e;">
+                        ✓ Reviewed
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    ) : (
+      <div class="rounded-2xl p-12 text-center" style="background:white;border:1.5px solid #e5e7eb;">
+        <div class="text-5xl mb-4">📭</div>
+        <p class="font-bold text-lg mb-1" style="color:var(--jet-primary);">No bookings yet</p>
+        <p class="text-sm text-gray-500 mb-5">Start by exploring our beautiful venues</p>
+        <a href="/events_and_booking/events"
+          class="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white transition hover:opacity-90"
+          style="background:linear-gradient(135deg,#2d5a27,#4a7c3f);text-decoration:none;">
+          Browse Venues →
+        </a>
+      </div>
+    )}
+
   </div>
+</div>
 </Layout>
+
+<!-- ── USER BOOKING DETAILS MODAL ─────────────────────────────────────────── -->
+<div id="userBookingDetailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.55);">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden max-h-[92vh] overflow-y-auto">
+    <div class="px-7 py-5 border-b border-gray-100 flex items-start justify-between">
+      <div>
+        <h3 class="text-2xl font-black" style="color:var(--jet-primary);">Booking Details</h3>
+        <p class="text-sm text-gray-500 mt-1">Your submitted booking information</p>
+      </div>
+      <button onclick="closeUserBookingDetail()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    </div>
+
+    <div class="px-7 py-5 space-y-6">
+      <div class="flex items-center gap-3">
+        <span class="text-sm font-semibold text-gray-500">Current Status:</span>
+        <span id="ubd-status" class="px-3 py-1 rounded-full text-sm font-bold"></span>
+      </div>
+
+      <div>
+        <h4 class="text-sm font-black tracking-widest uppercase mb-4" style="color:var(--jet-primary);">Guest Information</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><p class="text-xs text-gray-400 font-semibold">Full Name</p><p id="ubd-name" class="font-semibold mt-1">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">Phone</p><p id="ubd-phone" class="font-semibold mt-1">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">Email</p><p id="ubd-email" class="font-semibold mt-1">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">Pax</p><p id="ubd-pax" class="font-semibold mt-1">—</p></div>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="text-sm font-black tracking-widest uppercase mb-4" style="color:var(--jet-primary);">Booking Information</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><p class="text-xs text-gray-400 font-semibold">Venue</p><p id="ubd-venue" class="font-semibold mt-1">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">Event Type</p><p id="ubd-event-type" class="font-semibold mt-1">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">Event Date</p><p id="ubd-event-date" class="font-semibold mt-1">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">Hold Period</p><p id="ubd-hold" class="font-semibold mt-1">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">Total Price</p><p id="ubd-price" class="font-bold mt-1" style="color:var(--butterscotch-primary);">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">Submitted</p><p id="ubd-created" class="font-semibold mt-1">—</p></div>
+        </div>
+      </div>
+
+      <div id="ubd-requests-wrap" class="hidden">
+        <h4 class="text-sm font-black tracking-widest uppercase mb-3" style="color:var(--jet-primary);">Special Requests</h4>
+        <div class="rounded-xl p-4 bg-gray-50 text-sm text-gray-700" id="ubd-requests"></div>
+      </div>
+    </div>
+
+    <div class="px-7 pb-7 flex justify-end">
+      <button onclick="closeUserBookingDetail()" class="px-5 py-2 rounded-xl border-2 font-bold text-sm" style="border-color:#cbd5e1;color:#64748b;">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const USER_BOOKING_STATUS_CONFIG: Record<string, any> = {
+    pending: { label: 'Pending', bg: '#fffbeb', text: '#92400e', border: '#fde68a' },
+    contract_signing: { label: 'Contract Signing', bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
+    booked: { label: 'Booked', bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0' },
+    cancelled: { label: 'Cancelled', bg: '#fef2f2', text: '#991b1b', border: '#fecaca' },
+    rescheduled: { label: 'Rescheduled', bg: '#f5f3ff', text: '#5b21b6', border: '#ddd6fe' },
+    completed: { label: 'Completed', bg: '#f8fafc', text: '#334155', border: '#cbd5e1' },
+  };
+
+  function userBookingSetText(id: string, value: string) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  }
+
+  function userBookingFmtDate(value: string | null) {
+    return value ? new Date(value).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
+  }
+
+  function userBookingFmtTs(value: string | null) {
+    return value ? new Date(value).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' } as any) : '—';
+  }
+
+  function openUserBookingDetail(jsonStr: string) {
+    const b = JSON.parse(jsonStr);
+    const cfg = USER_BOOKING_STATUS_CONFIG[b.status] ?? USER_BOOKING_STATUS_CONFIG.pending;
+    const badge = document.getElementById('ubd-status') as HTMLElement;
+    if (badge) {
+      badge.textContent = cfg.label;
+      badge.style.background = cfg.bg;
+      badge.style.color = cfg.text;
+      badge.style.border = '1px solid ' + cfg.border;
+    }
+
+    userBookingSetText('ubd-name', b.full_name ?? '—');
+    userBookingSetText('ubd-phone', b.customerPhone ?? b.phone ?? '—');
+    userBookingSetText('ubd-email', b.customerEmail ?? '—');
+    userBookingSetText('ubd-pax', b.pax ? b.pax + ' pax' : '—');
+    userBookingSetText('ubd-venue', b.venueName ?? '—');
+    userBookingSetText('ubd-event-type', b.event_type ?? '—');
+    userBookingSetText('ubd-event-date', userBookingFmtDate(b.event_date));
+    userBookingSetText('ubd-hold', userBookingFmtDate(b.start_date) + ' → ' + userBookingFmtDate(b.end_date));
+    userBookingSetText('ubd-price', b.total_price ? '₱' + Number(b.total_price).toLocaleString() : '—');
+    userBookingSetText('ubd-created', userBookingFmtTs(b.created_at));
+
+    const reqWrap = document.getElementById('ubd-requests-wrap');
+    if (b.special_requests) {
+      userBookingSetText('ubd-requests', b.special_requests);
+      reqWrap?.classList.remove('hidden');
+    } else {
+      reqWrap?.classList.add('hidden');
+    }
+
+    document.getElementById('userBookingDetailModal')?.classList.remove('hidden');
+  }
+
+  function closeUserBookingDetail() {
+    document.getElementById('userBookingDetailModal')?.classList.add('hidden');
+  }
+
+  document.getElementById('userBookingDetailModal')?.addEventListener('click', function(e) {
+    if (e.target === document.getElementById('userBookingDetailModal')) closeUserBookingDetail();
+  });
+
+  (window as any).openUserBookingDetail = openUserBookingDetail;
+  (window as any).closeUserBookingDetail = closeUserBookingDetail;
+</script>
+
+<!-- ── REVIEW MODAL ──────────────────────────────────────────────────────── -->
+<script>
+  const emailToggle = document.getElementById('emailNotificationsToggle') as HTMLInputElement | null;
+  const smsToggle = document.getElementById('smsNotificationsToggle') as HTMLInputElement | null;
+  const preferenceMessage = document.getElementById('notificationPreferenceMessage');
+
+  function setPreferenceMessage(message: string, isSuccess: boolean) {
+    if (!preferenceMessage) return;
+    preferenceMessage.textContent = message;
+    preferenceMessage.classList.remove('hidden', 'text-red-600', 'text-green-700');
+    preferenceMessage.classList.add(isSuccess ? 'text-green-700' : 'text-red-600');
+  }
+
+  async function saveNotificationPreferences(changedToggle: HTMLInputElement) {
+    if (!emailToggle || !smsToggle) return;
+
+    if (!emailToggle.checked && !smsToggle.checked) {
+      changedToggle.checked = true;
+      setPreferenceMessage('At least one notification channel must remain enabled.', false);
+      return;
+    }
+
+    const response = await fetch('/api/user/notification-preferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        emailNotificationsEnabled: emailToggle.checked,
+        smsNotificationsEnabled: smsToggle.checked,
+      }),
+    });
+
+    if (response.ok) {
+      setPreferenceMessage('Notification preferences updated.', true);
+      return;
+    }
+
+    const payload = await response.json().catch(() => ({}));
+    changedToggle.checked = !changedToggle.checked;
+    setPreferenceMessage(payload.error ?? 'Failed to update notification preferences.', false);
+  }
+
+  emailToggle?.addEventListener('change', () => saveNotificationPreferences(emailToggle));
+  smsToggle?.addEventListener('change', () => saveNotificationPreferences(smsToggle));
+</script>
+
+<div id="reviewModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.55);">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+    <div style="height:4px;background:linear-gradient(90deg,#f59e0b,#d97706);"></div>
+    <div class="px-6 pt-5 pb-4 border-b border-gray-100">
+      <div class="flex justify-between items-start">
+        <div>
+          <h3 class="text-xl font-black" style="color:var(--jet-primary);">Leave a Review</h3>
+          <p id="reviewVenueName" class="text-sm text-gray-500 mt-0.5"></p>
+        </div>
+        <button onclick="closeReviewModal()" class="text-gray-300 hover:text-gray-500 text-2xl leading-none ml-4">&times;</button>
+      </div>
+    </div>
+    <div class="px-6 py-5 space-y-5">
+      <div>
+        <label class="block text-sm font-bold mb-3" style="color:var(--jet-primary);">Your Rating</label>
+        <div class="flex gap-1">
+          {[1,2,3,4,5].map(n => (
+            <button data-star={n} class="star-btn text-4xl transition-all hover:scale-125 focus:outline-none" style="background:none;border:none;cursor:pointer;color:#e5e7eb;" aria-label={`${n} star`}>★</button>
+          ))}
+        </div>
+        <input type="hidden" id="reviewRating" value="0" />
+      </div>
+      <div>
+        <label class="block text-sm font-bold mb-2" style="color:var(--jet-primary);">
+          Comment <span class="text-gray-400 font-normal">(optional)</span>
+        </label>
+        <textarea id="reviewComment" rows="4"
+          placeholder="Tell us about your experience at Woodberry…"
+          class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm resize-none focus:outline-none"
+          style="border-color:#e5e7eb;"></textarea>
+      </div>
+      <p id="reviewError" class="hidden text-sm text-red-600 font-medium bg-red-50 px-3 py-2 rounded-lg"></p>
+    </div>
+    <div class="px-6 pb-6 flex gap-3">
+      <button onclick="closeReviewModal()" class="flex-1 py-3 rounded-xl border-2 font-bold text-sm" style="border-color:#e5e7eb;color:#6b7280;">Cancel</button>
+      <button onclick="submitReview()" id="submitReviewBtn" class="flex-1 py-3 rounded-xl text-white font-bold text-sm transition hover:opacity-90" style="background:linear-gradient(135deg,#f59e0b,#d97706);">
+        Submit Review ⭐
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let _reviewBookingId = '';
+
+  function openReviewModal(bookingId: string, venueName: string) {
+    _reviewBookingId = bookingId;
+    const nameEl = document.getElementById('reviewVenueName');
+    if (nameEl) nameEl.textContent = venueName;
+    (document.getElementById('reviewRating') as HTMLInputElement).value = '0';
+    (document.getElementById('reviewComment') as HTMLTextAreaElement).value = '';
+    const errEl = document.getElementById('reviewError');
+    if (errEl) { errEl.classList.add('hidden'); errEl.textContent = ''; }
+    updateStars(0);
+    document.getElementById('reviewModal')?.classList.remove('hidden');
+  }
+
+  function closeReviewModal() {
+    document.getElementById('reviewModal')?.classList.add('hidden');
+  }
+
+  function updateStars(rating: number) {
+    document.querySelectorAll<HTMLElement>('.star-btn').forEach(btn => {
+      const n = parseInt(btn.dataset.star ?? '0');
+      btn.style.color = n <= rating ? '#f59e0b' : '#e5e7eb';
+      btn.style.transform = n === rating ? 'scale(1.2)' : '';
+    });
+  }
+
+  document.querySelectorAll<HTMLElement>('.star-btn').forEach(btn => {
+    btn.addEventListener('mouseenter', () => updateStars(parseInt(btn.dataset.star ?? '0')));
+    btn.addEventListener('mouseleave', () => updateStars(parseInt((document.getElementById('reviewRating') as HTMLInputElement).value)));
+    btn.addEventListener('click', () => {
+      const n = parseInt(btn.dataset.star ?? '0');
+      (document.getElementById('reviewRating') as HTMLInputElement).value = String(n);
+      updateStars(n);
+    });
+  });
+
+  async function submitReview() {
+    const rating  = parseInt((document.getElementById('reviewRating') as HTMLInputElement).value);
+    const comment = (document.getElementById('reviewComment') as HTMLTextAreaElement).value.trim();
+    const errEl   = document.getElementById('reviewError')!;
+    const btn     = document.getElementById('submitReviewBtn') as HTMLButtonElement;
+
+    if (rating < 1) {
+      errEl.textContent = 'Please select a star rating before submitting.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+
+    try {
+      const res = await fetch('/api/reviews/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId: _reviewBookingId, rating, comment: comment || null }),
+      });
+
+      if (res.ok) {
+        closeReviewModal();
+        const t = document.createElement('div');
+        t.textContent = '⭐ Review submitted! Thank you.';
+        t.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;background:#10b981;color:white;padding:14px 20px;border-radius:14px;font-weight:700;font-size:0.875rem;box-shadow:0 8px 24px rgba(0,0,0,0.15);animation:slideUp 0.3s ease;';
+        document.body.appendChild(t);
+        setTimeout(() => { t.remove(); location.reload(); }, 2200);
+      } else {
+        const j = await res.json().catch(() => ({}));
+        errEl.textContent = j.message ?? 'Something went wrong. Please try again.';
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Submit Review ⭐';
+      }
+    } catch {
+      errEl.textContent = 'Network error. Please try again.';
+      errEl.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Submit Review ⭐';
+    }
+  }
+
+  document.getElementById('reviewModal')?.addEventListener('click', e => {
+    if (e.target === document.getElementById('reviewModal')) closeReviewModal();
+  });
+
+  (window as any).openReviewModal  = openReviewModal;
+  (window as any).closeReviewModal = closeReviewModal;
+  (window as any).submitReview     = submitReview;
+</script>

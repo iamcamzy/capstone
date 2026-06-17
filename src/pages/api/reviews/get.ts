@@ -18,7 +18,7 @@ export const GET: APIRoute = async ({ url }) => {
     .from("bookings")
     .select("id")
     .eq("venue_id", venueId)
-    .eq("status", "confirmed");
+    .in("status", ["booked", "completed"]);
 
   if (!bookingIds || bookingIds.length === 0) {
     return ok({ reviews: [], averageRating: null,
