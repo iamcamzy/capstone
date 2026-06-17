@@ -1,7 +1,97 @@
 ---
+import Layout from '../../../layouts/Layout.astro';
+import BookingForm from '../../../components/bookingForm.astro';
+import { getVenue } from '../../../services/venues';
 
+const venueId = Astro.url.searchParams.get('venueId') ?? Astro.url.searchParams.get('id');
+
+if (!venueId) {
+  return Astro.redirect('/events_and_booking/events');
+}
+
+const { data: venue, error } = await getVenue(venueId);
+
+if (error || !venue || !venue.is_active) {
+  return Astro.redirect('/events_and_booking/events');
+}
 ---
 
-<div></div>
+<Layout title={`Book ${venue.name}`}>
+  <section class="w-full py-12 text-white" style="background-color: var(--jet-primary);">
+    <div class="max-w-6xl mx-auto px-4">
+      <a
+        href={`/events_and_booking/events/${venue.id}`}
+        class="inline-flex items-center gap-2 mb-6 hover:opacity-80 transition-opacity"
+        style="color: var(--butterscotch-primary);"
+      >
+        ← Back to Venue
+      </a>
+      <h1 class="text-4xl font-bold mb-2">Book {venue.name}</h1>
+      <p class="text-lg opacity-90">Review the venue details and submit your booking request.</p>
+    </div>
+  </section>
 
-<style></style>
+  <main class="w-full py-12">
+    <div class="max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <aside class="lg:col-span-1">
+        <div class="bg-white rounded-lg border border-gray-200 overflow-hidden sticky top-20">
+          {venue.image_url && (
+            <img src={venue.image_url} alt={venue.name} class="w-full h-48 object-cover" />
+          )}
+          <div class="p-6 space-y-4">
+            <div>
+              <p class="text-xs uppercase font-bold text-gray-400">Venue</p>
+              <h2 class="text-xl font-bold" style="color: var(--jet-primary);">{venue.name}</h2>
+            </div>
+
+            {venue.location && (
+              <div class="border-t border-gray-100 pt-4">
+                <p class="text-xs uppercase font-bold text-gray-400">Location</p>
+                <p class="text-sm text-gray-700">{venue.location}</p>
+              </div>
+            )}
+
+            <div class="border-t border-gray-100 pt-4 flex justify-between items-center">
+              <span class="text-gray-600">Price per Night</span>
+              <span class="text-2xl font-bold" style="color: var(--butterscotch-primary);">
+                ₱{Number(venue.price_per_night).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            {venue.capacity && (
+              <div class="border-t border-gray-100 pt-4">
+                <p class="text-xs uppercase font-bold text-gray-400">Capacity</p>
+                <p class="text-sm text-gray-700">Up to {venue.capacity} guests</p>
+              </div>
+            )}
+
+            {venue.description && (
+              <div class="border-t border-gray-100 pt-4">
+                <p class="text-xs uppercase font-bold text-gray-400">About</p>
+                <p class="text-sm text-gray-700 mt-1">{venue.description}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </aside>
+
+      <section class="lg:col-span-2">
+        <div class="bg-white rounded-lg border border-gray-200 p-8">
+          <BookingForm
+            venueId={venue.id}
+            venueName={venue.name}
+            pricePerNight={venue.price_per_night}
+          />
+        </div>
+      </section>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  :global(:root) {
+    --lion-primary: #aa8f66;
+    --butterscotch-primary: #ed9b40;
+    --jet-primary: #363537;
+  }
+</style>

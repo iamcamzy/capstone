@@ -1,11 +1,10 @@
-// POST /api/reviews/add — add a review for a booked booking (requires auth)
+// POST /api/reviews/add — add a review for a confirmed booking (requires auth)
 import type { APIRoute } from "astro";
 import { supabase } from "../../../lib/supabase";
 import { getUser } from "../../../lib/auth";
 import { addReviewSchema } from "../../../validation/review";
 import { created, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
-import { normalizeBookingStatus } from "../../../lib/bookingStatus";
 
 export const prerender = false;
 
@@ -23,7 +22,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   const { bookingId, rating, comment } = parsed.data;
 
-  // Booking must exist, belong to user, and be booked
+  // Booking must exist, belong to user, and be confirmed
   const { data: booking } = await supabase
     .from("bookings")
     .select("id, user_id, status")
@@ -32,10 +31,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   if (!booking)                       return error("Booking not found", 404);
   if (booking.user_id !== user.id)    return error("You can only review your own bookings", 403);
-  const bookingStatus = normalizeBookingStatus(booking.status);
-  if (bookingStatus !== "booked" && bookingStatus !== "completed") {
-    return error("You can only review booked or completed bookings", 400);
-  }
+  if (booking.status !== "confirmed") return error("You can only review confirmed bookings", 400);
 
   // One review per booking
   const { data: existing } = await supabase
@@ -66,4 +62,3 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   return created({ reviewId: review.id, message: "Review added successfully" });
 };
-

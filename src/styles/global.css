@@ -1,56 +1,51 @@
 @import "tailwindcss";
 
 html {
-    scroll-behavior: smooth;
+  scroll-behavior: smooth;
 }
 
 /* Prevent padding from increasing element width */
 *,
 *::before,
 *::after {
-    box-sizing: border-box;
+  box-sizing: border-box;
 }
 
 /* Make sure body doesn't exceed the viewport width */
 html,
 body {
-    width: 100%;
-    max-width: 100vw;
-    overflow-x: clip;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: clip;
 }
 
 /* Enhanced color palette and typography */
 :root {
-    --lion-primary: #aa8f66;
-    --lion-light: #ccbba2;
-    --lion-dark: #8b724d;
+  --lion-primary: #aa8f66;
+  --lion-light: #ccbba2;
+  --lion-dark: #8b724d;
 
-    --butterscotch-primary: #ed9b40;
-    --butterscotch-light: #f1b066;
-    --butterscotch-dark: #dc7f14;
+  --butterscotch-primary: #ed9b40;
+  --butterscotch-light: #f1b066;
+  --butterscotch-dark: #dc7f14;
 
-    --jet-primary: #363537;
-    --jet-light: #5e5c60;
-    --jet-dark: #1a1819;
+  --jet-primary: #363537;
+  --jet-light: #5e5c60;
+  --jet-dark: #1a1819;
 
-    --neutral-white: #fafaf8;
-    --neutral-light: #f5f3f0;
-    --neutral-gray: #8b8a88;
-    --neutral-dark: #2a2928;
+  --neutral-white: #fafaf8;
+  --neutral-light: #f5f3f0;
+  --neutral-gray: #8b8a88;
+  --neutral-dark: #2a2928;
 }
 
 /* Improved global typography and spacing */
 body {
-    font-family:
-        "Geist",
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
-    font-size: 16px;
-    line-height: 1.5;
-    color: var(--jet-primary);
-    background-color: var(--neutral-white);
+  font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--jet-primary);
+  background-color: var(--neutral-white);
 }
 
 h1,
@@ -59,281 +54,84 @@ h3,
 h4,
 h5,
 h6 {
-    font-weight: 700;
-    line-height: 1.3;
-    color: var(--jet-primary);
-    letter-spacing: -0.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--jet-primary);
+  letter-spacing: -0.5px;
 }
 
 h1 {
-    font-size: 2.5rem;
+  font-size: 2.5rem;
 }
 h2 {
-    font-size: 2rem;
+  font-size: 2rem;
 }
 h3 {
-    font-size: 1.5rem;
+  font-size: 1.5rem;
 }
 
 p {
-    color: var(--neutral-dark);
-    font-size: 1rem;
+  color: var(--neutral-dark);
+  font-size: 1rem;
 }
 
 /* Navigation link styling with improved hover states */
 .navigation-link {
-    @apply min-w-[150px] h-full flex justify-center items-center text-[1rem] font-semibold
+  @apply min-w-[150px] h-full flex justify-center items-center text-[1rem] font-semibold
          hover:cursor-pointer ease-in-out duration-300 relative;
-    color: var(--jet-primary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-size: 0.95rem;
+  color: var(--jet-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.95rem;
 }
 
 .navigation-link::after {
-    content: "";
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    width: 0;
-    height: 2px;
-    background-color: #4a7c3f;
-    transition: all 0.3s ease-in-out;
-    transform: translateX(-50%);
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background-color: var(--butterscotch-primary);
+  transition: all 0.3s ease-in-out;
+  transform: translateX(-50%);
 }
 
 .navigation-link:hover::after {
-    width: 80%;
+  width: 80%;
 }
 
 .navigation-button {
-    @apply w-full h-full flex justify-center items-center 
+  @apply w-full h-full flex justify-center items-center 
          transition-transform ease-in-out duration-300 hover:scale-105;
 }
 
 /* Button styling for consistent look */
 button,
 a[role="button"] {
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    font-size: 0.9rem;
-    transition: all 0.3s ease-in-out;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  transition: all 0.3s ease-in-out;
 }
 
 /* Card and container styling */
 .card-container {
-    background-color: var(--neutral-white);
-    border: 1px solid var(--lion-light);
-    border-radius: 8px;
-    transition: all 0.3s ease-in-out;
+  background-color: var(--neutral-white);
+  border: 1px solid var(--lion-light);
+  border-radius: 8px;
+  transition: all 0.3s ease-in-out;
 }
 
 .card-container:hover {
-    box-shadow: 0 8px 16px rgba(170, 143, 102, 0.15);
-    border-color: var(--butterscotch-primary);
+  box-shadow: 0 8px 16px rgba(170, 143, 102, 0.15);
+  border-color: var(--butterscotch-primary);
 }
 
 /* Section spacing */
 section,
 div[id$="-us"],
 div[id$="-showcase"] {
-    padding: 3rem 1rem;
-}
-
-/* =============================================
-   DARK MODE
-   Triggered by .dark class on <html>
-   ============================================= */
-
-html.dark {
-    /* Override CSS variables for dark palette */
-    --neutral-white: #1a1a1e;
-    --neutral-light: #24242a;
-    --neutral-dark: #d4d4d0;
-    --jet-primary: #e8e8e4;
-    --jet-light: #b0b0ac;
-}
-
-/* Body */
-html.dark body {
-    background-color: #1a1a1e;
-    color: #e8e8e4;
-}
-
-/* Headings */
-html.dark h1,
-html.dark h2,
-html.dark h3,
-html.dark h4,
-html.dark h5,
-html.dark h6 {
-    color: #f0f0ec;
-}
-
-html.dark p {
-    color: #c0c0bc;
-}
-
-/* ── Header ── */
-html.dark #navbar {
-    background: #1e1e24 !important;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4) !important;
-}
-
-html.dark .navigation-link {
-    color: #d4d4d0;
-}
-
-html.dark .navigation-link:hover {
-    color: #a8d49a;
-}
-
-/* Date availability bar */
-html.dark #preview {
-    background-color: #3a3228 !important;
-    color: #d4c4a8;
-}
-html.dark #preview:hover {
-    background-color: #4a4030 !important;
-}
-
-/* ── Hero section ── */
-html.dark .wb-hero,
-html.dark .wb-page {
-    background: #1e2420 !important;
-}
-
-html.dark .wb-hero__eyebrow {
-    color: #7ec870 !important;
-}
-
-html.dark .wb-hero__heading {
-    color: #f0f0ec !important;
-}
-
-html.dark .wb-hero__sub {
-    color: #a0b09a !important;
-}
-
-/* Buttons */
-html.dark .wb-btn--primary {
-    background: #e8e8e4 !important;
-    color: #1a1a1e !important;
-}
-html.dark .wb-btn--primary:hover {
-    background: #ffffff !important;
-}
-
-html.dark .wb-btn--outline {
-    color: #a8d49a !important;
-    border-color: #4a7c3f !important;
-}
-html.dark .wb-btn--outline:hover {
-    background: #2a3a28 !important;
-}
-
-/* ── Feature cards strip ── */
-html.dark .wb-features {
-    background: #16181a !important;
-    border-top-color: #2a3028 !important;
-}
-
-html.dark .wb-feature-card {
-    background: #22262a !important;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
-}
-
-html.dark .wb-feature-card__icon {
-    background: #1e3020 !important;
-}
-
-html.dark .wb-feature-card__body h3 {
-    color: #e8e8e4 !important;
-}
-
-html.dark .wb-feature-card__body p {
-    color: #8a9a84 !important;
-}
-
-html.dark .wb-tagline p {
-    color: #7eb870 !important;
-}
-
-/* ── Auth buttons in header ── */
-html.dark #user_buttons a[style*="border: 2px solid #4a7c3f"] {
-    border-color: #5a9c4f !important;
-    color: #7ec870 !important;
-}
-
-html.dark #user_buttons a[style*="background-color: #1a1a1a"] {
-    background-color: #e8e8e4 !important;
-    color: #1a1a1e !important;
-}
-
-/* ── Cards used across other pages ── */
-html.dark .wb-card,
-html.dark .card-container {
-    background-color: #22262a !important;
-    border-color: #2a3a28 !important;
-    color: #d4d4d0 !important;
-}
-
-/* ── General white backgrounds ── */
-html.dark .bg-white {
-    background-color: #1e2024 !important;
-}
-
-html.dark .bg-\[\#f0f4ec\],
-html.dark .bg-\[\#f5f7f1\],
-html.dark .bg-\[\#f2f5ee\],
-html.dark .bg-\[\#f7f9f4\] {
-    background-color: #1e2420 !important;
-}
-
-/* ── Text color overrides ── */
-html.dark .text-\[\#2d4a1e\],
-html.dark .text-\[\#1a2e10\] {
-    color: #a8d49a !important;
-}
-
-html.dark .text-\[\#3a3a3a\],
-html.dark .text-gray-600 {
-    color: #a0a09c !important;
-}
-
-/* ── Toggle button track ── */
-html.dark #themeButton .bg-gray-300 {
-    background-color: #4a7c3f !important;
-}
-
-/* ── Gallery page ── */
-html.dark .gallery-page {
-    background: #1a1a1e;
-}
-
-html.dark .gallery-header h1 {
-    color: #f0f0ec !important;
-}
-
-html.dark .gallery-header p {
-    color: #7ec870 !important;
-}
-
-/* ── Contact / other pages ── */
-html.dark input,
-html.dark textarea,
-html.dark select {
-    background-color: #22262a !important;
-    border-color: #3a4038 !important;
-    color: #e8e8e4 !important;
-}
-
-html.dark input::placeholder,
-html.dark textarea::placeholder {
-    color: #6a6a66 !important;
-}
-
-html.dark label {
-    color: #c0c0bc !important;
+  padding: 3rem 1rem;
 }

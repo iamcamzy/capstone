@@ -3,19 +3,17 @@ import type { APIRoute } from "astro";
 import { supabase } from "../../../lib/supabase";
 import { getUser } from "../../../lib/auth";
 import { ok, error } from "../../../lib/response";
-import { BOOKING_STATUSES, normalizeBookingStatus, type BookingStatus } from "../../../lib/bookingStatus";
 
 export const prerender = false;
 
-const VALID_STATUSES = [...BOOKING_STATUSES, "confirmed"];
+const VALID_STATUSES = ["pending", "confirmed", "cancelled", "rescheduled"];
 
 export const GET: APIRoute = async ({ cookies, url }) => {
   const user = await getUser(cookies);
   if (!user) return error("Unauthorized — please sign in", 401);
 
   const status = url.searchParams.get("status");
-  const normalizedStatus = status ? normalizeBookingStatus(status) : null;
-  if (status && !VALID_STATUSES.includes(status as BookingStatus | "confirmed")) {
+  if (status && !VALID_STATUSES.includes(status)) {
     return error(`Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`, 400);
   }
 
@@ -29,7 +27,7 @@ export const GET: APIRoute = async ({ cookies, url }) => {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
-  if (normalizedStatus) query = query.eq("status", normalizedStatus);
+  if (status) query = query.eq("status", status as "pending" | "confirmed" | "cancelled" | "rescheduled");
 
   const { data, error: dbError } = await query;
   if (dbError) {
@@ -37,10 +35,5 @@ export const GET: APIRoute = async ({ cookies, url }) => {
     return error(dbError.message, 500);
   }
 
-  return ok({
-    bookings: (data ?? []).map((booking) => ({
-      ...booking,
-      status: normalizeBookingStatus(booking.status),
-    })),
-  });
+  return ok({ bookings: data ?? [] });
 };

@@ -21,7 +21,7 @@ src/
 │   │   │   ├── GetUserBookings.ts  # GET  — my bookings
 │   │   │   ├── CancelBookings.ts   # POST — cancel own booking
 │   │   │   ├── GetAllBookings.ts   # GET  — all bookings (admin)
-│   │   │   └── ConfirmBookings.ts  # POST — mark booking as booked (admin)
+│   │   │   └── ConfirmBookings.ts  # POST — confirm booking (admin)
 │   │   ├── reviews/
 │   │   │   ├── add.ts              # POST — add a review
 │   │   │   ├── get.ts              # GET  — venue reviews (public)
@@ -79,15 +79,7 @@ Open `.env` and add your values — all three are required:
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-BREVO_API_KEY=
-BREVO_SENDER_NAME="Woodberry Resorts and Events Place"
-BREVO_SENDER_EMAIL="wbrepprototype@gmail.com"
-NOTIFICATION_CRON_SECRET=
 ```
-
-`BREVO_API_KEY` is server-only and must never be exposed to client-side code. If it is missing, booking status updates still succeed and email notifications are skipped server-side.
-
-Apply the booking notification schema changes from `supabase/migrations/add_booking_notifications.sql` before using notification preferences or reminder tracking.
 
 ### 3. Start the dev server
 
@@ -111,11 +103,8 @@ Auth is handled by HttpOnly cookies — no token management needed on the fronte
 | GET    | `/api/bookings/GetUserBookings` | User   | Get my bookings (filter by `?status=`)            |
 | POST   | `/api/bookings/CancelBookings`  | User   | Cancel own booking                                |
 | GET    | `/api/bookings/GetAllBookings`  | Admin  | All bookings with pagination                      |
-| POST   | `/api/bookings/ConfirmBookings` | Admin  | Mark a pending booking as booked                  |
+| POST   | `/api/bookings/ConfirmBookings` | Admin  | Confirm a pending booking                         |
 | POST   | `/api/admin/reschedule`         | Admin  | Reschedule a booking                              |
-| POST   | `/api/admin/update-booking-status` | Admin | Update a booking to contract signing, booked, rescheduled, cancelled, or completed |
-| GET/POST | `/api/user/notification-preferences` | User | View or update email/SMS notification preferences |
-| POST   | `/api/notifications/send-weekly-reminders` | Admin or cron secret | Send one-week reminders once per eligible booking |
 | GET    | `/api/venues`                   | Public | List all active venues                            |
 | GET    | `/api/venues/:id`               | Public | Get single venue                                  |
 | POST   | `/api/venues`                   | Admin  | Create a venue                                    |
@@ -132,10 +121,6 @@ Auth is handled by HttpOnly cookies — no token management needed on the fronte
 | POST   | `/api/admin/users`              | Admin  | Change a user's role                              |
 
 For full request/response shapes, see **`API_REFERENCE.md`**.
-
-### Weekly Reminder Cron
-
-Call `POST /api/notifications/send-weekly-reminders` once per day from your scheduler. If `NOTIFICATION_CRON_SECRET` is set, pass it as `Authorization: Bearer YOUR_SECRET`, `x-cron-secret`, or `?secret=YOUR_SECRET`; otherwise the endpoint requires an admin session cookie.
 
 ---
 
@@ -159,4 +144,3 @@ When you change the database schema, regenerate the types:
 ```bash
 npx supabase gen types typescript --project-id YOUR_PROJECT_ID > src/lib/database.types.ts
 ```
-

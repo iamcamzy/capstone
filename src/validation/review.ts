@@ -4,7 +4,7 @@ import { z } from "zod";
  * POST /api/reviews
  *
  * Required:
- *   bookingId  string (UUID) — must be a booked or completed booking owned by the user
+ *   bookingId  string (UUID) — must be a confirmed booking owned by the user
  *   rating     number 1–5
  *
  * Optional:
@@ -17,4 +17,3 @@ export const addReviewSchema = z.object({
 });
 
 export type AddReviewInput = z.infer<typeof addReviewSchema>;
-
