@@ -81,6 +81,49 @@ const { venueId, venueName, pricePerNight } = Astro.props;
           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
         />
       </div>
+      <fieldset class="notification-preference">
+        <legend>Notification preference</legend>
+        <p>Choose how you want to receive booking updates.</p>
+        <div class="notification-preference__options" role="radiogroup" aria-label="Notification preference">
+          <label class="notification-preference__option">
+            <input
+              type="radio"
+              name="notificationPreference"
+              value="email"
+              class="notification-preference__input"
+            />
+            <span class="notification-preference__body">
+              <strong>Email</strong>
+              <span>Receive updates by email.</span>
+            </span>
+          </label>
+          <label class="notification-preference__option">
+            <input
+              type="radio"
+              name="notificationPreference"
+              value="sms"
+              class="notification-preference__input"
+            />
+            <span class="notification-preference__body">
+              <strong>SMS</strong>
+              <span>Receive updates by text message.</span>
+            </span>
+          </label>
+          <label class="notification-preference__option">
+            <input
+              type="radio"
+              name="notificationPreference"
+              value="both"
+              class="notification-preference__input"
+              checked
+            />
+            <span class="notification-preference__body">
+              <strong>Both</strong>
+              <span>Use both notification methods.</span>
+            </span>
+          </label>
+        </div>
+      </fieldset>
     </div>
 
     <!-- Booking Details -->
@@ -617,6 +660,10 @@ const { venueId, venueName, pricePerNight } = Astro.props;
             <span>Address</span>
             <p id="conf-address"></p>
           </div>
+          <div class="confirmation-detail confirmation-detail--wide">
+            <span>Notifications</span>
+            <p id="conf-notifications"></p>
+          </div>
         </div>
       </section>
 
@@ -796,6 +843,9 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   var minimumPaymentEl = document.getElementById("minimumPayment");
   var remainingBalanceEl = document.getElementById("remainingBalance");
   var noticeEl = document.getElementById("bookingNotice");
+  var notificationPreferenceInputs = document.querySelectorAll(
+    'input[name="notificationPreference"]',
+  );
   var termsModal = document.getElementById("termsModal");
   var confirmModal = document.getElementById("bookingConfirmModal");
   var successScreen = document.getElementById("bookingSuccessScreen");
@@ -1047,6 +1097,18 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     return eventType.options[eventType.selectedIndex].textContent || eventType.value;
   }
 
+  function getNotificationPreference() {
+    var selected = document.querySelector('input[name="notificationPreference"]:checked');
+    return selected ? selected.value : "both";
+  }
+
+  function getNotificationPreferenceLabel() {
+    var preference = getNotificationPreference();
+    if (preference === "email") return "Email notifications";
+    if (preference === "sms") return "SMS notifications";
+    return "Email and SMS notifications";
+  }
+
   function populateInclusionSummary(inclusions) {
     var wrap = document.getElementById("conf-inclusions");
     if (!wrap) return;
@@ -1159,6 +1221,8 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     document.getElementById("conf-email").textContent =
       document.getElementById("email").value || "N/A";
     document.getElementById("conf-address").textContent = addressInput.value || "N/A";
+    document.getElementById("conf-notifications").textContent =
+      getNotificationPreferenceLabel();
     document.getElementById("conf-checkin").textContent = fmtDate(checkInInput.value);
     document.getElementById("conf-checkout").textContent = fmtDate(checkOutInput.value);
     document.getElementById("conf-eventdate").textContent = fmtDate(eventDateInput.value);
@@ -1258,6 +1322,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       pax: parseInt(document.getElementById("guests").value) || null,
       eventType: document.getElementById("eventType").value || null,
       specialRequests: document.getElementById("specialRequests").value || null,
+      notificationPreference: getNotificationPreference(),
       address: addressInput.value || null,
       caterer: useWoodberryCatererInput.checked ? woodberryCatererName : catererValue || null,
       useWoodberryCaterer: useWoodberryCatererInput.checked,
@@ -1298,6 +1363,11 @@ const { venueId, venueName, pricePerNight } = Astro.props;
           fmtDate(checkInInput.value) + " to " + fmtDate(checkOutInput.value);
         successScreen.classList.remove("hidden");
         form.reset();
+        if (notificationPreferenceInputs.length) {
+          notificationPreferenceInputs.forEach(function (input) {
+            input.checked = input.value === "both";
+          });
+        }
         syncCaterer();
         syncAllFacilities();
         calculateNights();
@@ -1434,7 +1504,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     font-weight: 800;
   }
 
-  #bookingForm input:not([type="checkbox"]),
+  #bookingForm input:not([type="checkbox"]):not([type="radio"]),
   #bookingForm select,
   #bookingForm textarea {
     width: 100%;
@@ -1461,7 +1531,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     color: #8a9782;
   }
 
-  #bookingForm input:not([type="checkbox"]):focus,
+  #bookingForm input:not([type="checkbox"]):not([type="radio"]):focus,
   #bookingForm select:focus,
   #bookingForm textarea:focus {
     border-color: var(--wb-green) !important;
@@ -1481,6 +1551,114 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     height: 1rem;
     flex: 0 0 auto;
     accent-color: var(--wb-green);
+  }
+
+  .notification-preference {
+    display: grid;
+    gap: 0.85rem;
+    border: 1px solid rgba(221, 232, 212, 0.95);
+    border-radius: var(--wb-radius-lg);
+    background:
+      linear-gradient(135deg, rgba(232, 242, 227, 0.76), rgba(255, 255, 255, 0.9)),
+      var(--wb-surface-soft);
+    padding: 1rem;
+  }
+
+  .notification-preference legend {
+    float: left;
+    width: 100%;
+    margin: 0;
+    color: var(--wb-green-dark);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+
+  .notification-preference legend + p {
+    clear: both;
+    margin: 0.25rem 0 0;
+    color: var(--wb-muted) !important;
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
+
+  .notification-preference__options {
+    display: grid;
+    gap: 0.65rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .notification-preference__option {
+    min-width: 0;
+    cursor: pointer;
+  }
+
+  .notification-preference__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .notification-preference__body {
+    display: grid;
+    min-height: 5.35rem;
+    align-content: center;
+    gap: 0.32rem;
+    border: 1px solid rgba(170, 143, 102, 0.18);
+    border-radius: var(--wb-radius-md);
+    background: rgba(241, 243, 237, 0.82);
+    color: #7b8574 !important;
+    padding: 0.9rem;
+    text-align: center;
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      color 0.2s ease,
+      opacity 0.2s ease,
+      transform 0.2s ease;
+  }
+
+  .notification-preference__body strong {
+    color: inherit;
+    font-size: 0.98rem;
+    font-weight: 900;
+    line-height: 1.2;
+  }
+
+  .notification-preference__body span {
+    color: inherit !important;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  .notification-preference__option:has(.notification-preference__input:not(:checked))
+    .notification-preference__body {
+    opacity: 0.62;
+  }
+
+  .notification-preference__option:has(.notification-preference__input:checked)
+    .notification-preference__body {
+    border-color: rgba(74, 124, 63, 0.58);
+    background:
+      linear-gradient(135deg, rgba(232, 242, 227, 0.98), rgba(251, 235, 217, 0.82)),
+      #ffffff;
+    color: var(--wb-green-dark) !important;
+    box-shadow: 0 12px 22px rgba(74, 124, 63, 0.12);
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+
+  .notification-preference__option:hover .notification-preference__body,
+  .notification-preference__option:has(.notification-preference__input:focus-visible)
+    .notification-preference__body {
+    border-color: rgba(74, 124, 63, 0.44);
+    box-shadow: 0 0 0 4px rgba(74, 124, 63, 0.1);
   }
 
   #bookingForm label:has(input[type="checkbox"]),
@@ -2191,6 +2369,15 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       padding: 1rem;
     }
 
+    .notification-preference__options {
+      grid-template-columns: 1fr;
+    }
+
+    .notification-preference__body {
+      min-height: 4.25rem;
+      text-align: left;
+    }
+
     .booking-payment-card > div,
     #bookingConfirmModal .flex.justify-between {
       flex-direction: column;
@@ -2252,7 +2439,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     }
   }
 
-  :global(html.dark) #bookingForm input:not([type="checkbox"]),
+  :global(html.dark) #bookingForm input:not([type="checkbox"]):not([type="radio"]),
   :global(html.dark) #bookingForm select,
   :global(html.dark) #bookingForm textarea,
   :global(html.dark) #terms-back-btn,
@@ -2291,6 +2478,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
 
   :global(html.dark) #bookingForm label:has(input[type="checkbox"]),
   :global(html.dark) #bookingForm div:has(> label > input[type="checkbox"]),
+  :global(html.dark) .notification-preference,
   :global(html.dark) #facilityTimeRanges [data-time-range],
   :global(html.dark) .booking-payment-card > div:has(#minimumPayment),
   :global(html.dark) #termsModal label:has(#termsAccepted),
@@ -2305,6 +2493,21 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   :global(html.dark) #termsModal label:has(#termsAccepted:checked) {
     background: var(--wb-green-soft) !important;
     border-color: var(--wb-green-pale) !important;
+  }
+
+  :global(html.dark) .notification-preference__body {
+    background: var(--wb-surface-raised);
+    border-color: var(--wb-border);
+    color: var(--wb-muted) !important;
+  }
+
+  :global(html.dark)
+    .notification-preference__option:has(.notification-preference__input:checked)
+    .notification-preference__body {
+    background: var(--wb-green-soft);
+    border-color: var(--wb-green-pale);
+    color: var(--wb-text) !important;
+    box-shadow: none;
   }
 
   :global(html.dark) #bookingForm input:disabled,

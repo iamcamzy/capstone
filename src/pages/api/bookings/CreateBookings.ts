@@ -32,15 +32,17 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     email,
     phone,
     specialRequests,
+    emailNotificationsEnabled,
+    smsNotificationsEnabled,
   } = parsed.data;
 
   const db = supabaseAdmin ?? supabase;
   const now = new Date().toISOString();
 
   // Keep the latest booking contact info on the customer profile.
-  // The notification service reads customers.email, so the email typed in
-  // the booking form must be saved there before admin confirms the booking.
-  if (email || fullName || phone) {
+  // The notification service reads the customer profile, so the latest booking
+  // contact details and notification preference must be saved before staff act.
+  if (email || fullName || phone || parsed.data.notificationPreference) {
     const [firstName, ...lastNameParts] = (fullName ?? "").trim().split(/\s+/).filter(Boolean);
     const profileUpdate = {
       id: user.id,
@@ -48,6 +50,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       ...(phone ? { phone } : {}),
       ...(firstName ? { first_name: firstName } : {}),
       ...(lastNameParts.length ? { last_name: lastNameParts.join(" ") } : {}),
+      email_notifications_enabled: emailNotificationsEnabled,
+      sms_notifications_enabled: smsNotificationsEnabled,
       updated_at: now,
     };
 

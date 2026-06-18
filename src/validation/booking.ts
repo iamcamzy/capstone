@@ -35,6 +35,8 @@ function getMinimumBookingDate() {
 const termsAgreementMessage =
   "You must agree to the Terms and Conditions before submitting your booking.";
 
+const notificationPreferenceSchema = z.enum(["email", "sms", "both"]).default("both");
+
 export const createBookingSchema = z
   .object({
     venueId: z.string().uuid("venueId must be a valid UUID"),
@@ -50,6 +52,7 @@ export const createBookingSchema = z
     email: z.string().email("Invalid email address").max(254).optional().nullable(),
     phone: z.string().max(30).optional().nullable(),
     specialRequests: z.string().max(1000).optional().nullable(),
+    notificationPreference: notificationPreferenceSchema,
     address: z.string().max(500).optional().nullable(),
     caterer: z.string().max(200).optional().nullable(),
     useWoodberryCaterer: z.boolean().optional(),
@@ -91,6 +94,10 @@ export const createBookingSchema = z
     ...d,
     pax: d.pax ?? d.guests ?? null,
     specialRequests: d.specialRequests || null,
+    emailNotificationsEnabled:
+      d.notificationPreference === "email" || d.notificationPreference === "both",
+    smsNotificationsEnabled:
+      d.notificationPreference === "sms" || d.notificationPreference === "both",
   }));
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
