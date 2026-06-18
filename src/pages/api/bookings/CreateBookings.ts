@@ -1,4 +1,4 @@
-// POST /api/bookings/CreateBookings — create a booking (requires auth)
+// POST /api/bookings/CreateBookings - create a booking (requires auth)
 import type { APIRoute } from "astro";
 import { supabase, supabaseAdmin } from "../../../lib/supabase";
 import { getUser } from "../../../lib/auth";
@@ -10,7 +10,7 @@ export const prerender = false;
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const user = await getUser(cookies);
-  if (!user) return error("Unauthorized — please sign in", 401);
+  if (!user) return error("Unauthorized - please sign in", 401);
 
   const body = await parseBody(request);
   if (!body.ok) return body.response;
@@ -20,8 +20,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return error(parsed.error.errors.map((e) => e.message).join(", "), 400);
   }
 
-  const { venueId, startDate, endDate, eventDate, eventType, packageId, pax,
-          fullName, email, phone, specialRequests } = parsed.data;
+  const {
+    venueId,
+    startDate,
+    endDate,
+    eventDate,
+    eventType,
+    packageId,
+    pax,
+    fullName,
+    email,
+    phone,
+    specialRequests,
+  } = parsed.data;
 
   const db = supabaseAdmin ?? supabase;
   const now = new Date().toISOString();
@@ -49,7 +60,6 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
   }
 
-  // Overlap check
   const { data: overlap } = await supabase
     .from("bookings")
     .select("id")
@@ -63,23 +73,21 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return error("This venue is already booked for the selected dates", 409);
   }
 
-  // Venue check
   const { data: venue } = await supabase
     .from("venues")
     .select("price_per_night, is_active, name")
     .eq("id", venueId)
     .single();
 
-  if (!venue)           return error("Venue not found", 404);
+  if (!venue) return error("Venue not found", 404);
   if (!venue.is_active) return error("This venue is not available for booking", 400);
 
-  // Calculate price
-  const nights = Math.max(1, Math.ceil(
-    (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000
-  ));
+  const nights = Math.max(
+    1,
+    Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000),
+  );
   const totalPrice = nights * Number(venue.price_per_night);
 
-  // Package price addition
   let packagePrice = 0;
   if (packageId) {
     const { data: pkg } = await supabase
@@ -90,25 +98,39 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     if (pkg) packagePrice = Number(pkg.price);
   }
 
-  // Direct insert — no RPC needed
+  const computedTotal = totalPrice + packagePrice;
+  const computedMinimumPayment = computedTotal * 0.5;
+  const computedRemainingBalance = computedTotal - computedMinimumPayment;
+
   const { data: newBooking, error: insertError } = await supabase
     .from("bookings")
     .insert({
-      user_id:          user.id,
-      venue_id:         venueId,
-      start_date:       startDate,
-      end_date:         endDate,
-      event_date:       eventDate        ?? null,
-      event_type:       eventType        ?? null,
-      package_id:       packageId        ?? null,
-      pax:              pax              ?? null,
-      full_name:        fullName         ?? null,
-      phone:            phone            ?? null,
-      special_requests: specialRequests  ?? null,
-      total_price:      totalPrice + packagePrice,
-      status:           "contract_signing",
-      created_at:       now,
-      updated_at:       now,
+      user_id: user.id,
+      venue_id: venueId,
+      start_date: startDate,
+      end_date: endDate,
+      event_date: eventDate ?? null,
+      event_type: eventType ?? null,
+      package_id: packageId ?? null,
+      pax: pax ?? null,
+      full_name: fullName ?? null,
+      phone: phone ?? null,
+      special_requests: specialRequests ?? null,
+      total_price: computedTotal,
+      status: "contract_signing",
+      created_at: now,
+      updated_at: now,
+      // TODO: Enable after booking database columns are added.
+      // address: parsed.data.address ?? null,
+      // caterer: parsed.data.useWoodberryCaterer ? "Woodberry's Caterer" : parsed.data.caterer ?? null,
+      // use_woodberry_caterer: parsed.data.useWoodberryCaterer ?? false,
+      // package_inclusions: parsed.data.packageInclusions ?? null,
+      // rooms_count: parsed.data.roomsCount ?? null,
+      // facility_time_ranges: parsed.data.facilityTimeRanges ?? null,
+      // additionals: parsed.data.additionals ?? null,
+      // minimum_payment_amount: computedMinimumPayment,
+      // remaining_balance_amount: computedRemainingBalance,
+      // terms_accepted_at: parsed.data.termsAccepted ? now : null,
     })
     .select("id")
     .single();
@@ -119,8 +141,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   return created({
-    bookingId:   newBooking.id,
-    totalPrice:  totalPrice + packagePrice,
-    message:     "Booking submitted successfully. Our staff will coordinate contract signing details.",
+    bookingId: newBooking.id,
+    totalPrice: computedTotal,
+    message: "Booking submitted successfully. Our staff will coordinate contract signing details.",
   });
 };

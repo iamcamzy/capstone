@@ -416,7 +416,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
         </div>
         <div class="flex justify-between text-sm pt-2">
           <span class="text-gray-600">
-            Minimum payment for contract signing (50%)
+            Minimum payment for face-to-face contract signing (50%)
           </span>
           <span
             id="minimumPayment"
@@ -434,75 +434,93 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       </div>
     </div>
 
+    <!-- Terms Button -->
+    <button
+      type="submit"
+      class="w-full py-3 px-4 text-white font-semibold rounded-lg transition-all hover:opacity-90 text-center"
+      style="background-color: var(--butterscotch-primary);"
+      id="submitBtn"
+    >
+      Review Terms and Conditions
+    </button>
+  </form>
+</div>
 
-    <!-- Terms and Conditions -->
-    <div class="pt-6 border-t border-gray-200 space-y-4">
-      <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
-        <h3
-          class="text-lg font-semibold mb-3"
-          style="color: var(--lion-primary);"
+<!-- Terms and Conditions modal -->
+<div
+  id="termsModal"
+  class="hidden fixed inset-0 z-50 flex items-center justify-center"
+  style="background:rgba(0,0,0,0.6);"
+>
+  <div
+    class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden max-h-[92vh] flex flex-col"
+  >
+    <div class="px-7 pt-7 pb-4 border-b border-gray-100">
+      <div class="flex items-center gap-3 mb-1">
+        <div
+          class="w-10 h-10 rounded-full flex items-center justify-center text-xl"
+          style="background:#ed9b4020;"
         >
+          Terms
+        </div>
+        <h3 class="text-xl font-black" style="color:var(--jet-primary);">
           Terms and Conditions
         </h3>
-        <div
-          class="max-h-64 overflow-y-auto pr-2 space-y-3 text-sm leading-6 text-gray-700"
-        >
-          <p class="font-bold" style="color: var(--jet-primary);">
-            TERMS OF SERVICE
-          </p>
-          <p>
-            1. All reservations must be made upon payment of 50% of the
-            SUB-TOTAL-AMOUNT as deposit. Payment of the remaining balance must
-            be made on or before the reservation date.
-          </p>
-          <p>
-            2. Cancellation of reserved date shall be made three (3) weeks
-            before the reserved date to refund 50% of the deposited amount.
-            Failure to do so shall mean forfeiture of the deposit.
-          </p>
-          <p>
-            3. Venue/room rental is restricted to the allotted time only. In
-            case of excess hours, the client shall pay the corresponding amount
-            for excess hours.
-          </p>
-          <p>
-            4. A maximum of four (4) guests are allowed to stay per room;
-            otherwise, additional payments will be made.
-          </p>
-          <p>
-            5. The client shall see to it that all belongings are personally
-            attended. The management shall not be liable for any accidents,
-            damages, or loss.
-          </p>
-          <p>
-            6. Preparation and arrangement of the place should be done four (4)
-            hours before the start of the event. Php500.00 will be charged for
-            extra hours, if not included in the package.
-          </p>
-          <p>
-            7. Use of videoke, sound systems, and rooms should be paid as per
-            customer's request.
-          </p>
-          <p>
-            8. Room accommodation only does not include the use of the swimming
-            pool.
-          </p>
-          <p>9. We charge a corkage fee for booths that require electricity.</p>
-          <p>10. Liquors and drugs are not allowed inside the venue.</p>
-          <p>
-            11. No other fees shall be collected by the management unless stated
-            above.
-          </p>
-          <p>
-            12. We always abide by the rules/laws mandated by local and national
-            government.
-          </p>
-          <p>
-            <strong>Note:</strong> The client or their representative hereby states
-            that he/she has read and fully understood these Terms and Conditions.
-          </p>
-        </div>
       </div>
+      <p class="text-sm text-gray-500">
+        Please read and agree before reviewing your booking.
+      </p>
+    </div>
+
+    <div class="px-7 py-5 overflow-y-auto space-y-3 text-sm leading-6 text-gray-700">
+      <p class="font-bold" style="color: var(--jet-primary);">TERMS OF SERVICE</p>
+      <p>
+        1. All reservations must be made upon payment of 50% of the SUB-TOTAL
+        AMOUNT as deposit. Payment of the remaining balance must be made on or
+        before the reservation date.
+      </p>
+      <p>
+        2. Cancellation of reserved date shall be made three (3) weeks before
+        the reserved date to refund 50% of the deposited amount. Failure to do so
+        shall mean forfeiture of the deposit.
+      </p>
+      <p>
+        3. Venue/Room rental is restricted to the allotted time only. In case of
+        excess hours, client shall pay the corresponding amount for excess hours.
+      </p>
+      <p>
+        4. A maximum of four (4) guests are allowed to stay per room; otherwise,
+        additional payments will be made.
+      </p>
+      <p>
+        5. The client shall see to it that all belongings are personally attended.
+        The management shall not be liable for any accidents, damages, or loss.
+      </p>
+      <p>
+        6. Preparation and arrangement of place should be done four (4) hours
+        before the start of event. Php500.00 will be charged for extra hours, if
+        not included in the package.
+      </p>
+      <p>
+        7. Use of Videoke, Sound Systems, and Rooms should be paid as per
+        customer's request.
+      </p>
+      <p>8. Room accommodation only does not include the use of swimming pool.</p>
+      <p>9. We charge corkage fee for booth that requires electricity.</p>
+      <p>10. Liquors and drugs are not allowed inside the venue.</p>
+      <p>
+        11. No other fees shall be collected by the management unless stated
+        above.
+      </p>
+      <p>
+        12. We always abide by the rules/laws mandated by the local and national
+        government.
+      </p>
+      <p>
+        <strong>Note:</strong> Client or its representative hereby states that
+        he/she has read and fully understood these Terms and Conditions.
+      </p>
+
       <label
         for="termsAccepted"
         class="flex items-start gap-3 rounded-lg border border-gray-200 p-4 text-sm font-medium"
@@ -519,16 +537,25 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       </label>
     </div>
 
-    <!-- Submit Button -->
-    <button
-      type="submit"
-      class="w-full py-3 px-4 text-white font-semibold rounded-lg transition-all hover:opacity-90 text-center"
-      style="background-color: var(--butterscotch-primary);"
-      id="submitBtn"
-    >
-      Review Booking ->
-    </button>
-  </form>
+    <div class="px-7 pb-7 flex gap-3">
+      <button
+        id="terms-back-btn"
+        type="button"
+        class="flex-1 py-3 rounded-xl border-2 font-semibold text-sm transition hover:bg-gray-50"
+        style="border-color:#d1d5db;color:#374151;"
+      >
+        Go Back & Edit
+      </button>
+      <button
+        id="terms-continue-btn"
+        type="button"
+        class="flex-1 py-3 rounded-xl text-white font-bold text-sm transition hover:opacity-90"
+        style="background:var(--butterscotch-primary);"
+      >
+        Continue to Review Booking
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- Booking confirmation modal -->
@@ -703,7 +730,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
         <div class="mt-4 pt-3 border-t border-amber-100 space-y-2">
           <div class="flex justify-between gap-4 text-sm">
             <span class="text-gray-500">
-              Minimum payment for contract signing (50%)
+              Minimum payment for face-to-face contract signing (50%)
             </span>
             <span
               id="conf-minimum-payment"
@@ -813,8 +840,11 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   var minimumPaymentEl = document.getElementById("minimumPayment");
   var remainingBalanceEl = document.getElementById("remainingBalance");
   var noticeEl = document.getElementById("bookingNotice");
+  var termsModal = document.getElementById("termsModal");
   var confirmModal = document.getElementById("bookingConfirmModal");
   var successScreen = document.getElementById("bookingSuccessScreen");
+  var termsBackBtn = document.getElementById("terms-back-btn");
+  var termsContinueBtn = document.getElementById("terms-continue-btn");
   var confBackBtn = document.getElementById("conf-back-btn");
   var confSubmitBtn = document.getElementById("conf-submit-btn");
   var pricePerNightValue = Number(pricePerNight) || 0;
@@ -1119,14 +1149,13 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     }
   });
 
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
+  function validateMainForm() {
     if (noticeEl) noticeEl.classList.add("hidden");
 
     if (!form.checkValidity()) {
       showNotice("Please complete all required booking details.", "error");
       form.reportValidity();
-      return;
+      return false;
     }
 
     var selectedStartDate = parseDateOnly(checkInInput.value);
@@ -1142,31 +1171,27 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       selectedEventDate < minimumBookingDate
     ) {
       showNotice("Bookings must be made at least one month in advance.", "error");
-      return;
+      return false;
     }
 
     if (selectedEndDate <= selectedStartDate) {
       showNotice("Check-out date must be after check-in date.", "error");
-      return;
+      return false;
     }
 
     if (selectedEventDate < selectedStartDate || selectedEventDate > selectedEndDate) {
       showNotice("Event date must fall within the selected booking dates.", "error");
-      return;
-    }
-
-    if (!termsAcceptedInput.checked) {
-      showNotice(
-        "You must agree to the Terms and Conditions before submitting your booking.",
-        "error",
-      );
-      termsAcceptedInput.focus();
-      return;
+      return false;
     }
 
     var inclusions = getSelectedInclusions();
-    if (!validateFacilityRanges(inclusions)) return;
+    if (!validateFacilityRanges(inclusions)) return false;
 
+    return true;
+  }
+
+  function openConfirmationModal() {
+    var inclusions = getSelectedInclusions();
     var totals = calculateNights();
     var catererValue = catererInput.value.trim() || "N/A";
 
@@ -1206,6 +1231,37 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     }
 
     confirmModal.classList.remove("hidden");
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (!validateMainForm()) return;
+    termsModal.classList.remove("hidden");
+  });
+
+  termsBackBtn.addEventListener("click", function () {
+    termsModal.classList.add("hidden");
+  });
+
+  termsModal.addEventListener("click", function (e) {
+    if (e.target === termsModal) termsModal.classList.add("hidden");
+  });
+
+  termsContinueBtn.addEventListener("click", function () {
+    if (noticeEl) noticeEl.classList.add("hidden");
+
+    if (!termsAcceptedInput.checked) {
+      showNotice(
+        "You must agree to the Terms and Conditions before submitting your booking.",
+        "error",
+      );
+      termsAcceptedInput.focus();
+      return;
+    }
+
+    if (!validateMainForm()) return;
+    termsModal.classList.add("hidden");
+    openConfirmationModal();
   });
 
   confBackBtn.addEventListener("click", function () {
@@ -1217,10 +1273,24 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   });
 
   confSubmitBtn.addEventListener("click", async function () {
+    if (!termsAcceptedInput.checked) {
+      showNotice(
+        "You must agree to the Terms and Conditions before submitting your booking.",
+        "error",
+      );
+      confirmModal.classList.add("hidden");
+      termsModal.classList.remove("hidden");
+      termsAcceptedInput.focus();
+      return;
+    }
+
     confSubmitBtn.disabled = true;
     confSubmitBtn.textContent = "Submitting...";
 
-    // TODO: Persist address/caterer/inclusions once booking schema supports these fields.
+    var inclusions = getSelectedInclusions();
+    var totals = calculateNights();
+    var catererValue = catererInput.value.trim();
+
     var formData = {
       venueId: venueId,
       startDate: checkInInput.value,
@@ -1232,6 +1302,21 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       pax: parseInt(document.getElementById("guests").value) || null,
       eventType: document.getElementById("eventType").value || null,
       specialRequests: document.getElementById("specialRequests").value || null,
+      address: addressInput.value || null,
+      caterer: useWoodberryCatererInput.checked ? woodberryCatererName : catererValue || null,
+      useWoodberryCaterer: useWoodberryCatererInput.checked,
+      packageInclusions: inclusions,
+      roomsCount: roomsCountInput.value ? parseInt(roomsCountInput.value) : null,
+      facilityTimeRanges: inclusions.map(function (inclusion) {
+        return {
+          key: inclusion.key,
+          from: inclusion.from || null,
+          to: inclusion.to || null,
+        };
+      }),
+      additionals: null,
+      minimumPaymentAmount: totals.minimumPayment,
+      remainingBalanceAmount: totals.remainingBalance,
       termsAccepted: termsAcceptedInput.checked,
     };
 
