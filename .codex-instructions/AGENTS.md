@@ -98,6 +98,106 @@ If adding or changing UI anywhere, make it feel like it belongs to the Woodberry
 
 ---
 
+## Responsiveness Requirements
+
+All redesigned pages, components, forms, modals, dashboards, and layouts must be responsive across desktop, tablet, and mobile.
+
+Do not assume a fixed desktop width.
+
+Use:
+
+* flexible layouts
+* wrapping grids
+* responsive spacing
+* readable font sizes
+* mobile-safe modals
+* touch-friendly buttons and controls
+
+### Mobile Requirements
+
+For mobile layouts, approximately `360px–430px` wide:
+
+* Avoid horizontal page scrolling.
+* Stack cards, panels, form sections, and dashboard sections vertically.
+* Keep buttons large enough to tap comfortably.
+* Keep form inputs full-width when appropriate.
+* Keep labels readable and close to their inputs.
+* Keep modals within the viewport.
+* Make modal content scrollable if it is long.
+* Avoid cramped two-column layouts.
+* Tables should either:
+
+  * scroll horizontally inside a contained wrapper, or
+  * convert into readable stacked/card-style layouts when practical.
+* Sidebar navigation should collapse, stack, or become easier to access on small screens.
+* Important actions should remain visible and usable without awkward zooming.
+
+### Tablet Requirements
+
+For tablet layouts, approximately `768px` wide:
+
+* Use balanced one-column or two-column layouts depending on content.
+* Avoid overly wide forms.
+* Keep cards and dashboard panels readable.
+* Ensure buttons, filters, tabs, and tables have enough spacing.
+* Avoid layout overflow.
+
+### Desktop Requirements
+
+For desktop layouts, `1024px` and wider:
+
+* Preserve spacious Woodberry-style layouts.
+* Use multi-column layouts where they improve readability.
+* Keep page sections visually balanced.
+* Avoid stretching forms, cards, and text blocks too wide.
+* Maintain the polished resort-style spacing and hierarchy.
+
+### Modal Responsiveness
+
+All modals must:
+
+* Dim the background when open.
+* Stay centered on desktop.
+* Fit within the viewport on mobile.
+* Use scrollable content for long text.
+* Keep action buttons visible and usable.
+* Avoid overflowing off-screen.
+* Allow easy closing when appropriate.
+
+### Form Responsiveness
+
+All forms must:
+
+* Use full-width inputs on mobile.
+* Use clean two-column layouts only when screen width allows.
+* Keep validation messages readable.
+* Avoid cramped checkbox/radio groups.
+* Keep submit and action buttons easy to tap.
+* Preserve the Woodberry visual style on all screen sizes.
+
+### Dashboard and Table Responsiveness
+
+Dashboards must:
+
+* Stack stat cards on mobile.
+* Keep tables readable.
+* Use horizontal scroll wrappers for large tables when needed.
+* Keep filters/search controls accessible.
+* Avoid hiding important admin or customer actions.
+* Keep status badges and action buttons legible.
+
+### Required Responsive Check
+
+When making UI changes, test or reason through these common breakpoints:
+
+* Mobile: `360px–430px`
+* Tablet: `768px`
+* Desktop: `1024px+`
+
+Do not finish a redesign task if the layout clearly breaks on mobile, tablet, or desktop.
+
+---
+
 ## Light/Dark Mode Rule
 
 If a page or component already supports light/dark mode, preserve that support.

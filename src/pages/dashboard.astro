@@ -261,6 +261,140 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
 </div>
 </Layout>
 
+<style>
+  :global(html.dark) body {
+    background: var(--wb-surface);
+  }
+
+  :global(html.dark) main > div.min-h-screen {
+    background:
+      radial-gradient(circle at 10% 0%, rgba(37, 56, 35, 0.72), transparent 28rem),
+      linear-gradient(135deg, #11170f 0%, #191f16 100%) !important;
+    color: var(--wb-text);
+  }
+
+  :global(html.dark) main h1,
+  :global(html.dark) main h2,
+  :global(html.dark) main h3,
+  :global(html.dark) main h4 {
+    color: var(--wb-green-dark) !important;
+  }
+
+  :global(html.dark) section[style*="background:white"],
+  :global(html.dark) div[style*="background:white"],
+  :global(html.dark) #userBookingDetailModal > div,
+  :global(html.dark) #reviewModal > div {
+    background: var(--wb-surface-raised) !important;
+    border-color: var(--wb-border) !important;
+    color: var(--wb-text) !important;
+    box-shadow: var(--wb-shadow-md) !important;
+  }
+
+  :global(html.dark) #userBookingDetailModal,
+  :global(html.dark) #reviewModal {
+    background: rgba(8, 12, 7, 0.72) !important;
+    backdrop-filter: blur(4px);
+  }
+
+  :global(html.dark) #userBookingDetailModal [class*="border-b"],
+  :global(html.dark) #reviewModal [class*="border-b"] {
+    border-color: var(--wb-border) !important;
+  }
+
+  :global(html.dark) #userBookingDetailModal .bg-gray-50,
+  :global(html.dark) #reviewModal .bg-gray-50,
+  :global(html.dark) #ubd-requests {
+    background: var(--wb-surface-soft) !important;
+    color: var(--wb-muted) !important;
+  }
+
+  :global(html.dark) .text-gray-500,
+  :global(html.dark) .text-gray-400,
+  :global(html.dark) .text-gray-300,
+  :global(html.dark) #reviewVenueName {
+    color: var(--wb-muted) !important;
+  }
+
+  :global(html.dark) label.inline-flex {
+    background: var(--wb-surface-soft);
+    border-color: var(--wb-border) !important;
+    color: var(--wb-text) !important;
+  }
+
+  :global(html.dark) button[style*="background:var(--jet-primary)"] {
+    background: var(--wb-green-mid) !important;
+    color: #10170e !important;
+  }
+
+  :global(html.dark) button[style*="border-color:#cbd5e1"],
+  :global(html.dark) button[style*="border-color:#e5e7eb"],
+  :global(html.dark) button[style*="border-color:#cbd5e1;color:#64748b"] {
+    background: var(--wb-surface-soft) !important;
+    border-color: var(--wb-border) !important;
+    color: var(--wb-green-mid) !important;
+  }
+
+  :global(html.dark) span[style*="background:#f3f4f6"] {
+    background: var(--wb-green-soft) !important;
+    color: var(--wb-green-mid) !important;
+    border: 1px solid var(--wb-border);
+  }
+
+  :global(html.dark) span[style*="background:#eff6ff"],
+  :global(html.dark) span[style*="background:#f5f3ff"],
+  :global(html.dark) span[style*="background:#f8fafc"],
+  :global(html.dark) span[style*="background:#f0fdf4"] {
+    background: var(--wb-green-soft) !important;
+    color: var(--wb-green-mid) !important;
+    border-color: var(--wb-border) !important;
+  }
+
+  :global(html.dark) span[style*="background:#fef2f2"] {
+    background: #3a211c !important;
+    color: #efb0a2 !important;
+    border-color: #6d3a2d !important;
+  }
+
+  :global(html.dark) div[style*="border:1.5px solid"] {
+    background: var(--wb-surface-raised) !important;
+  }
+
+  :global(html.dark) p[style*="color:#6b7280"],
+  :global(html.dark) p[style*="color:#9ca3af"] {
+    color: var(--wb-muted) !important;
+  }
+
+  :global(html.dark) .star-btn {
+    color: #4d5748 !important;
+  }
+
+  :global(html.dark) #reviewComment {
+    background: var(--wb-surface-soft) !important;
+    border-color: var(--wb-border) !important;
+    color: var(--wb-text) !important;
+  }
+
+  @media (max-width: 640px) {
+    #userBookingDetailModal,
+    #reviewModal {
+      align-items: flex-start;
+      padding: 1rem 0.75rem;
+    }
+
+    #userBookingDetailModal > div,
+    #reviewModal > div {
+      max-height: 94vh;
+      margin-inline: 0;
+    }
+
+    #userBookingDetailModal .px-7,
+    #reviewModal .px-6 {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+  }
+</style>
+
 <!-- ── USER BOOKING DETAILS MODAL ─────────────────────────────────────────── -->
 <div id="userBookingDetailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.55);">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden max-h-[92vh] overflow-y-auto">

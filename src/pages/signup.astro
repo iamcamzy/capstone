@@ -4,23 +4,23 @@ import ShowButton from '../components/showButton.astro';
 ---
 
 <Layout title="Register">
-  <div class="w-full h-[69vh] flex justify-center items-center">
-    <div id="formBox" class="w-[50%] h-auto ring-2 rounded-xl">
+  <div class="auth-page w-full min-h-[69vh] flex justify-center items-center py-12 px-4">
+    <div id="formBox" class="auth-card w-full max-w-3xl h-auto ring-2 rounded-xl">
       <div
         id="formHeader"
-        class="border-b w-full h-auto px-6 py-3 flex justify-between"
+        class="auth-card__header border-b w-full h-auto px-6 py-3 flex justify-between gap-4 items-center"
       >
         <h1 class="text-[2em] font-bold">Sign up for a new account</h1>
         <a
           href="/"
-          class="flex justify-center items-center text-[1.2em] rounded-2xl py-1 px-5 ring-1 bg-red-400 hover:bg-red-500"
+          class="auth-back flex justify-center items-center text-[1.2em] rounded-2xl py-1 px-5 ring-1"
           >Back</a
         >
       </div>
 
       <form id="register-form" novalidate class="px-5 py-10">
         <div
-          class="w-full h-auto grid grid-cols-12 grid-rows-4 items-center gap-5"
+          class="signup-grid w-full h-auto grid grid-cols-12 grid-rows-4 items-center gap-5"
         >
           <label
             for="firstName"
@@ -88,7 +88,7 @@ import ShowButton from '../components/showButton.astro';
         >
           <button
             type="submit"
-            class="max-w-[20ch] text-[2em] text-white font-bold rounded-2xl py-2 px-5 bg-amber-400 hover:bg-amber-500 hover:cursor-pointer"
+            class="auth-submit max-w-[20ch] text-[2em] text-white font-bold rounded-2xl py-2 px-5 hover:cursor-pointer"
             >REGISTER</button
           >
         </div>
@@ -97,7 +97,7 @@ import ShowButton from '../components/showButton.astro';
         Already have an account?
         <a
           href="/signin"
-          class="text-blue-500 hover:text-blue-800 hover:pointer-cursor underline"
+          class="auth-link hover:pointer-cursor underline"
           >Sign in</a
         >
       </p>
@@ -157,3 +157,104 @@ import ShowButton from '../components/showButton.astro';
     }
   });
 </script>
+
+<style>
+  .auth-page {
+    background:
+      radial-gradient(circle at 12% 8%, rgba(232, 242, 227, 0.78), transparent 26rem),
+      var(--wb-surface);
+  }
+
+  .auth-card {
+    overflow: hidden;
+    border: 1px solid var(--wb-border);
+    background: var(--wb-surface-raised);
+    box-shadow: var(--wb-shadow-md);
+    color: var(--wb-text);
+  }
+
+  .auth-card__header {
+    border-color: var(--wb-border);
+    background: var(--wb-surface-soft);
+  }
+
+  .auth-card h1 {
+    color: var(--wb-green-dark);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.45rem, 4vw, 2rem);
+    letter-spacing: 0;
+    line-height: 1.15;
+  }
+
+  .auth-card label {
+    color: var(--wb-green-dark);
+  }
+
+  .auth-card input {
+    border: 1px solid var(--wb-border);
+    background: #fff;
+    color: var(--wb-text);
+  }
+
+  .auth-card input:focus {
+    border-color: var(--wb-green);
+    box-shadow: 0 0 0 4px rgba(74, 124, 63, 0.12);
+    outline: 0;
+  }
+
+  .auth-back {
+    border-color: rgba(154, 74, 54, 0.32);
+    background: #9a4a36;
+    color: #fff;
+    text-decoration: none;
+  }
+
+  .auth-submit {
+    background: var(--wb-green);
+  }
+
+  .auth-submit:hover {
+    background: var(--wb-green-mid);
+  }
+
+  .auth-link {
+    color: var(--wb-green-mid);
+    font-weight: 700;
+  }
+
+  :global(html.dark) .auth-page {
+    background:
+      radial-gradient(circle at 12% 8%, rgba(37, 56, 35, 0.72), transparent 26rem),
+      var(--wb-surface);
+  }
+
+  :global(html.dark) .auth-card input {
+    background: var(--wb-surface-soft) !important;
+    color: var(--wb-text) !important;
+  }
+
+  @media (max-width: 720px) {
+    .auth-card__header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .signup-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.85rem;
+    }
+
+    .signup-grid label,
+    .signup-grid input {
+      grid-column: auto;
+      width: 100%;
+    }
+
+    .auth-submit {
+      width: 100%;
+      max-width: none;
+      font-size: 1.2rem;
+    }
+  }
+</style>

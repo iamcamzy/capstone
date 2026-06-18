@@ -1,17 +1,18 @@
 ---
-const { venue } = Astro.props;
+const { venue, isLoggedIn = false } = Astro.props;
+const bookingUrl = `/events_and_booking/events/${venue.id}`;
+const venueName = venue.name || 'this venue';
 ---
 
 <!-- Refactored to receive individual venue as prop and render single card -->
 <div
-  id="event-card"
-  class="rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 w-full h-full flex flex-col bg-white border border-gray-200"
+  class="event-card rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 w-full h-full flex flex-col bg-white border border-gray-200"
 >
   {
     venue.image_url && (
       <img
         src={venue.image_url || '/placeholder.svg'}
-        alt={venue.name || 'Venue'}
+        alt={venueName}
         class="w-full h-48 object-cover"
       />
     )
@@ -19,7 +20,7 @@ const { venue } = Astro.props;
 
   <div class="p-6 flex flex-col grow">
     <h3 class="text-xl font-bold mb-2" style="color: var(--jet-primary);">
-      {venue.name || 'Venue'}
+      {venueName}
     </h3>
 
     {
@@ -45,20 +46,294 @@ const { venue } = Astro.props;
       )
     }
 
-    <a
-      href={`/events_and_booking/events/${venue.id}`}
-      class="mt-auto rounded-lg text-white font-semibold py-2 px-4 transition-all hover:opacity-90 text-center"
-      style="background-color: var(--butterscotch-primary);"
-    >
-      Book Now
-    </a>
+    {
+      isLoggedIn ? (
+        <a
+          href={bookingUrl}
+          class="event-card__book-button mt-auto rounded-lg text-white font-semibold py-2 px-4 transition-all hover:opacity-90 text-center"
+          style="background-color: var(--butterscotch-primary);"
+        >
+          Book Now
+        </a>
+      ) : (
+        <>
+          <button
+            type="button"
+            class="event-card__book-button mt-auto rounded-lg text-white font-semibold py-2 px-4 transition-all hover:opacity-90 text-center"
+            style="background-color: var(--butterscotch-primary);"
+            data-login-required-trigger={venue.id}
+          >
+            Book Now
+          </button>
+
+          <div
+            class="login-required-modal hidden"
+            data-login-required-modal={venue.id}
+            role="presentation"
+          >
+            <div
+              class="login-required-modal__card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={`login-required-title-${venue.id}`}
+            >
+              <button
+                type="button"
+                class="login-required-modal__close"
+                data-login-required-close
+                aria-label="Close login prompt"
+              >
+                X
+              </button>
+              <p class="login-required-modal__eyebrow">Booking Access</p>
+              <h3 id={`login-required-title-${venue.id}`}>
+                Sign in to continue
+              </h3>
+              <p class="login-required-modal__message">
+                You must be logged in to book <strong>{venueName}</strong>.
+              </p>
+              <div class="login-required-modal__actions">
+                <a href="/signin" class="login-required-modal__button login-required-modal__button--primary">
+                  Log In
+                </a>
+                <a href="/signup" class="login-required-modal__button login-required-modal__button--secondary">
+                  Sign Up
+                </a>
+              </div>
+            </div>
+          </div>
+        </>
+      )
+    }
   </div>
 </div>
+
+<script>
+  if (!document.documentElement.dataset.loginRequiredModalBound) {
+    document.documentElement.dataset.loginRequiredModalBound = 'true';
+
+    const getModal = (venueId: string | null) => {
+      if (!venueId) return undefined;
+
+      return Array.from(
+        document.querySelectorAll('[data-login-required-modal]')
+      ).find(
+        (modal) => modal.getAttribute('data-login-required-modal') === venueId
+      );
+    };
+
+    const closeModals = () => {
+      document
+        .querySelectorAll('[data-login-required-modal]')
+        .forEach((modal) => modal.classList.add('hidden'));
+      document.body.style.overflow = '';
+    };
+
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const trigger = target.closest('[data-login-required-trigger]');
+      if (trigger) {
+        const modal = getModal(
+          trigger.getAttribute('data-login-required-trigger')
+        );
+        if (modal) {
+          modal.classList.remove('hidden');
+          document.body.style.overflow = 'hidden';
+        }
+        return;
+      }
+
+      if (target.closest('[data-login-required-close]')) {
+        closeModals();
+        return;
+      }
+
+      const modal = target.closest('[data-login-required-modal]');
+      if (modal && target === modal) closeModals();
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeModals();
+    });
+  }
+</script>
 
 <style>
   :global(:root) {
     --lion-primary: #aa8f66;
     --butterscotch-primary: #ed9b40;
     --jet-primary: #363537;
+  }
+
+  .event-card__book-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    cursor: pointer;
+    line-height: 1.25;
+    text-decoration: none;
+  }
+
+  .login-required-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: grid;
+    place-items: center;
+    background: rgba(26, 46, 16, 0.56);
+    padding: 1rem;
+    backdrop-filter: blur(3px);
+  }
+
+  .login-required-modal.hidden {
+    display: none;
+  }
+
+  .login-required-modal__card {
+    position: relative;
+    width: min(100%, 29rem);
+    border: 1px solid rgba(221, 232, 212, 0.95);
+    border-radius: var(--wb-radius-lg, 18px);
+    background:
+      radial-gradient(circle at top right, rgba(232, 242, 227, 0.98), transparent 12rem),
+      var(--wb-surface-raised, #ffffff);
+    box-shadow: var(--wb-shadow-lg, 0 18px 44px rgba(26, 46, 16, 0.16));
+    color: var(--wb-text, #363537);
+    padding: clamp(1.35rem, 4vw, 1.8rem);
+  }
+
+  .login-required-modal__close {
+    position: absolute;
+    top: 0.85rem;
+    right: 0.85rem;
+    display: grid;
+    width: 2.1rem;
+    height: 2.1rem;
+    place-items: center;
+    border: 1px solid var(--wb-border, #dde8d4);
+    border-radius: 999px;
+    background: var(--wb-surface-soft, #f7f9f4);
+    color: var(--wb-green-mid, #2d5a27);
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .login-required-modal__close:hover {
+    background: var(--wb-green-soft, #e8f2e3);
+    color: var(--wb-green-dark, #1a2e10);
+  }
+
+  .login-required-modal__eyebrow {
+    margin: 0 2.5rem 0.35rem 0;
+    color: var(--wb-green, #4a7c3f);
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .login-required-modal h3 {
+    margin: 0;
+    color: var(--wb-green-dark, #1a2e10);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.6rem, 6vw, 2.15rem);
+    letter-spacing: 0;
+    line-height: 1.1;
+  }
+
+  .login-required-modal__message {
+    margin: 0.85rem 0 0;
+    color: var(--wb-muted, #5a6b52);
+    font-size: 0.98rem;
+    line-height: 1.55;
+  }
+
+  .login-required-modal__message strong {
+    color: var(--wb-green-dark, #1a2e10);
+  }
+
+  .login-required-modal__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.35rem;
+  }
+
+  .login-required-modal__button {
+    display: inline-flex;
+    min-height: 2.75rem;
+    flex: 1 1 10rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: var(--wb-radius-md, 12px);
+    font-size: 0.84rem;
+    font-weight: 900;
+    padding: 0.8rem 1rem;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+
+  .login-required-modal__button--primary {
+    background: var(--wb-green, #4a7c3f);
+    box-shadow: 0 12px 22px rgba(74, 124, 63, 0.18);
+    color: #ffffff;
+  }
+
+  .login-required-modal__button--primary:hover {
+    background: var(--wb-green-mid, #2d5a27);
+  }
+
+  .login-required-modal__button--secondary {
+    border-color: var(--wb-border, #dde8d4);
+    background: var(--wb-surface-soft, #f7f9f4);
+    color: var(--wb-green-mid, #2d5a27);
+  }
+
+  .login-required-modal__button--secondary:hover {
+    background: var(--wb-green-soft, #e8f2e3);
+    color: var(--wb-green-dark, #1a2e10);
+  }
+
+  :global(html.dark) .login-required-modal__card,
+  :global(html.dark) .login-required-modal__close,
+  :global(html.dark) .login-required-modal__button--secondary {
+    background: var(--wb-surface-raised);
+    border-color: var(--wb-border);
+  }
+
+  :global(html.dark) .login-required-modal__button--secondary:hover,
+  :global(html.dark) .login-required-modal__close:hover {
+    background: var(--wb-green-soft);
+  }
+
+  :global(html.dark) .event-card {
+    background: var(--wb-surface-raised) !important;
+    border-color: var(--wb-border) !important;
+    box-shadow: var(--wb-shadow-sm);
+  }
+
+  :global(html.dark) .event-card:hover {
+    box-shadow: var(--wb-shadow-md);
+  }
+
+  :global(html.dark) .event-card h3 {
+    color: var(--wb-green-dark) !important;
+  }
+
+  :global(html.dark) .event-card p,
+  :global(html.dark) .event-card span {
+    color: var(--wb-muted) !important;
+  }
+
+  :global(html.dark) .event-card__book-button {
+    background: var(--wb-green) !important;
+    color: #10170e !important;
   }
 </style>

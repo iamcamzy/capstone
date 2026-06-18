@@ -22,16 +22,13 @@ const venue = {
 ---
 
 <Layout>
-  <!-- Hero Section -->
-  <div
-    id="top-runner"
-    class="w-full py-12 text-white"
-    style="background-color: var(--jet-primary);"
-  >
-    <div class="max-w-6xl mx-auto px-4">
+  <main class="wb-page-surface booking-page">
+    <!-- Hero Section -->
+    <div id="top-runner" class="booking-page__hero">
+      <div class="max-w-6xl mx-auto px-4">
       <a
         href="/events_and_booking/events"
-        class="inline-flex items-center gap-2 mb-6 text-butterscotch-500 hover:text-butterscotch-400 transition-colors"
+        class="booking-page__back"
       >
         <svg
           class="w-5 h-5"
@@ -47,21 +44,23 @@ const venue = {
         </svg>
         Back to Events
       </a>
-      <h1 class="text-4xl font-bold mb-2">{venue.name}</h1>
-      <p class="text-lg opacity-90">
-        Complete your booking for this amazing venue
+      <p class="booking-page__eyebrow">Woodberry Booking Request</p>
+      <h1>{venue.name}</h1>
+      <p class="booking-page__intro">
+        Complete your request with your event details, preferred facilities, and
+        contract signing payment estimate.
       </p>
     </div>
   </div>
 
   <!-- Main Content -->
-  <div class="w-full py-12">
+  <div class="w-full py-10 md:py-12">
     <div class="max-w-6xl mx-auto px-4">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Venue Details -->
         <div class="lg:col-span-1">
           <div
-            class="bg-white rounded-lg border border-gray-200 overflow-hidden sticky top-20"
+            class="booking-page__venue-card sticky top-20"
           >
             {
               venue.image_url && (
@@ -74,33 +73,28 @@ const venue = {
             }
             <div class="p-6">
               <h3
-                class="text-xl font-bold mb-4"
-                style="color: var(--jet-primary);"
+                class="booking-page__card-title"
               >
-                Booking Details
+                Venue Snapshot
               </h3>
 
               <div class="space-y-4">
                 <div
-                  class="flex justify-between items-center pb-4 border-b border-gray-200"
+                  class="booking-page__detail-row"
                 >
-                  <span class="text-gray-600">Price per Night</span>
+                  <span>Price per Night</span>
                   <span
-                    class="text-2xl font-bold"
-                    style="color: var(--butterscotch-primary);"
+                    class="booking-page__price"
                   >
-                    ${venue.price_per_night.toFixed(2)}
+                    PHP {venue.price_per_night.toFixed(2)}
                   </span>
                 </div>
 
                 {
                   venue.capacity && (
-                    <div class="pb-4 border-b border-gray-200">
-                      <span class="text-gray-600 text-sm">Capacity</span>
-                      <p
-                        class="font-semibold"
-                        style="color: var(--jet-primary);"
-                      >
+                    <div class="booking-page__detail-block">
+                      <span>Capacity</span>
+                      <p>
                         {venue.capacity} guests
                       </p>
                     </div>
@@ -109,9 +103,9 @@ const venue = {
 
                 {
                   venue.description && (
-                    <div>
-                      <span class="text-gray-600 text-sm">About</span>
-                      <p class="text-sm text-gray-700 mt-2">
+                    <div class="booking-page__about">
+                      <span>About</span>
+                      <p>
                         {venue.description}
                       </p>
                     </div>
@@ -119,9 +113,9 @@ const venue = {
                 }
               </div>
 
-              <div class="mt-6 pt-6 border-t border-gray-200">
-                <p class="text-xs text-gray-500 text-center">
-                  You'll receive a confirmation email after booking
+              <div class="booking-page__note">
+                <p>
+                  You will receive updates after the request is submitted.
                 </p>
               </div>
             </div>
@@ -130,7 +124,7 @@ const venue = {
 
         <!-- Booking Form -->
         <div class="lg:col-span-2">
-          <div class="bg-white rounded-lg border border-gray-200 p-8">
+          <div class="booking-page__form-card">
             <BookingForm
               venueId={venue.id}
               venueName={venue.name}
@@ -141,12 +135,154 @@ const venue = {
       </div>
     </div>
   </div>
+  </main>
 </Layout>
 
 <style>
-  :global(:root) {
-    --lion-primary: #aa8f66;
-    --butterscotch-primary: #ed9b40;
-    --jet-primary: #363537;
+  .booking-page {
+    padding-bottom: 3rem;
+  }
+
+  .booking-page__hero {
+    background:
+      linear-gradient(120deg, rgba(247, 249, 244, 0.96), rgba(232, 242, 227, 0.82)),
+      var(--wb-surface);
+    border-bottom: 1px solid var(--wb-border);
+    color: var(--wb-text);
+    padding: clamp(2rem, 5vw, 3.5rem) 0;
+  }
+
+  .booking-page__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 1.4rem;
+    color: var(--wb-green-mid);
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+
+  .booking-page__back:hover {
+    color: var(--wb-green-dark);
+  }
+
+  .booking-page__eyebrow {
+    margin: 0 0 0.35rem;
+    color: var(--wb-green);
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .booking-page h1 {
+    margin: 0;
+    color: var(--wb-green-dark);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2.25rem, 5vw, 4rem);
+    letter-spacing: 0;
+  }
+
+  .booking-page__intro {
+    max-width: 42rem;
+    margin: 0.75rem 0 0;
+    color: var(--wb-muted);
+    font-size: 1rem;
+  }
+
+  .booking-page__venue-card,
+  .booking-page__form-card {
+    overflow: hidden;
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius-lg);
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: var(--wb-shadow-md);
+  }
+
+  .booking-page__form-card {
+    padding: clamp(1rem, 3vw, 2rem);
+  }
+
+  .booking-page__card-title {
+    margin: 0 0 1rem;
+    color: var(--wb-green-dark);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.45rem;
+    letter-spacing: 0;
+  }
+
+  .booking-page__detail-row,
+  .booking-page__detail-block {
+    border-bottom: 1px solid var(--wb-border);
+    padding-bottom: 1rem;
+  }
+
+  .booking-page__detail-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .booking-page__detail-row span:first-child,
+  .booking-page__detail-block span,
+  .booking-page__about span {
+    color: var(--wb-muted);
+    font-size: 0.82rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .booking-page__price {
+    color: var(--wb-warm);
+    font-size: 1.35rem;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+
+  .booking-page__detail-block p,
+  .booking-page__about p {
+    margin: 0.4rem 0 0;
+    color: var(--wb-text);
+    font-size: 0.95rem;
+  }
+
+  .booking-page__note {
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--wb-border);
+    padding-top: 1.25rem;
+  }
+
+  .booking-page__note p {
+    margin: 0;
+    color: var(--wb-muted);
+    font-size: 0.8rem;
+    text-align: center;
+  }
+
+  @media (max-width: 1023px) {
+    .booking-page__venue-card {
+      position: static;
+    }
+  }
+
+  :global(html.dark) .booking-page__hero {
+    background:
+      radial-gradient(circle at 12% 0%, rgba(37, 56, 35, 0.74), transparent 28rem),
+      var(--wb-surface) !important;
+  }
+
+  :global(html.dark) .booking-page__venue-card,
+  :global(html.dark) .booking-page__form-card {
+    background: var(--wb-surface-raised) !important;
+    border-color: var(--wb-border) !important;
+  }
+
+  :global(html.dark) .booking-page__note,
+  :global(html.dark) .booking-page__detail-row,
+  :global(html.dark) .booking-page__detail-block {
+    border-color: var(--wb-border) !important;
   }
 </style>

@@ -11,11 +11,11 @@ const errorMsg = url.searchParams.get('error');
 ---
 
 <Layout title="Sign in">
-  <div class="w-full min-h-[69vh] flex justify-center items-center py-12">
-    <div id="formBox" class="w-full max-w-md ring-2 rounded-xl mx-4">
-      <div id="formHeader" class="border-b w-full px-6 py-4 flex justify-between items-center">
+  <div class="auth-page w-full min-h-[69vh] flex justify-center items-center py-12 px-4">
+    <div id="formBox" class="auth-card w-full max-w-md ring-2 rounded-xl">
+      <div id="formHeader" class="auth-card__header border-b w-full px-6 py-4 flex justify-between items-center">
         <h1 class="text-2xl font-bold">Log in</h1>
-        <a href="/" class="flex justify-center items-center text-sm rounded-2xl py-1 px-4 ring-1 bg-red-400 hover:bg-red-500 text-white">Back</a>
+        <a href="/" class="auth-back flex justify-center items-center text-sm rounded-2xl py-1 px-4 ring-1 text-white">Back</a>
       </div>
 
       {errorMsg && (
@@ -37,14 +37,82 @@ const errorMsg = url.searchParams.get('error');
           <ShowButton />
         </div>
         <button type="submit"
-          class="w-full text-lg text-white font-bold rounded-2xl py-2 px-5 bg-blue-400 hover:bg-blue-500 hover:cursor-pointer transition">
+          class="auth-submit w-full text-lg text-white font-bold rounded-2xl py-2 px-5 hover:cursor-pointer transition">
           Log in
         </button>
       </form>
       <p class="flex justify-end pb-4 px-6 gap-2 text-sm">
         New here?
-        <a href="/signup" class="text-blue-500 hover:text-blue-800 underline">Create an account</a>
+        <a href="/signup" class="auth-link underline">Create an account</a>
       </p>
     </div>
   </div>
 </Layout>
+
+<style>
+  .auth-page {
+    background:
+      radial-gradient(circle at 12% 8%, rgba(232, 242, 227, 0.78), transparent 26rem),
+      var(--wb-surface);
+  }
+
+  .auth-card {
+    overflow: hidden;
+    border: 1px solid var(--wb-border);
+    background: var(--wb-surface-raised);
+    box-shadow: var(--wb-shadow-md);
+    color: var(--wb-text);
+  }
+
+  .auth-card__header {
+    border-color: var(--wb-border);
+    background: var(--wb-surface-soft);
+  }
+
+  .auth-card h1 {
+    color: var(--wb-green-dark);
+    font-family: Georgia, "Times New Roman", serif;
+    letter-spacing: 0;
+  }
+
+  .auth-card input {
+    border: 1px solid var(--wb-border);
+    background: #fff;
+    color: var(--wb-text);
+  }
+
+  .auth-card input:focus {
+    border-color: var(--wb-green);
+    box-shadow: 0 0 0 4px rgba(74, 124, 63, 0.12);
+  }
+
+  .auth-back {
+    border-color: rgba(154, 74, 54, 0.32);
+    background: #9a4a36;
+    text-decoration: none;
+  }
+
+  .auth-submit {
+    background: var(--wb-green);
+  }
+
+  .auth-submit:hover {
+    background: var(--wb-green-mid);
+  }
+
+  .auth-link {
+    color: var(--wb-green-mid);
+    font-weight: 700;
+  }
+
+  :global(html.dark) .auth-page {
+    background:
+      radial-gradient(circle at 12% 8%, rgba(37, 56, 35, 0.72), transparent 26rem),
+      var(--wb-surface);
+  }
+
+  :global(html.dark) .auth-card input {
+    background: var(--wb-surface-soft) !important;
+    color: var(--wb-text) !important;
+  }
+</style>

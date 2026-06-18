@@ -1,8 +1,11 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import EventCard from '../../components/eventCards/eventCard.astro';
+import { getUser } from '../../lib/auth';
 import { getAllVenues } from '../../services/venues';
 
+const user = await getUser(Astro.cookies);
+const isLoggedIn = Boolean(user);
 const { data: venues } = await getAllVenues();
 const venuesToDisplay = venues || [];
 ---
@@ -11,7 +14,7 @@ const venuesToDisplay = venues || [];
   <div
     id="top-runner"
     class="w-full py-12"
-    style="background-color: var(--jet-primary);"
+    style="background: linear-gradient(135deg, #1a2e10 0%, #2d5a27 68%, #4a7c3f 100%);"
   >
     <div class="max-w-6xl mx-auto px-4">
       <h1 class="text-4xl font-bold mb-4 text-white!">
@@ -31,7 +34,11 @@ const venuesToDisplay = venues || [];
       <div
         class="w-full h-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
       >
-        {venuesToDisplay.map((venue) => <EventCard venue={venue} />)}
+        {
+          venuesToDisplay.map((venue) => (
+            <EventCard venue={venue} isLoggedIn={isLoggedIn} />
+          ))
+        }
       </div>
     </div>
   </div>
@@ -42,5 +49,15 @@ const venuesToDisplay = venues || [];
     --lion-primary: #aa8f66;
     --butterscotch-primary: #ed9b40;
     --jet-primary: #363537;
+  }
+
+  #main-showcase {
+    background: var(--wb-surface);
+    color: var(--wb-text);
+  }
+
+  :global(html.dark) #top-runner {
+    border-bottom: 1px solid var(--wb-border);
+    box-shadow: var(--wb-shadow-md);
   }
 </style>

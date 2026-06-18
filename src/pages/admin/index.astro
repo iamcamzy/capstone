@@ -134,11 +134,11 @@ const adminName = profile.first_name
 ---
 
 <Layout title="Admin Dashboard">
-<div id="admin-root" class="min-h-screen" style="background:#f5f3f0;">
+<div id="admin-root" class="admin-shell min-h-screen">
 
   <!-- SIDEBAR -->
-  <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 z-50 flex flex-col shadow-xl" style="background:var(--jet-primary);color:white;">
-    <div class="px-6 py-5 border-b border-white/10">
+  <aside id="sidebar" class="admin-sidebar fixed top-0 left-0 h-full w-64 z-50 flex flex-col shadow-xl">
+    <div class="admin-sidebar__profile px-6 py-5 border-b border-white/10">
       <p class="text-xs font-semibold uppercase tracking-widest mb-1" style="color:rgba(255,255,255,0.55);">Admin Panel</p>
       <p class="font-bold text-lg truncate" style="color:var(--butterscotch-primary);">{adminName}</p>
       <p class="text-xs truncate" style="color:rgba(255,255,255,0.65);">{user.email}</p>
@@ -155,7 +155,7 @@ const adminName = profile.first_name
         { id:'calendar',  icon:'🗓️', label:'Availability'},
       ].map(nav => (
         <button data-tab={nav.id} class="nav-btn w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium transition-all hover:bg-white/10">
-          <span>{nav.icon}</span><span>{nav.label}</span>
+          <span class="nav-btn__icon">{nav.icon}</span><span>{nav.label}</span>
         </button>
       ))}
     </nav>
@@ -168,29 +168,29 @@ const adminName = profile.first_name
   </aside>
 
   <!-- MAIN -->
-  <main class="ml-64 min-h-screen">
-    <header class="sticky top-0 z-40 flex items-center justify-between px-8 py-4 shadow-sm" style="background:white;border-bottom:2px solid var(--lion-light);">
+  <main class="admin-main ml-64 min-h-screen">
+    <header class="admin-header sticky top-0 z-40 flex items-center justify-between px-8 py-4 shadow-sm">
       <h1 id="page-title" class="text-2xl font-bold" style="color:var(--jet-primary);">Dashboard</h1>
       <div class="flex items-center gap-3 text-sm">
         <span class="px-3 py-1 rounded-full font-semibold text-white text-xs" style="background:var(--butterscotch-primary);">ADMIN</span>
       </div>
     </header>
 
-    <div class="p-8">
+    <div class="admin-content p-8">
 
       <!-- TAB: DASHBOARD -->
       <section id="tab-dashboard" class="tab-section">
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
           {[
             { label:'Total Bookings', value:stats.total,      color:'#ed9b40', icon:'📅' },
-            { label:'Contract Signing', value:stats.contractSigning, color:'#3b82f6', icon:'CS' },
-            { label:'Booked',      value:stats.booked,  color:'#10b981', icon:'BK' },
-            { label:'Cancelled',      value:stats.cancelled,  color:'#ef4444', icon:'❌' },
-            { label:'Rescheduled',    value:stats.rescheduled,color:'#8b5cf6', icon:'🔄' },
-            { label:'Completed',      value:stats.completed, color:'#64748b', icon:'OK' },
-            { label:'Total Revenue',  value:`₱${stats.revenue.toLocaleString()}`, color:'#059669', icon:'💰' },
-            { label:'Active Venues',  value:venues?.filter(v=>v.is_active).length??0, color:'#0ea5e9', icon:'🏖️' },
-            { label:'Avg Pax (Booked)', value:stats.avgPax||'—', color:'#6366f1', icon:'👥' },
+            { label:'Contract Signing', value:stats.contractSigning, color:'#4a7c3f', icon:'CS' },
+            { label:'Booked',      value:stats.booked,  color:'#4a7c3f', icon:'BK' },
+            { label:'Cancelled',      value:stats.cancelled,  color:'#9a4a36', icon:'❌' },
+            { label:'Rescheduled',    value:stats.rescheduled,color:'#aa8f66', icon:'🔄' },
+            { label:'Completed',      value:stats.completed, color:'#5e5c60', icon:'OK' },
+            { label:'Total Revenue',  value:`₱${stats.revenue.toLocaleString()}`, color:'#2d5a27', icon:'💰' },
+            { label:'Active Venues',  value:venues?.filter(v=>v.is_active).length??0, color:'#4a7c3f', icon:'🏖️' },
+            { label:'Avg Pax (Booked)', value:stats.avgPax||'—', color:'#aa8f66', icon:'👥' },
           ].map(c => (
             <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center gap-4">
               <span class="text-3xl">{c.icon}</span>
@@ -245,11 +245,11 @@ const adminName = profile.first_name
             <span class="text-xs font-bold text-gray-400 uppercase tracking-wider mr-1">Filter:</span>
             {[
               { v:'all',         label:'All',          color:'#ed9b40' },
-              { v:'contract_signing', label:'Contract Signing', color:'#3b82f6' },
-              { v:'booked',   label:'✅ Booked',  color:'#10b981' },
-              { v:'cancelled',   label:'❌ Cancelled',  color:'#ef4444' },
-              { v:'rescheduled', label:'🔄 Rescheduled',color:'#8b5cf6' },
-              { v:'completed', label:'Completed', color:'#64748b' },
+              { v:'contract_signing', label:'Contract Signing', color:'#4a7c3f' },
+              { v:'booked',   label:'✅ Booked',  color:'#4a7c3f' },
+              { v:'cancelled',   label:'❌ Cancelled',  color:'#9a4a36' },
+              { v:'rescheduled', label:'🔄 Rescheduled',color:'#aa8f66' },
+              { v:'completed', label:'Completed', color:'#5e5c60' },
             ].map(s => (
               <button data-filter={s.v}
                 class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold border-2 transition-all"
@@ -335,10 +335,10 @@ const adminName = profile.first_name
                         <td class="px-4 py-3">
                           <div class="flex flex-col items-center gap-1">
                             <div class={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ${isFirst ? 'text-white' : 'text-blue-600'}`}
-                              style={isFirst ? 'background:linear-gradient(135deg,#3b82f6,#1d4ed8);box-shadow:0 2px 6px rgba(59,130,246,0.4);' : 'background:#dbeafe;'}>
+                              style={isFirst ? 'background:linear-gradient(135deg,#4a7c3f,#2d5a27);box-shadow:0 2px 6px rgba(74,124,63,0.28);' : 'background:#e8f2e3;'}>
                               {orderOnDate}
                             </div>
-                            {isFirst && <span class="text-xs font-bold" style="color:#3b82f6;">FIRST</span>}
+                            {isFirst && <span class="text-xs font-bold" style="color:#4a7c3f;">FIRST</span>}
                           </div>
                         </td>
 
@@ -398,26 +398,26 @@ const adminName = profile.first_name
                             {(b.status==='contract_signing'||b.status==='rescheduled')&&(
                               <button onclick={`confirmBooking('${b.id}')`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80 hover:-translate-y-0.5"
-                                style="background:#10b981;">✓ Book</button>
+                                style="background:#4a7c3f;">✓ Book</button>
                             )}
                             {(b.status==='contract_signing'||b.status==='booked')&&(
                               <button onclick={`openReschedule('${b.id}')`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
-                                style="background:#8b5cf6;">↻</button>
+                                style="background:#aa8f66;">↻</button>
                             )}
                             {(b.status==='contract_signing'||b.status==='booked'||b.status==='rescheduled')&&(
                               <button onclick={`cancelBooking('${b.id}')`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
-                                style="background:#ef4444;">✕</button>
+                                style="background:#9a4a36;">✕</button>
                             )}
                             {(b.status==='booked'||b.status==='rescheduled')&&(
                               <button onclick={`setBookingCompleted('${b.id}')`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
-                                style="background:#64748b;">Complete</button>
+                                style="background:#5e5c60;">Complete</button>
                             )}
                             <button onclick={`openBookingDetail(${JSON.stringify(JSON.stringify(b))})`}
                               class="px-2.5 py-1.5 rounded-lg text-xs font-bold border-2 transition hover:bg-gray-50"
-                              style="border-color:#cbd5e1;color:#64748b;">👁</button>
+                              style="border-color:#ddd2c1;color:#5e5c60;">👁</button>
                           </div>
                         </td>
                       </tr>
@@ -545,7 +545,7 @@ const adminName = profile.first_name
                     <td class="px-5 py-3">
                       <button onclick={`demoteUser('${a.id}')`}
                         class="px-3 py-1 rounded text-xs font-bold border-2 transition hover:bg-gray-50"
-                        style="border-color:#ef4444;color:#ef4444;">
+                        style="border-color:#9a4a36;color:#9a4a36;">
                         Demote to Customer
                       </button>
                     </td>
@@ -635,12 +635,12 @@ const adminName = profile.first_name
           <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
             {[
               { id:'rpt-total',       label:'Total Requests', color:'#ed9b40', icon:'📅' },
-              { id:'rpt-contract-signing', label:'Contract Signing', color:'#3b82f6', icon:'CS' },
-              { id:'rpt-confirmed',   label:'Booked',      color:'#10b981', icon:'✅' },
-              { id:'rpt-rescheduled', label:'Rescheduled',    color:'#8b5cf6', icon:'🔄' },
-              { id:'rpt-cancelled',   label:'Cancelled',      color:'#ef4444', icon:'❌' },
-              { id:'rpt-completed', label:'Completed', color:'#64748b', icon:'OK' },
-              { id:'rpt-revenue',     label:'Revenue',        color:'#059669', icon:'💰' },
+              { id:'rpt-contract-signing', label:'Contract Signing', color:'#4a7c3f', icon:'CS' },
+              { id:'rpt-confirmed',   label:'Booked',      color:'#4a7c3f', icon:'✅' },
+              { id:'rpt-rescheduled', label:'Rescheduled',    color:'#aa8f66', icon:'🔄' },
+              { id:'rpt-cancelled',   label:'Cancelled',      color:'#9a4a36', icon:'❌' },
+              { id:'rpt-completed', label:'Completed', color:'#5e5c60', icon:'OK' },
+              { id:'rpt-revenue',     label:'Revenue',        color:'#2d5a27', icon:'💰' },
             ].map(c => (
               <div class="rounded-xl p-4 border border-gray-100 bg-gray-50 flex flex-col items-center text-center">
                 <span class="text-2xl mb-1">{c.icon}</span>
@@ -719,11 +719,11 @@ const adminName = profile.first_name
 
         <div class="flex gap-4 flex-wrap mb-5">
           {[
-            { bg:'#dcfce7', ring:'#22c55e', label:'Available' },
-            { bg:'#fef2f2', ring:'#ef4444', label:'Booked' },
-            { bg:'#eff6ff', ring:'#3b82f6', label:'Contract Signing' },
-            { bg:'#f3e8ff', ring:'#a855f7', label:'Rescheduled' },
-            { bg:'#f8fafc', ring:'#64748b', label:'Completed' },
+            { bg:'#dcfce7', ring:'#4a7c3f', label:'Available' },
+            { bg:'#fbe7df', ring:'#9a4a36', label:'Booked' },
+            { bg:'#e8f2e3', ring:'#4a7c3f', label:'Contract Signing' },
+            { bg:'#eee8e0', ring:'#aa8f66', label:'Rescheduled' },
+            { bg:'#eee8e0', ring:'#5e5c60', label:'Completed' },
           ].map(l => (
             <div class="flex items-center gap-2">
               <div class="w-5 h-5 rounded-md" style={`background:${l.bg};outline:1.5px solid ${l.ring};`}></div>
@@ -915,18 +915,874 @@ const adminName = profile.first_name
 </Layout>
 
 <style>
-  /* Kill the layout's pt-35 that causes the big gap */
+  /* Keep the public layout chrome out of the app-style admin surface. */
   body > main { padding-top: 0 !important; }
-  /* Kill the global navbar completely */
   header#navbar { display: none !important; visibility: hidden !important; height: 0 !important; overflow: hidden !important; position: static !important; }
   footer { display: none !important; }
-  body { padding-top: 0 !important; margin-top: 0 !important; overflow-x: hidden; }
+  body { padding-top: 0 !important; margin-top: 0 !important; overflow-x: hidden; background: var(--wb-surface); }
   html { overflow-x: hidden; }
-  .nav-btn { color: rgba(255,255,255,0.85) !important; }
-  .nav-btn:hover { color: white !important; }
-  .nav-btn.active { background: rgba(237,155,64,0.2) !important; color: #ed9b40 !important; }
-  .filter-btn.active { background: var(--butterscotch-primary); color: white; border-color: var(--butterscotch-primary); }
+
+  .admin-shell {
+    display: flex;
+    background:
+      radial-gradient(circle at 8% 4%, rgba(232, 242, 227, 0.95), transparent 28rem),
+      linear-gradient(135deg, var(--wb-surface) 0%, #f7f2ea 100%);
+    color: var(--wb-text);
+  }
+
+  #admin-root .tab-section {
+    padding: 0;
+  }
+
+  .admin-sidebar {
+    position: sticky !important;
+    top: 0;
+    flex: 0 0 16rem;
+    height: 100vh;
+    background:
+      linear-gradient(180deg, rgba(26, 46, 16, 0.96), rgba(45, 90, 39, 0.96)),
+      var(--wb-green-dark) !important;
+    border-right: 1px solid rgba(221, 232, 212, 0.18);
+    box-shadow: 12px 0 34px rgba(26, 46, 16, 0.18);
+    color: #fff;
+  }
+
+  .admin-sidebar__profile {
+    background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0));
+  }
+
+  #sidebar .nav-btn {
+    border: 1px solid transparent;
+    color: rgba(247, 249, 244, 0.78) !important;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  #sidebar .nav-btn:hover {
+    background: rgba(232, 242, 227, 0.12) !important;
+    border-color: rgba(221, 232, 212, 0.18);
+    color: #fff !important;
+  }
+
+  #sidebar .nav-btn.active {
+    background: #f7f9f4 !important;
+    border-color: rgba(255, 255, 255, 0.2);
+    color: var(--wb-green-dark) !important;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.16);
+  }
+
+  .nav-btn__icon {
+    display: grid;
+    width: 1.8rem;
+    height: 1.8rem;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    font-size: 0.95rem;
+  }
+
+  #sidebar .nav-btn.active .nav-btn__icon {
+    background: var(--wb-green-soft);
+  }
+
+  #sidebar a[href="/dashboard"] {
+    border: 1px solid rgba(221, 232, 212, 0.24);
+    background: rgba(255,255,255,0.08);
+    color: #f7f9f4;
+    text-decoration: none;
+    text-transform: none;
+  }
+
+  #sidebar form button {
+    background: rgba(143, 47, 32, 0.86) !important;
+    border: 1px solid rgba(255,255,255,0.12);
+    text-transform: none;
+  }
+
+  .admin-main {
+    flex: 1;
+    min-width: 0;
+    margin-left: 0 !important;
+  }
+
+  .admin-header {
+    background: rgba(247, 249, 244, 0.92) !important;
+    border-bottom: 1px solid var(--wb-border) !important;
+    backdrop-filter: blur(16px);
+  }
+
+  #page-title {
+    color: var(--wb-green-dark) !important;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.45rem, 2.2vw, 2rem);
+    letter-spacing: 0;
+  }
+
+  .admin-header span {
+    background: var(--wb-green) !important;
+    color: #fff !important;
+    border: 1px solid rgba(26,46,16,0.08);
+  }
+
+  .admin-content {
+    max-width: 1480px;
+    margin: 0 auto;
+  }
+
+  #admin-root main .bg-white,
+  #admin-root main .bg-gray-50 {
+    background-color: var(--wb-surface-raised) !important;
+  }
+
+  #admin-root main .rounded-xl,
+  #admin-root main .rounded-2xl {
+    border-radius: var(--wb-radius-md);
+  }
+
+  #admin-root main .shadow-sm,
+  #admin-root main .shadow-xl,
+  #admin-root main .shadow-2xl,
+  #confirmDialog > div,
+  #bookingDetailModal > div,
+  #rescheduleModal > div,
+  #venueModal > div,
+  #packageModal > div {
+    box-shadow: var(--wb-shadow-sm) !important;
+  }
+
+  #tab-dashboard > .grid > div,
+  #tab-venues .grid > div,
+  #tab-packages .grid > div,
+  #report-output,
+  #adm-day-detail,
+  #tab-reviews > div,
+  #tab-users > div,
+  #tab-calendar > div:nth-of-type(3),
+  #tab-bookings > div.bg-white,
+  #tab-dashboard > div.bg-white {
+    border: 1px solid var(--wb-border) !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    box-shadow: var(--wb-shadow-sm) !important;
+  }
+
+  #tab-dashboard > .grid > div {
+    position: relative;
+    overflow: hidden;
+    min-height: 7rem;
+    border-radius: var(--wb-radius-lg) !important;
+  }
+
+  #tab-dashboard > .grid > div::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--wb-green), var(--wb-warm));
+    opacity: 0.72;
+  }
+
+  #tab-dashboard > .grid > div > span:first-child,
+  #report-output .grid > div > span:first-child {
+    display: grid;
+    width: 3rem;
+    height: 3rem;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--wb-green-soft);
+    color: var(--wb-green-mid);
+    font-size: 1.05rem;
+  }
+
+  #admin-root h2,
+  #admin-root h3 {
+    color: var(--wb-green-dark) !important;
+    letter-spacing: 0;
+  }
+
+  #admin-root main h2 {
+    font-family: Georgia, "Times New Roman", serif;
+  }
+
+  #admin-root p,
+  #admin-root .text-gray-500,
+  #admin-root .text-gray-600,
+  #admin-root .text-gray-700 {
+    color: var(--wb-muted) !important;
+  }
+
+  #admin-root .text-gray-400,
+  #admin-root .text-gray-300 {
+    color: #819076 !important;
+  }
+
+  #admin-root .border-gray-100,
+  #admin-root .border-gray-200,
+  #admin-root .border-gray-50,
+  #admin-root .divide-gray-50 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgba(221, 232, 212, 0.92) !important;
+  }
+
+  #admin-root table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  #admin-root thead tr,
+  #admin-root tr[style*="background:#f8f9fa"] {
+    background: var(--wb-surface-soft) !important;
+    border-bottom-color: var(--wb-border) !important;
+  }
+
+  #admin-root th {
+    color: var(--wb-green-dark) !important;
+    font-size: 0.72rem;
+    letter-spacing: 0.09em;
+  }
+
+  #admin-root tbody tr {
+    transition: background-color 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  #admin-root tbody tr:hover {
+    background: rgba(232, 242, 227, 0.56) !important;
+  }
+
+  #admin-root input,
+  #admin-root select,
+  #admin-root textarea {
+    border-color: var(--wb-border) !important;
+    border-radius: var(--wb-radius-sm) !important;
+    background: #fff !important;
+    color: var(--wb-text) !important;
+  }
+
+  #admin-root input:focus,
+  #admin-root select:focus,
+  #admin-root textarea:focus {
+    border-color: var(--wb-green) !important;
+    box-shadow: 0 0 0 4px rgba(74, 124, 63, 0.1) !important;
+    outline: 0 !important;
+  }
+
+  #bookingSearch {
+    width: min(20rem, 100%) !important;
+  }
+
+  .filter-btn {
+    border-color: var(--wb-border) !important;
+    background: var(--wb-surface-raised);
+    color: var(--wb-muted) !important;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .filter-btn:hover {
+    background: var(--wb-green-soft);
+    color: var(--wb-green-dark) !important;
+  }
+
+  .filter-btn.active {
+    background: var(--wb-green) !important;
+    color: white !important;
+    border-color: var(--wb-green) !important;
+    box-shadow: 0 8px 18px rgba(74, 124, 63, 0.18);
+  }
+
+  #admin-root .bg-blue-100,
+  #admin-root .bg-purple-100 {
+    background-color: var(--wb-green-soft) !important;
+  }
+
+  #admin-root .text-blue-700,
+  #admin-root .text-blue-600,
+  #admin-root .text-purple-700,
+  #admin-root .text-purple-600 {
+    color: var(--wb-green-dark) !important;
+  }
+
+  #bookingDetailModal .bg-blue-100,
+  #bookingDetailModal .bg-purple-100 {
+    background-color: var(--wb-green-soft) !important;
+  }
+
+  #bookingDetailModal .text-blue-700,
+  #bookingDetailModal .text-purple-700,
+  #bookingDetailModal .text-blue-600,
+  #bookingDetailModal .text-purple-600 {
+    color: var(--wb-green-dark) !important;
+  }
+
+  #bookingDetailModal .bg-green-100 {
+    background-color: var(--wb-green-soft) !important;
+  }
+
+  #bookingDetailModal .text-green-700,
+  #bookingDetailModal .text-green-600 {
+    color: var(--wb-green-mid) !important;
+  }
+
+  #bookingDetailModal .bg-red-100,
+  #bookingDetailModal .bg-red-50 {
+    background-color: #fbe7df !important;
+  }
+
+  #bookingDetailModal .text-red-700,
+  #bookingDetailModal .text-red-600,
+  #bookingDetailModal .text-red-500 {
+    color: #8f2f20 !important;
+  }
+
+  #bookingDetailModal .bg-slate-100,
+  #bookingDetailModal .bg-gray-100 {
+    background-color: #eee8e0 !important;
+  }
+
+  #bookingDetailModal .text-slate-700,
+  #bookingDetailModal .text-gray-600 {
+    color: #463926 !important;
+  }
+
+  #admin-root .bg-green-100 {
+    background-color: var(--wb-green-soft) !important;
+  }
+
+  #admin-root .text-green-700,
+  #admin-root .text-green-600 {
+    color: var(--wb-green-mid) !important;
+  }
+
+  #admin-root .bg-red-100,
+  #admin-root .bg-red-50 {
+    background-color: #fbe7df !important;
+  }
+
+  #admin-root .text-red-700,
+  #admin-root .text-red-600,
+  #admin-root .text-red-500 {
+    color: #8f2f20 !important;
+  }
+
+  #admin-root .bg-slate-100,
+  #admin-root .bg-gray-100 {
+    background-color: #eee8e0 !important;
+  }
+
+  #admin-root .text-slate-700,
+  #admin-root .text-gray-600 {
+    color: #463926 !important;
+  }
+
+  #admin-root span.rounded-full,
+  #admin-root .inline-flex.rounded-full {
+    border: 1px solid rgba(74, 124, 63, 0.18);
+  }
+
+  #admin-root button {
+    border-radius: var(--wb-radius-sm);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  #admin-root main button[onclick^="confirmBooking"],
+  #admin-root main button[onclick^="setBookingCompleted"] {
+    background: var(--wb-green) !important;
+    color: #fff !important;
+  }
+
+  #admin-root main button[onclick^="openReschedule"] {
+    background: var(--wb-earth) !important;
+    color: #fff !important;
+  }
+
+  #admin-root main button[onclick^="cancelBooking"],
+  #admin-root main button[onclick^="demoteUser"],
+  #admin-root main button[onclick^="toggleVenue"][class*="bg-red"],
+  #admin-root main button[onclick^="togglePackage"][class*="bg-red"] {
+    background: #9a4a36 !important;
+    border-color: #9a4a36 !important;
+    color: #fff !important;
+  }
+
+  #admin-root main button[onclick^="toggleVenue"][class*="bg-green"],
+  #admin-root main button[onclick^="togglePackage"][class*="bg-green"] {
+    background: var(--wb-green) !important;
+    color: #fff !important;
+  }
+
+  #admin-root main button[onclick^="openBookingDetail"],
+  #admin-root main button[onclick^="promoteUser"],
+  #admin-root main button[onclick^="openVenueModal"],
+  #admin-root main button[onclick^="openPackageModal"],
+  #admin-root main button[onclick^="printReport"] {
+    background: #fff !important;
+    border-color: var(--wb-green) !important;
+    color: var(--wb-green-mid) !important;
+  }
+
+  #admin-root main button[onclick^="generateReport"],
+  #admin-root main button[onclick^="submit"],
+  #admin-root main button[onclick="submitVenue()"],
+  #admin-root main button[onclick="submitPackage()"] {
+    background: var(--wb-green) !important;
+    color: #fff !important;
+  }
+
+  #tab-venues img,
+  #tab-venues .h-40 {
+    border-bottom: 1px solid var(--wb-border);
+  }
+
+  #tab-reviews .text-yellow-400 {
+    color: var(--wb-warm) !important;
+  }
+
+  #report-output {
+    border-radius: var(--wb-radius-lg) !important;
+  }
+
+  #report-output .grid > div {
+    background: var(--wb-surface-soft) !important;
+    border-color: var(--wb-border) !important;
+  }
+
+  .rpt-mode-btn.active {
+    background: var(--wb-green) !important;
+    color: #fff !important;
+  }
+
+  #report-empty {
+    border: 1px dashed #c9ddbf;
+    border-radius: var(--wb-radius-lg);
+    background: rgba(247, 249, 244, 0.72);
+    color: var(--wb-muted) !important;
+  }
+
+  #tab-calendar > .flex:nth-of-type(2) {
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius-md);
+    background: rgba(255,255,255,0.62);
+    padding: 0.85rem;
+  }
+
+  #adm-cal-grid > div {
+    border-color: var(--wb-border) !important;
+  }
+
+  #adm-prev-month,
+  #adm-next-month,
+  #adm-detail-close {
+    border-color: var(--wb-border) !important;
+    color: var(--wb-green-mid) !important;
+  }
+
+  #bookingDetailModal,
+  #confirmDialog,
+  #rescheduleModal,
+  #venueModal,
+  #packageModal {
+    padding: 1rem;
+    background: rgba(26, 46, 16, 0.5) !important;
+    backdrop-filter: blur(5px);
+  }
+
+  #bookingDetailModal > div,
+  #confirmDialog > div,
+  #rescheduleModal > div,
+  #venueModal > div,
+  #packageModal > div {
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius-lg) !important;
+    background: var(--wb-surface-raised) !important;
+    max-width: min(100%, var(--modal-w, 42rem));
+  }
+
+  #rescheduleModal > div { --modal-w: 30rem; }
+  #venueModal > div,
+  #packageModal > div { --modal-w: 36rem; }
+  #confirmDialog > div { --modal-w: 26rem; }
+
+  #bookingDetailModal .sticky,
+  #bookingDetailModal #bd-actions {
+    background: rgba(255, 255, 255, 0.96) !important;
+    border-color: var(--wb-border) !important;
+  }
+
+  #bookingDetailModal h3,
+  #confirmDialog h3,
+  #rescheduleModal h3,
+  #venueModal h3,
+  #packageModal h3 {
+    color: var(--wb-green-dark) !important;
+    font-family: Georgia, "Times New Roman", serif;
+    letter-spacing: 0;
+  }
+
+  #rescheduleModal input,
+  #venueModal input,
+  #venueModal textarea,
+  #packageModal input,
+  #packageModal textarea {
+    width: 100%;
+    border-color: var(--wb-border) !important;
+    border-radius: var(--wb-radius-sm) !important;
+    background: #fff !important;
+    color: var(--wb-text) !important;
+  }
+
+  #rescheduleModal input:focus,
+  #venueModal input:focus,
+  #venueModal textarea:focus,
+  #packageModal input:focus,
+  #packageModal textarea:focus {
+    border-color: var(--wb-green) !important;
+    box-shadow: 0 0 0 4px rgba(74, 124, 63, 0.1) !important;
+    outline: 0 !important;
+  }
+
+  #bd-requests {
+    background: var(--wb-surface-soft) !important;
+    color: var(--wb-muted) !important;
+  }
+
+  #bd-actions button,
+  #confirmDialog button,
+  #rescheduleModal button,
+  #venueModal button,
+  #packageModal button {
+    min-height: 2.45rem;
+  }
+
+  #confirmDialogOk,
+  #rescheduleModal button[onclick="submitReschedule()"],
+  #venueModal button[onclick="submitVenue()"],
+  #packageModal button[onclick="submitPackage()"] {
+    background: var(--wb-green) !important;
+    color: #fff !important;
+  }
+
+  #confirmDialogCancel,
+  #rescheduleModal button[onclick="closeReschedule()"],
+  #venueModal button[onclick="closeVenueModal()"],
+  #packageModal button[onclick="closePackageModal()"] {
+    background: #fff !important;
+    border-color: var(--wb-border) !important;
+    color: var(--wb-muted) !important;
+  }
+
+  #toast {
+    box-shadow: var(--wb-shadow-lg) !important;
+  }
+
   .line-clamp-2 { display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
+
+  :global(html.dark) body {
+    background: var(--wb-surface) !important;
+  }
+
+  :global(html.dark) .admin-shell {
+    background:
+      radial-gradient(circle at 8% 4%, rgba(37, 56, 35, 0.78), transparent 28rem),
+      linear-gradient(135deg, #11170f 0%, #171f15 100%) !important;
+    color: var(--wb-text);
+  }
+
+  :global(html.dark) .admin-sidebar {
+    background:
+      linear-gradient(180deg, rgba(11, 18, 9, 0.98), rgba(26, 46, 16, 0.98)),
+      #0d120c !important;
+    border-right-color: rgba(143, 202, 124, 0.16);
+  }
+
+  :global(html.dark) #sidebar .nav-btn.active {
+    background: var(--wb-green-soft) !important;
+    color: var(--wb-green-dark) !important;
+  }
+
+  :global(html.dark) .admin-header {
+    background: rgba(23, 31, 21, 0.94) !important;
+    border-bottom-color: var(--wb-border) !important;
+  }
+
+  :global(html.dark) #admin-root main .bg-white,
+  :global(html.dark) #admin-root main .bg-gray-50,
+  :global(html.dark) #tab-dashboard > .grid > div,
+  :global(html.dark) #tab-venues .grid > div,
+  :global(html.dark) #tab-packages .grid > div,
+  :global(html.dark) #report-output,
+  :global(html.dark) #adm-day-detail,
+  :global(html.dark) #tab-reviews > div,
+  :global(html.dark) #tab-users > div,
+  :global(html.dark) #tab-calendar > div:nth-of-type(3),
+  :global(html.dark) #tab-bookings > div.bg-white,
+  :global(html.dark) #tab-dashboard > div.bg-white,
+  :global(html.dark) #tab-calendar > .flex:nth-of-type(2) {
+    background: var(--wb-surface-raised) !important;
+    border-color: var(--wb-border) !important;
+    color: var(--wb-text) !important;
+  }
+
+  :global(html.dark) #admin-root p,
+  :global(html.dark) #admin-root .text-gray-500,
+  :global(html.dark) #admin-root .text-gray-600,
+  :global(html.dark) #admin-root .text-gray-700 {
+    color: var(--wb-muted) !important;
+  }
+
+  :global(html.dark) #admin-root .text-gray-400,
+  :global(html.dark) #admin-root .text-gray-300 {
+    color: #9baa92 !important;
+  }
+
+  :global(html.dark) #admin-root thead tr,
+  :global(html.dark) #admin-root tr[style*="background:#f8f9fa"],
+  :global(html.dark) #tab-calendar div[style*="background:#f9fafb"] {
+    background: var(--wb-surface-soft) !important;
+    border-color: var(--wb-border) !important;
+  }
+
+  :global(html.dark) #admin-root tbody tr:hover {
+    background: rgba(58, 76, 52, 0.48) !important;
+  }
+
+  :global(html.dark) #admin-root input,
+  :global(html.dark) #admin-root select,
+  :global(html.dark) #admin-root textarea,
+  :global(html.dark) #rescheduleModal input,
+  :global(html.dark) #venueModal input,
+  :global(html.dark) #venueModal textarea,
+  :global(html.dark) #packageModal input,
+  :global(html.dark) #packageModal textarea {
+    background: var(--wb-surface-soft) !important;
+    border-color: var(--wb-border) !important;
+    color: var(--wb-text) !important;
+  }
+
+  :global(html.dark) .filter-btn,
+  :global(html.dark) #admin-root main button[onclick^="openBookingDetail"],
+  :global(html.dark) #admin-root main button[onclick^="promoteUser"],
+  :global(html.dark) #admin-root main button[onclick^="openVenueModal"],
+  :global(html.dark) #admin-root main button[onclick^="openPackageModal"],
+  :global(html.dark) #admin-root main button[onclick^="printReport"],
+  :global(html.dark) #confirmDialogCancel,
+  :global(html.dark) #rescheduleModal button[onclick="closeReschedule()"],
+  :global(html.dark) #venueModal button[onclick="closeVenueModal()"],
+  :global(html.dark) #packageModal button[onclick="closePackageModal()"],
+  :global(html.dark) #adm-prev-month,
+  :global(html.dark) #adm-next-month,
+  :global(html.dark) #adm-detail-close {
+    background: var(--wb-surface-soft) !important;
+    border-color: var(--wb-border) !important;
+    color: var(--wb-green-mid) !important;
+  }
+
+  :global(html.dark) #admin-root .bg-blue-100,
+  :global(html.dark) #admin-root .bg-purple-100,
+  :global(html.dark) #bookingDetailModal .bg-blue-100,
+  :global(html.dark) #bookingDetailModal .bg-purple-100,
+  :global(html.dark) #admin-root .bg-green-100,
+  :global(html.dark) #bookingDetailModal .bg-green-100 {
+    background-color: var(--wb-green-soft) !important;
+  }
+
+  :global(html.dark) #admin-root .text-blue-700,
+  :global(html.dark) #admin-root .text-blue-600,
+  :global(html.dark) #admin-root .text-purple-700,
+  :global(html.dark) #admin-root .text-purple-600,
+  :global(html.dark) #bookingDetailModal .text-blue-700,
+  :global(html.dark) #bookingDetailModal .text-purple-700,
+  :global(html.dark) #bookingDetailModal .text-blue-600,
+  :global(html.dark) #bookingDetailModal .text-purple-600,
+  :global(html.dark) #admin-root .text-green-700,
+  :global(html.dark) #admin-root .text-green-600,
+  :global(html.dark) #bookingDetailModal .text-green-700,
+  :global(html.dark) #bookingDetailModal .text-green-600 {
+    color: var(--wb-green-mid) !important;
+  }
+
+  :global(html.dark) #admin-root .bg-red-100,
+  :global(html.dark) #admin-root .bg-red-50,
+  :global(html.dark) #bookingDetailModal .bg-red-100,
+  :global(html.dark) #bookingDetailModal .bg-red-50 {
+    background-color: #3a211c !important;
+  }
+
+  :global(html.dark) #admin-root .text-red-700,
+  :global(html.dark) #admin-root .text-red-600,
+  :global(html.dark) #admin-root .text-red-500,
+  :global(html.dark) #bookingDetailModal .text-red-700,
+  :global(html.dark) #bookingDetailModal .text-red-600,
+  :global(html.dark) #bookingDetailModal .text-red-500 {
+    color: #efb0a2 !important;
+  }
+
+  :global(html.dark) #admin-root .bg-slate-100,
+  :global(html.dark) #admin-root .bg-gray-100,
+  :global(html.dark) #bookingDetailModal .bg-slate-100,
+  :global(html.dark) #bookingDetailModal .bg-gray-100 {
+    background-color: #2f3028 !important;
+  }
+
+  :global(html.dark) #admin-root .text-slate-700,
+  :global(html.dark) #admin-root .text-gray-600,
+  :global(html.dark) #bookingDetailModal .text-slate-700,
+  :global(html.dark) #bookingDetailModal .text-gray-600 {
+    color: var(--wb-earth) !important;
+  }
+
+  :global(html.dark) #bookingDetailModal > div,
+  :global(html.dark) #confirmDialog > div,
+  :global(html.dark) #rescheduleModal > div,
+  :global(html.dark) #venueModal > div,
+  :global(html.dark) #packageModal > div {
+    background: var(--wb-surface-raised) !important;
+    color: var(--wb-text) !important;
+  }
+
+  :global(html.dark) #bookingDetailModal .sticky,
+  :global(html.dark) #bookingDetailModal #bd-actions {
+    background: rgba(32, 41, 29, 0.96) !important;
+    border-color: var(--wb-border) !important;
+  }
+
+  :global(html.dark) #bd-requests,
+  :global(html.dark) #report-output .grid > div,
+  :global(html.dark) #report-empty {
+    background: var(--wb-surface-soft) !important;
+    border-color: var(--wb-border) !important;
+    color: var(--wb-muted) !important;
+  }
+
+  :global(html.dark) #adm-cal-grid > div {
+    border-color: var(--wb-border) !important;
+  }
+
+  @media (max-width: 1100px) {
+    .admin-content {
+      padding: 1.25rem !important;
+    }
+
+    #tab-dashboard > .grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 860px) {
+    .admin-shell {
+      display: block;
+    }
+
+    .admin-sidebar {
+      position: relative !important;
+      width: 100% !important;
+      height: auto;
+      min-height: 0;
+      flex-basis: auto;
+      box-shadow: var(--wb-shadow-md);
+    }
+
+    #sidebar nav {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.45rem;
+      max-height: none;
+      overflow: visible;
+    }
+
+    #sidebar .nav-btn {
+      justify-content: flex-start;
+      padding: 0.75rem !important;
+    }
+
+    .admin-header {
+      position: sticky;
+      top: 0;
+      padding: 0.9rem 1rem !important;
+    }
+
+    .admin-content {
+      padding: 1rem !important;
+    }
+
+    #tab-dashboard > .grid,
+    #report-output .grid {
+      grid-template-columns: 1fr !important;
+    }
+
+    #tab-bookings > div:first-child,
+    #tab-reports > div:first-child {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    #tab-bookings > div:first-child > div,
+    #tab-reports > div:first-child > div {
+      width: 100%;
+    }
+
+    #bookingSearch,
+    #bookingSort {
+      width: 100% !important;
+    }
+
+    #bookingDetailModal .grid-cols-2,
+    #venueModal .grid-cols-2,
+    #packageModal .grid-cols-2 {
+      grid-template-columns: 1fr !important;
+    }
+
+    #bookingDetailModal .col-span-2 {
+      grid-column: auto !important;
+    }
+
+    #bd-actions,
+    #rescheduleModal .flex.gap-3,
+    #venueModal .flex.gap-3,
+    #packageModal .flex.gap-3 {
+      flex-direction: column;
+    }
+  }
+
+  @media (max-width: 520px) {
+    #sidebar nav {
+      grid-template-columns: 1fr;
+    }
+
+    #page-title {
+      font-size: 1.35rem;
+    }
+
+    .admin-header {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    #tab-calendar > .flex:first-child {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    #tab-calendar > .flex:first-child > div:last-child {
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    #adm-month-label {
+      min-width: 0 !important;
+      flex: 1;
+      padding-inline: 0.35rem !important;
+    }
+
+    #adm-cal-grid,
+    #tab-calendar div[style*="grid-template-columns:repeat(7,1fr)"] {
+      min-width: 42rem;
+    }
+
+    #tab-calendar > div.bg-white,
+    #tab-calendar > div:nth-of-type(3) {
+      overflow-x: auto;
+    }
+  }
 </style>
 
 <!-- Pass server data to client scripts safely, without breaking TypeScript -->
@@ -968,6 +1824,7 @@ document.addEventListener('DOMContentLoaded', function() {
 const tabTitles: Record<string, string> = {
   dashboard: 'Dashboard', bookings: 'Bookings', venues: 'Venues',
   packages: 'Packages', reviews: 'Reviews', users: 'Users', reports: 'Reports',
+  calendar: 'Availability',
 };
 
 function switchTab(id: string) {
@@ -1047,7 +1904,7 @@ applyBookingTableControls();
 function toast(msg: string, ok: boolean = true) {
   const el = document.getElementById('toast')!;
   el.textContent = msg;
-  el.style.background = ok ? '#10b981' : '#ef4444';
+  el.style.background = ok ? '#4a7c3f' : '#9a4a36';
   el.classList.remove('hidden');
   setTimeout(function() { el.classList.add('hidden'); }, 3500);
 }
@@ -1117,7 +1974,7 @@ async function setBookingContractSigning(id: string) {
     title: 'Set Contract Signing',
     message: 'Move this booking to Contract Signing? The client will be notified by email if an email is saved.',
     okLabel: 'Yes, Set Status',
-    okColor: '#3b82f6',
+    okColor: '#4a7c3f',
     icon: '📝',
   });
   if (!ok) return;
@@ -1129,7 +1986,7 @@ async function setBookingCompleted(id: string) {
     title: 'Complete Booking',
     message: 'Mark this booking as completed? The client will be notified.',
     okLabel: 'Yes, Complete',
-    okColor: '#64748b',
+    okColor: '#5e5c60',
     icon: '✓',
   });
   if (!ok) return;
@@ -1141,7 +1998,7 @@ async function confirmBooking(id: string) {
     title: 'Book Booking',
     message: 'Are you sure you want to mark this booking as booked? The client will be notified.',
     okLabel: 'Yes, Book',
-    okColor: '#10b981',
+    okColor: '#4a7c3f',
     icon: '✅',
   });
   if (!ok) return;
@@ -1160,7 +2017,7 @@ async function cancelBooking(id: string) {
     title: 'Cancel Booking',
     message: 'Are you sure you want to cancel this booking? This cannot be undone.',
     okLabel: 'Yes, Cancel',
-    okColor: '#ef4444',
+    okColor: '#9a4a36',
     icon: '❌',
   });
   if (!ok) return;
@@ -1244,7 +2101,7 @@ async function toggleVenue(id: string, isActive: boolean) {
     title: isActive ? 'Deactivate Venue' : 'Activate Venue',
     message: isActive ? 'This venue will be hidden from bookings.' : 'This venue will be available for bookings again.',
     okLabel: isActive ? 'Deactivate' : 'Activate',
-    okColor: isActive ? '#ef4444' : '#10b981',
+    okColor: isActive ? '#9a4a36' : '#4a7c3f',
     icon: isActive ? '🔒' : '🔓',
   });
   if (!ok) return;
@@ -1294,7 +2151,7 @@ async function togglePackage(id: string, isActive: boolean) {
     title: isActive ? 'Deactivate Package' : 'Activate Package',
     message: isActive ? 'This package will no longer be available to clients.' : 'This package will be visible and bookable again.',
     okLabel: isActive ? 'Deactivate' : 'Activate',
-    okColor: isActive ? '#ef4444' : '#10b981',
+    okColor: isActive ? '#9a4a36' : '#4a7c3f',
     icon: isActive ? '📦' : '📦',
   });
   if (!ok) return;
@@ -1308,7 +2165,7 @@ async function promoteUser(id: string) {
     title: 'Promote to Admin',
     message: 'This user will gain full admin access to the panel. Are you sure?',
     okLabel: 'Yes, Promote',
-    okColor: '#8b5cf6',
+    okColor: '#aa8f66',
     icon: '👑',
   });
   if (!ok) return;
@@ -1321,7 +2178,7 @@ async function demoteUser(id: string) {
     title: 'Demote to Customer',
     message: 'This admin will lose all admin privileges. Are you sure?',
     okLabel: 'Yes, Demote',
-    okColor: '#ef4444',
+    okColor: '#9a4a36',
     icon: '⬇️',
   });
   if (!ok) return;
@@ -1412,18 +2269,18 @@ function openBookingDetail(jsonStr: string) {
   const actions = document.getElementById('bd-actions')!;
   actions.innerHTML = '';
   if (b.status === 'contract_signing' || b.status === 'rescheduled') {
-    addActionBtn(actions, '✓ Book', '#10b981', function() { closeBookingDetail(); confirmBooking(b.id); });
+    addActionBtn(actions, '✓ Book', '#4a7c3f', function() { closeBookingDetail(); confirmBooking(b.id); });
   }
   if (b.status === 'contract_signing' || b.status === 'booked') {
-    addActionBtn(actions, '↻ Reschedule', '#8b5cf6', function() { closeBookingDetail(); openReschedule(b.id); });
+    addActionBtn(actions, '↻ Reschedule', '#aa8f66', function() { closeBookingDetail(); openReschedule(b.id); });
   }
   if (b.status === 'contract_signing' || b.status === 'booked' || b.status === 'rescheduled') {
-    addActionBtn(actions, '✕ Cancel', '#ef4444', function() { closeBookingDetail(); cancelBooking(b.id); });
+    addActionBtn(actions, '✕ Cancel', '#9a4a36', function() { closeBookingDetail(); cancelBooking(b.id); });
   }
   if (b.status === 'booked' || b.status === 'rescheduled') {
-    addActionBtn(actions, 'Complete', '#64748b', function() { closeBookingDetail(); setBookingCompleted(b.id); });
+    addActionBtn(actions, 'Complete', '#5e5c60', function() { closeBookingDetail(); setBookingCompleted(b.id); });
   }
-  addActionBtn(actions, 'Close', '#64748b', closeBookingDetail, true);
+  addActionBtn(actions, 'Close', '#5e5c60', closeBookingDetail, true);
   document.getElementById('bookingDetailModal')?.classList.remove('hidden');
 }
 
@@ -1447,13 +2304,13 @@ function switchReport(mode: string) {
   if (mode === 'weekly') {
     weekly.classList.remove('hidden');
     monthly.classList.add('hidden');
-    btnW.style.cssText = 'background:var(--butterscotch-primary);color:white;';
-    btnM.style.cssText = 'background:white;color:#374151;';
+    btnW.style.cssText = 'background:var(--wb-green);color:white;';
+    btnM.style.cssText = 'background:white;color:var(--wb-green-dark);';
   } else {
     monthly.classList.remove('hidden');
     weekly.classList.add('hidden');
-    btnM.style.cssText = 'background:var(--butterscotch-primary);color:white;';
-    btnW.style.cssText = 'background:white;color:#374151;';
+    btnM.style.cssText = 'background:var(--wb-green);color:white;';
+    btnW.style.cssText = 'background:white;color:var(--wb-green-dark);';
   }
 }
 
@@ -1686,10 +2543,10 @@ function admBuildDateMap(bookings: any[]): Record<string, any[]> {
 }
 
 const STATUS_CELL: Record<string, { bg: string; ring: string; text: string }> = {
-  booked:   { bg: '#f0fdf4', ring: '#22c55e', text: '#15803d' },
-  contract_signing: { bg: '#eff6ff', ring: '#3b82f6', text: '#1d4ed8' },
-  rescheduled: { bg: '#f3e8ff', ring: '#a855f7', text: '#6b21a8' },
-  completed: { bg: '#f8fafc', ring: '#64748b', text: '#334155' },
+  booked:   { bg: '#f0fdf4', ring: '#4a7c3f', text: '#2d5a27' },
+  contract_signing: { bg: '#e8f2e3', ring: '#4a7c3f', text: '#2d5a27' },
+  rescheduled: { bg: '#eee8e0', ring: '#aa8f66', text: '#463926' },
+  completed: { bg: '#eee8e0', ring: '#5e5c60', text: '#363537' },
 };
 
 async function admRenderCalendar() {
@@ -1778,17 +2635,17 @@ function admShowDayDetail(iso: string, bookings: any[]) {
     const full = byId[b.id] ?? b;
     const s = STATUS_CELL[b.status] ?? STATUS_CELL.contract_signing;
     const actionBtns = b.status === 'contract_signing'
-      ? `<button onclick="confirmBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#10b981;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✓ Book</button>
-         <button onclick="openReschedule('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#8b5cf6;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">↻ Reschedule</button>
-         <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#ef4444;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>`
+      ? `<button onclick="confirmBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#4a7c3f;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✓ Book</button>
+         <button onclick="openReschedule('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#aa8f66;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">↻ Reschedule</button>
+         <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#9a4a36;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>`
       : b.status === 'booked'
-      ? `<button onclick="openReschedule('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#8b5cf6;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">↻ Reschedule</button>
-         <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#ef4444;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>
-         <button onclick="setBookingCompleted('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#64748b;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">Complete</button>`
+      ? `<button onclick="openReschedule('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#aa8f66;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">↻ Reschedule</button>
+         <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#9a4a36;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>
+         <button onclick="setBookingCompleted('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#5e5c60;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">Complete</button>`
       : b.status === 'rescheduled'
-      ? `<button onclick="confirmBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#10b981;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✓ Book</button>
-         <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#ef4444;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>
-         <button onclick="setBookingCompleted('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#64748b;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">Complete</button>`
+      ? `<button onclick="confirmBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#4a7c3f;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✓ Book</button>
+         <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#9a4a36;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>
+         <button onclick="setBookingCompleted('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#5e5c60;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">Complete</button>`
       : '';
     return `<div style="padding:12px 16px;border-radius:12px;background:${s.bg};outline:1.5px solid ${s.ring};display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
       <div>

@@ -175,15 +175,20 @@
         const isBooked   = bookedSet.has('b:' + dateISO);
         const isContractSigning  = !isBooked && bookedSet.has('c:' + dateISO);
 
+        let state = 'available';
         let bg = '#f0fdf4', textColor = '#166534', ring = '#22c55e'; // available
         if (isPast || isTooSoon) {
+          state = 'unavailable';
           bg = '#f9fafb'; textColor = '#d1d5db'; ring = '#e5e7eb';
         } else if (isBooked) {
+          state = 'booked';
           bg = '#fef2f2'; textColor = '#991b1b'; ring = '#ef4444';
         } else if (isContractSigning) {
+          state = 'contract-signing';
           bg = '#eff6ff'; textColor = '#1d4ed8'; ring = '#3b82f6';
         }
 
+        cell.dataset.state = state;
         cell.style.background = bg;
         cell.style.color = textColor;
         cell.style.outline = isToday ? `2.5px solid #2d5a27` : `1.5px solid ${ring}`;
@@ -250,3 +255,62 @@
 
   renderCalendar();
 </script>
+
+<style>
+  :global(html.dark) #availabilityPanel > div > div {
+    background: var(--wb-surface-raised) !important;
+    border-color: var(--wb-border) !important;
+    box-shadow: var(--wb-shadow-lg) !important;
+    color: var(--wb-text);
+  }
+
+  :global(html.dark) #availabilityPanel div[style*="grid-template-columns:repeat(7,1fr)"] {
+    background: var(--wb-surface-raised);
+  }
+
+  :global(html.dark) #availabilityPanel div[style*="color:#999"],
+  :global(html.dark) #availabilityPanel div[style*="color:#888"],
+  :global(html.dark) #availabilityPanel span[style*="color:#555"],
+  :global(html.dark) #availabilityPanel span[style*="color:#aaa"] {
+    color: var(--wb-muted) !important;
+  }
+
+  :global(html.dark) #availabilityPanel div[style*="height:1px"] {
+    background: var(--wb-border) !important;
+  }
+
+  :global(html.dark) #calGrid > div[data-state="available"] {
+    background: #253823 !important;
+    color: #b7dca8 !important;
+    outline-color: #8fca7c !important;
+  }
+
+  :global(html.dark) #calGrid > div[data-state="contract-signing"] {
+    background: #3d3021 !important;
+    color: #d5bf98 !important;
+    outline-color: #f0ae63 !important;
+  }
+
+  :global(html.dark) #calGrid > div[data-state="booked"] {
+    background: #3a211c !important;
+    color: #efb0a2 !important;
+    outline-color: #9a4a36 !important;
+  }
+
+  :global(html.dark) #calGrid > div[data-state="unavailable"] {
+    background: #171f15 !important;
+    color: #66715f !important;
+    outline-color: #3a4c34 !important;
+  }
+
+  @media (max-width: 560px) {
+    #availabilityPanel {
+      padding-inline: 0.75rem;
+    }
+
+    #availabilityPanel > div {
+      max-width: none !important;
+      margin-inline: auto !important;
+    }
+  }
+</style>
