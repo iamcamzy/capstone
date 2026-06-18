@@ -796,6 +796,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       Thank you. Our staff will review your details and coordinate the next
       steps for face-to-face contract signing.
     </p>
+    <p id="success-notification-message" class="booking-success-card__intro"></p>
 
     <div class="booking-success-card__reference">
       <span>Booking Reference</span>
@@ -1109,6 +1110,16 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     return "Email and SMS notifications";
   }
 
+  function getSuccessNotificationMessage(preference) {
+    if (preference === "email") {
+      return "You will receive an email notification once the admin has decided a date for contract signing.";
+    }
+    if (preference === "sms") {
+      return "You will receive an SMS notification once the admin has decided a date for contract signing.";
+    }
+    return "You will receive an email and SMS notification once the admin has decided a date for contract signing.";
+  }
+
   function populateInclusionSummary(inclusions) {
     var wrap = document.getElementById("conf-inclusions");
     if (!wrap) return;
@@ -1354,6 +1365,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
 
       if (response.ok) {
         confirmModal.classList.add("hidden");
+        var submittedPreference = formData.notificationPreference;
         var refId = result.bookingId
           ? result.bookingId.substring(0, 8).toUpperCase()
           : "N/A";
@@ -1361,6 +1373,8 @@ const { venueId, venueName, pricePerNight } = Astro.props;
         document.getElementById("success-venue").textContent = venueName || "";
         document.getElementById("success-dates").textContent =
           fmtDate(checkInInput.value) + " to " + fmtDate(checkOutInput.value);
+        document.getElementById("success-notification-message").textContent =
+          getSuccessNotificationMessage(submittedPreference);
         successScreen.classList.remove("hidden");
         form.reset();
         if (notificationPreferenceInputs.length) {

@@ -83,9 +83,16 @@ BREVO_API_KEY=
 BREVO_SENDER_NAME="Woodberry Resorts and Events Place"
 BREVO_SENDER_EMAIL="wbrepprototype@gmail.com"
 NOTIFICATION_CRON_SECRET=
+SMS_ENABLED=false
+SMS_PROVIDER=termux
+TERMUX_SMS_SERVER_URL=http://YOUR_PHONE_LAN_IP:8787/send-sms
+TERMUX_SMS_SERVER_TOKEN=replace-with-a-long-random-token
+TERMUX_SMS_TIMEOUT_MS=10000
 ```
 
 `BREVO_API_KEY` is server-only and must never be exposed to client-side code. If it is missing, booking status updates still succeed and email notifications are skipped server-side.
+
+`TERMUX_SMS_SERVER_TOKEN` is also server-only and must never be exposed to client-side code. SMS notifications are sent only from server-side notification services. To use an Android phone as the SMS server, see `tools/termux-sms-server/README.md`, run the Termux server on the phone, set `SMS_ENABLED=true`, and point `TERMUX_SMS_SERVER_URL` to `http://PHONE_LAN_IP:8787/send-sms`.
 
 Apply the booking notification schema changes from `supabase/migrations/add_booking_notifications.sql` before using notification preferences or reminder tracking.
 

@@ -9,7 +9,7 @@ import {
 } from "../lib/bookingStatus";
 import { supabaseAdmin, supabase } from "../lib/supabase";
 import { sendTransactionalEmail, type EmailSendResult } from "./email";
-import { sendSmsNotification } from "./sms";
+import { sendSmsNotification, type SmsSendResult } from "./sms";
 
 type DbClient = SupabaseClient<Database>;
 
@@ -18,7 +18,7 @@ type NotificationBooking = {
   userId: string;
   status: BookingStatus;
   fullName: string;
-  phone: string;
+  phone: string | null;
   eventDate: string;
   startDate: string;
   endDate: string;
@@ -31,7 +31,7 @@ type NotificationBooking = {
 
 type NotificationResult = {
   email?: EmailSendResult;
-  sms?: Awaited<ReturnType<typeof sendSmsNotification>>;
+  sms?: SmsSendResult;
 };
 
 export type BookingStatusUpdateResult = {
@@ -150,7 +150,7 @@ async function fetchNotificationBooking(
     userId: booking.user_id,
     status: normalizeBookingStatus(booking.status),
     fullName: (booking.full_name ?? profileName) || "Client",
-    phone: booking.phone ?? customer?.phone ?? "No phone provided",
+    phone: booking.phone ?? customer?.phone ?? null,
     eventDate: booking.event_date ?? booking.start_date ?? "No event date provided",
     startDate: booking.start_date,
     endDate: booking.end_date,
@@ -172,26 +172,93 @@ export async function notifyBookingStatusChange(
   const booking = await fetchNotificationBooking(bookingId, client);
   if (!booking) return {};
 
+  return sendBookingNotification(booking, status);
+}
+
+async function sendBookingNotification(
+  booking: NotificationBooking,
+  status: NotifiableBookingStatus | "reminder",
+): Promise<NotificationResult> {
+  const content = buildEmailContent(booking, status);
   const result: NotificationResult = {};
+  const tasks: Array<{
+    channel: "email" | "sms";
+    promise: Promise<EmailSendResult | SmsSendResult>;
+  }> = [];
 
   if (!booking.emailNotificationsEnabled) {
     result.email = { ok: true, skipped: true, reason: "Email notifications are disabled for this customer" };
   } else if (!booking.email) {
     result.email = { ok: false, error: "No customer email is saved for this booking" };
   } else {
-    const content = buildEmailContent(booking, status);
-    result.email = await sendTransactionalEmail({
-      toEmail: booking.email,
-      toName: booking.fullName,
-      ...content,
+    tasks.push({
+      channel: "email",
+      promise: sendTransactionalEmail({
+        toEmail: booking.email,
+        toName: booking.fullName,
+        ...content,
+      }),
     });
   }
 
-  if (booking.smsNotificationsEnabled) {
-    result.sms = await sendSmsNotification();
+  if (!booking.smsNotificationsEnabled) {
+    result.sms = { ok: true, skipped: true, reason: "SMS notifications are disabled for this customer" };
+  } else {
+    tasks.push({
+      channel: "sms",
+      promise: sendSmsNotification({
+        to: booking.phone ?? "",
+        message: content.textContent,
+      }),
+    });
   }
 
+  const settled = await Promise.allSettled(tasks.map((task) => task.promise));
+  settled.forEach((settledResult, index) => {
+    const channel = tasks[index].channel;
+    const value =
+      settledResult.status === "fulfilled"
+        ? settledResult.value
+        : {
+            ok: false as const,
+            error:
+              settledResult.reason instanceof Error
+                ? settledResult.reason.message
+                : `${channel.toUpperCase()} notification failed`,
+          };
+
+    if (channel === "email") {
+      result.email = value as EmailSendResult;
+    } else {
+      result.sms = value as SmsSendResult;
+    }
+  });
+
   return result;
+}
+
+function delivered(result: EmailSendResult | SmsSendResult | undefined): boolean {
+  return Boolean(result?.ok && (!("skipped" in result) || !result.skipped));
+}
+
+function skippedReason(result: EmailSendResult | SmsSendResult | undefined): string | null {
+  if (result?.ok && "skipped" in result && result.skipped) return result.reason;
+  return null;
+}
+
+function notificationWarning(result: NotificationResult): string | undefined {
+  const emailFailed = result.email && !result.email.ok ? result.email.error : null;
+  const smsFailed = result.sms && !result.sms.ok ? result.sms.error : null;
+  if (emailFailed && smsFailed) return `${emailFailed}; ${smsFailed}`;
+  if (emailFailed) return emailFailed;
+  if (smsFailed) return smsFailed;
+
+  if (delivered(result.email) || delivered(result.sms)) return undefined;
+
+  const emailSkipped = skippedReason(result.email);
+  const smsSkipped = skippedReason(result.sms);
+  if (emailSkipped && smsSkipped) return `${emailSkipped}; ${smsSkipped}`;
+  return emailSkipped ?? smsSkipped ?? undefined;
 }
 
 export async function sendOneWeekReminder(
@@ -201,30 +268,11 @@ export async function sendOneWeekReminder(
   const booking = await fetchNotificationBooking(bookingId, client);
   if (!booking) return {};
 
-  const result: NotificationResult = {};
-
-  if (!booking.emailNotificationsEnabled) {
-    result.email = { ok: true, skipped: true, reason: "Email notifications are disabled for this customer" };
-  } else if (!booking.email) {
-    result.email = { ok: false, error: "No customer email is saved for this booking" };
-  } else {
-    const content = buildEmailContent(booking, "reminder");
-    result.email = await sendTransactionalEmail({
-      toEmail: booking.email,
-      toName: booking.fullName,
-      ...content,
-    });
-  }
-
-  if (booking.smsNotificationsEnabled) {
-    result.sms = await sendSmsNotification();
-  }
-
-  return result;
+  return sendBookingNotification(booking, "reminder");
 }
 
 export function notificationSucceeded(result: NotificationResult): boolean {
-  return Boolean(result.email && result.email.ok && !result.email.skipped);
+  return delivered(result.email) || delivered(result.sms);
 }
 
 export async function updateBookingStatusAndNotify(
@@ -272,12 +320,10 @@ export async function updateBookingStatusAndNotify(
 
   try {
     result.notification = await notifyBookingStatusChange(bookingId, normalizedStatus, client);
-    if (result.notification.email && !result.notification.email.ok) {
-      result.warning = result.notification.email.error;
-      console.error("[Notifications]", result.notification.email.error);
-    } else if (result.notification.email?.skipped) {
-      result.warning = result.notification.email.reason;
-      console.warn("[Notifications]", result.notification.email.reason);
+    const warning = notificationWarning(result.notification);
+    if (warning) {
+      result.warning = warning;
+      console.warn("[Notifications]", warning);
     }
   } catch (notificationError) {
     const message =
