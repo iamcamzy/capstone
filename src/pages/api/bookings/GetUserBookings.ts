@@ -7,7 +7,7 @@ import { BOOKING_STATUSES, normalizeBookingStatus, type BookingStatus } from "..
 
 export const prerender = false;
 
-const VALID_STATUSES = [...BOOKING_STATUSES, "confirmed"];
+const VALID_STATUSES = [...BOOKING_STATUSES];
 
 export const GET: APIRoute = async ({ cookies, url }) => {
   const user = await getUser(cookies);
@@ -15,7 +15,7 @@ export const GET: APIRoute = async ({ cookies, url }) => {
 
   const status = url.searchParams.get("status");
   const normalizedStatus = status ? normalizeBookingStatus(status) : null;
-  if (status && !VALID_STATUSES.includes(status as BookingStatus | "confirmed")) {
+  if (status && !VALID_STATUSES.includes(status as BookingStatus)) {
     return error(`Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`, 400);
   }
 

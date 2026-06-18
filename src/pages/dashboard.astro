@@ -51,7 +51,6 @@ const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
 
 const statusConfig: Record<string, { bg: string; text: string; border: string; dot: string; label: string }> = {
-  pending:          { bg: '#fffbeb', text: '#92400e', border: '#fde68a', dot: '#f59e0b', label: 'Pending' },
   contract_signing: { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe', dot: '#3b82f6', label: 'Contract Signing' },
   booked:           { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0', dot: '#22c55e', label: 'Booked' },
   cancelled:        { bg: '#fef2f2', text: '#991b1b', border: '#fecaca', dot: '#ef4444', label: 'Cancelled' },
@@ -164,7 +163,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
           const hasReview = reviewedSet.has(b.id);
           const venue     = (venueMap as any)[b.venue_id];
           const venueName = venue?.name ?? 'Unknown Venue';
-          const cfg       = statusConfig[b.status] ?? statusConfig.pending;
+          const cfg       = statusConfig[b.status] ?? statusConfig.contract_signing;
           const isCompleted = b.status === 'completed' || (b.status === 'booked' && endDate < todayD);
 
           return (
@@ -315,7 +314,6 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
 
 <script>
   const USER_BOOKING_STATUS_CONFIG: Record<string, any> = {
-    pending: { label: 'Pending', bg: '#fffbeb', text: '#92400e', border: '#fde68a' },
     contract_signing: { label: 'Contract Signing', bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
     booked: { label: 'Booked', bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0' },
     cancelled: { label: 'Cancelled', bg: '#fef2f2', text: '#991b1b', border: '#fecaca' },
@@ -338,7 +336,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
 
   function openUserBookingDetail(jsonStr: string) {
     const b = JSON.parse(jsonStr);
-    const cfg = USER_BOOKING_STATUS_CONFIG[b.status] ?? USER_BOOKING_STATUS_CONFIG.pending;
+    const cfg = USER_BOOKING_STATUS_CONFIG[b.status] ?? USER_BOOKING_STATUS_CONFIG.contract_signing;
     const badge = document.getElementById('ubd-status') as HTMLElement;
     if (badge) {
       badge.textContent = cfg.label;

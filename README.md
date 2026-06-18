@@ -111,7 +111,7 @@ Auth is handled by HttpOnly cookies — no token management needed on the fronte
 | GET    | `/api/bookings/GetUserBookings` | User   | Get my bookings (filter by `?status=`)            |
 | POST   | `/api/bookings/CancelBookings`  | User   | Cancel own booking                                |
 | GET    | `/api/bookings/GetAllBookings`  | Admin  | All bookings with pagination                      |
-| POST   | `/api/bookings/ConfirmBookings` | Admin  | Mark a pending booking as booked                  |
+| POST   | `/api/bookings/ConfirmBookings` | Admin  | Mark a contract signing booking as booked         |
 | POST   | `/api/admin/reschedule`         | Admin  | Reschedule a booking                              |
 | POST   | `/api/admin/update-booking-status` | Admin | Update a booking to contract signing, booked, rescheduled, cancelled, or completed |
 | GET/POST | `/api/user/notification-preferences` | User | View or update email/SMS notification preferences |

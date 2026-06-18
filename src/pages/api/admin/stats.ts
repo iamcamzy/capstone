@@ -18,7 +18,6 @@ export const GET: APIRoute = async ({ cookies }) => {
 
   const [
     { count: total },
-    { count: pending },
     { count: booked },
     { count: contractSigning },
     { count: completed },
@@ -31,7 +30,6 @@ export const GET: APIRoute = async ({ cookies }) => {
     { data: paxData },
   ] = await Promise.all([
     db.from("bookings").select("*", { count: "exact", head: true }),
-    db.from("bookings").select("*", { count: "exact", head: true }).eq("status", "pending"),
     db.from("bookings").select("*", { count: "exact", head: true }).eq("status", "booked"),
     db.from("bookings").select("*", { count: "exact", head: true }).eq("status", "contract_signing"),
     db.from("bookings").select("*", { count: "exact", head: true }).eq("status", "completed"),
@@ -51,7 +49,7 @@ export const GET: APIRoute = async ({ cookies }) => {
     : 0;
 
   return ok({
-    bookings: { total, pending, booked, contractSigning, cancelled, rescheduled, completed, thisMonth },
+    bookings: { total, booked, contractSigning, cancelled, rescheduled, completed, thisMonth },
     revenue:   { total: totalRevenue },
     venues:    { active: activeVenues ?? 0 },
     users:     { total: totalUsers ?? 0 },

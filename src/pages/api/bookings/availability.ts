@@ -2,6 +2,7 @@
 import type { APIRoute } from "astro";
 import { supabaseAdmin, supabase } from "../../../lib/supabase";
 import { ok, error } from "../../../lib/response";
+import { normalizeBookingStatus } from "../../../lib/bookingStatus";
 
 export const prerender = false;
 
@@ -39,8 +40,22 @@ export const GET: APIRoute = async ({ url }) => {
             .lte("start_date", endOfMonth);
 
         if (err2) return error(err2.message, 500);
-        return ok({ bookings: fallback ?? [], year, month });
+        return ok({
+            bookings: (fallback ?? []).map((booking) => ({
+                ...booking,
+                status: normalizeBookingStatus(booking.status),
+            })),
+            year,
+            month,
+        });
     }
 
-    return ok({ bookings: data ?? [], year, month });
+    return ok({
+        bookings: (data ?? []).map((booking) => ({
+            ...booking,
+            status: normalizeBookingStatus(booking.status),
+        })),
+        year,
+        month,
+    });
 };

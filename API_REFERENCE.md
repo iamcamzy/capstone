@@ -104,7 +104,7 @@ Only `venueId`, `startDate`, `endDate` are required. All others optional.
 Get the logged-in user's bookings.
 
 **Query params:**
-- `status` (optional): `pending` | `contract_signing` | `booked` | `rescheduled` | `cancelled` | `completed`
+- `status` (optional): `contract_signing` | `booked` | `rescheduled` | `cancelled` | `completed`
 
 ```
 GET /api/bookings/GetUserBookings
@@ -144,7 +144,7 @@ Get all bookings with pagination.
 ---
 
 ### `POST /api/bookings/ConfirmBookings` 🔒 Admin
-Confirm a pending booking.
+Book a contract signing or rescheduled booking.
 
 ```json
 { "bookingId": "uuid" }
@@ -319,7 +319,7 @@ Change a user's role.
 
 ```json
 {
-  "bookings":  { "total", "pending", "booked", "contractSigning", "cancelled", "rescheduled", "completed", "thisMonth" },
+  "bookings":  { "total", "booked", "contractSigning", "cancelled", "rescheduled", "completed", "thisMonth" },
   "revenue":   { "total": 125000 },
   "venues":    { "active": 5 },
   "users":     { "total": 48 },

@@ -20,9 +20,9 @@ const { data: profile } = await adminClient
 // Not in admins table = not an admin
 if (!profile) return Astro.redirect('/dashboard');
 
-const { data: bookings } = await adminClient
+const { data: bookings, error: bookingsError } = await adminClient
   .from('bookings')
-  .select('id, full_name, phone, pax, event_date, start_date, end_date, event_type, status, total_price, created_at, updated_at, confirmed_at, cancelled_at, rescheduled_at, special_requests, venue_id, user_id, package_id')
+  .select('id, full_name, phone, pax, event_date, start_date, end_date, event_type, status, total_price, created_at, updated_at, confirmed_at, cancelled_at, rescheduled_at, one_week_notice_sent_at, special_requests, venue_id, user_id, package_id')
   .order('created_at', { ascending: false })
   .limit(200);
 
@@ -50,8 +50,8 @@ const userById: Record<string, any> = {};
 
 // Booking form email is saved on customers. Fetch it separately so admin modals
 // and email notifications use the address the customer typed during booking.
-const { data: customerMap } = userIds.length > 0
-  ? await adminClient.from('customers').select('id, email, first_name, last_name, phone').in('id', userIds)
+const { data: customerMap, error: customerMapError } = userIds.length > 0
+  ? await adminClient.from('customers').select('id, email, first_name, last_name, phone, email_notifications_enabled, sms_notifications_enabled').in('id', userIds)
   : { data: [] };
 const customerById: Record<string, any> = {};
 (customerMap ?? []).forEach((c: any) => { customerById[c.id] = c; });
@@ -115,7 +115,6 @@ const { data: allAdmins } = await adminClient
 
 const stats = {
   total:       enrichedBookings.length,
-  pending:     enrichedBookings.filter(b => b.status === 'pending').length,
   contractSigning: enrichedBookings.filter(b => b.status === 'contract_signing').length,
   booked:     enrichedBookings.filter(b => b.status === 'booked').length,
   cancelled:   enrichedBookings.filter(b => b.status === 'cancelled').length,
@@ -184,7 +183,6 @@ const adminName = profile.first_name
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
           {[
             { label:'Total Bookings', value:stats.total,      color:'#ed9b40', icon:'📅' },
-            { label:'Pending',        value:stats.pending,    color:'#f59e0b', icon:'⏳' },
             { label:'Contract Signing', value:stats.contractSigning, color:'#3b82f6', icon:'CS' },
             { label:'Booked',      value:stats.booked,  color:'#10b981', icon:'BK' },
             { label:'Cancelled',      value:stats.cancelled,  color:'#ef4444', icon:'❌' },
@@ -234,6 +232,7 @@ const adminName = profile.first_name
               </tbody>
             </table>
           </div>
+          <p id="bookingsEmptyState" class="hidden px-5 py-8 text-center text-sm text-gray-400">No bookings found.</p>
         </div>
       </section>
 
@@ -246,7 +245,6 @@ const adminName = profile.first_name
             <span class="text-xs font-bold text-gray-400 uppercase tracking-wider mr-1">Filter:</span>
             {[
               { v:'all',         label:'All',          color:'#ed9b40' },
-              { v:'pending',     label:'⏳ Pending',    color:'#f59e0b' },
               { v:'contract_signing', label:'Contract Signing', color:'#3b82f6' },
               { v:'booked',   label:'✅ Booked',  color:'#10b981' },
               { v:'cancelled',   label:'❌ Cancelled',  color:'#ef4444' },
@@ -260,11 +258,20 @@ const adminName = profile.first_name
               </button>
             ))}
           </div>
-          <div class="relative">
-            <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input id="bookingSearch" type="text" placeholder="Search guest, venue, email, phone…"
-              class="pl-9 pr-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 w-64"
-              style="focus-ring-color:var(--butterscotch-primary);" />
+          <div class="flex flex-wrap gap-3 items-center">
+            <select id="bookingSort" class="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="event_asc">Event date ascending</option>
+              <option value="event_desc">Event date descending</option>
+              <option value="status">Status</option>
+            </select>
+            <div class="relative">
+              <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input id="bookingSearch" type="text" placeholder="Search guest, venue, email, phone…"
+                class="pl-9 pr-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 w-64"
+                style="focus-ring-color:var(--butterscotch-primary);" />
+            </div>
           </div>
         </div>
 
@@ -273,6 +280,12 @@ const adminName = profile.first_name
           <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-xs font-black text-blue-600">1</div>
           <p class="text-xs text-gray-400">The <strong class="text-gray-500">numbered badge</strong> shows booking order on the same date — #1 booked first. Contact #1 first when dates conflict.</p>
         </div>
+        {bookingsError && (
+          <div class="mb-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">Failed to load bookings.</div>
+        )}
+        {customerMapError && (
+          <div class="mb-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">Failed to load customer contact info.</div>
+        )}
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div class="overflow-x-auto">
@@ -307,11 +320,13 @@ const adminName = profile.first_name
                       completed:'bg-slate-100 text-slate-700',
                       cancelled:'bg-red-100 text-red-700',
                       rescheduled:'bg-purple-100 text-purple-700',
-                      pending:'bg-yellow-100 text-yellow-700',
                     };
                     return (
                       <tr
                         data-status={b.status}
+                        data-created={b.created_at}
+                        data-event-date={b.event_date ?? b.start_date}
+                        data-status-label={statusLabels[b.status] ?? b.status}
                         data-search={`${b.full_name??''} ${b.venueName??''} ${b.customerEmail??''} ${b.customerPhone??b.phone??''} ${b.event_type??''}`}
                         class="booking-row border-t border-gray-50 hover:bg-amber-50 transition-colors"
                         style={b.status==='cancelled'?'opacity:0.6':''}
@@ -380,25 +395,25 @@ const adminName = profile.first_name
                         {/* Actions */}
                         <td class="px-4 py-3">
                           <div class="flex gap-1.5 flex-wrap">
-                            {b.status==='pending'&&(
-                              <button onclick={`setBookingContractSigning('${b.id}')`}
-                                class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80 hover:-translate-y-0.5"
-                                style="background:#3b82f6;">📝 Contract</button>
-                            )}
-                            {(b.status==='pending'||b.status==='contract_signing')&&(
+                            {(b.status==='contract_signing'||b.status==='rescheduled')&&(
                               <button onclick={`confirmBooking('${b.id}')`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80 hover:-translate-y-0.5"
-                                style="background:#10b981;">✓ Confirm</button>
+                                style="background:#10b981;">✓ Book</button>
                             )}
-                            {(b.status==='pending'||b.status==='booked')&&(
+                            {(b.status==='contract_signing'||b.status==='booked')&&(
                               <button onclick={`openReschedule('${b.id}')`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
                                 style="background:#8b5cf6;">↻</button>
                             )}
-                            {b.status!=='cancelled'&&b.status!=='rescheduled'&&(
+                            {(b.status==='contract_signing'||b.status==='booked'||b.status==='rescheduled')&&(
                               <button onclick={`cancelBooking('${b.id}')`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
                                 style="background:#ef4444;">✕</button>
+                            )}
+                            {(b.status==='booked'||b.status==='rescheduled')&&(
+                              <button onclick={`setBookingCompleted('${b.id}')`}
+                                class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
+                                style="background:#64748b;">Complete</button>
                             )}
                             <button onclick={`openBookingDetail(${JSON.stringify(JSON.stringify(b))})`}
                               class="px-2.5 py-1.5 rounded-lg text-xs font-bold border-2 transition hover:bg-gray-50"
@@ -444,6 +459,9 @@ const adminName = profile.first_name
               </div>
             </div>
           ))}
+          {(!venues || venues.length === 0) && (
+            <div class="col-span-full bg-white rounded-xl border border-gray-100 px-6 py-10 text-center text-sm text-gray-400">No venues found.</div>
+          )}
         </div>
       </section>
 
@@ -470,6 +488,9 @@ const adminName = profile.first_name
               </div>
             </div>
           ))}
+          {(!packages || packages.length === 0) && (
+            <div class="col-span-full bg-white rounded-xl border border-gray-100 px-6 py-10 text-center text-sm text-gray-400">No packages found.</div>
+          )}
         </div>
       </section>
 
@@ -614,9 +635,11 @@ const adminName = profile.first_name
           <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
             {[
               { id:'rpt-total',       label:'Total Requests', color:'#ed9b40', icon:'📅' },
+              { id:'rpt-contract-signing', label:'Contract Signing', color:'#3b82f6', icon:'CS' },
               { id:'rpt-confirmed',   label:'Booked',      color:'#10b981', icon:'✅' },
-              { id:'rpt-cancelled',   label:'Cancelled',      color:'#ef4444', icon:'❌' },
               { id:'rpt-rescheduled', label:'Rescheduled',    color:'#8b5cf6', icon:'🔄' },
+              { id:'rpt-cancelled',   label:'Cancelled',      color:'#ef4444', icon:'❌' },
+              { id:'rpt-completed', label:'Completed', color:'#64748b', icon:'OK' },
               { id:'rpt-revenue',     label:'Revenue',        color:'#059669', icon:'💰' },
             ].map(c => (
               <div class="rounded-xl p-4 border border-gray-100 bg-gray-50 flex flex-col items-center text-center">
@@ -681,7 +704,7 @@ const adminName = profile.first_name
         <div class="flex flex-wrap gap-4 items-start justify-between mb-6">
           <div>
             <h2 class="text-xl font-bold" style="color:var(--jet-primary);">Availability Calendar</h2>
-            <p class="text-sm text-gray-500 mt-0.5">Click any date to view bookings. Confirm, cancel, or reschedule from here.</p>
+            <p class="text-sm text-gray-500 mt-0.5">Click any date to view bookings. Book, cancel, complete, or reschedule from here.</p>
           </div>
           <div class="flex gap-2 flex-wrap items-center">
             <button id="adm-prev-month" class="w-9 h-9 rounded-lg border-2 border-gray-200 flex items-center justify-center hover:bg-gray-50 transition text-gray-600">
@@ -698,8 +721,9 @@ const adminName = profile.first_name
           {[
             { bg:'#dcfce7', ring:'#22c55e', label:'Available' },
             { bg:'#fef2f2', ring:'#ef4444', label:'Booked' },
-            { bg:'#fffbeb', ring:'#f59e0b', label:'Pending' },
+            { bg:'#eff6ff', ring:'#3b82f6', label:'Contract Signing' },
             { bg:'#f3e8ff', ring:'#a855f7', label:'Rescheduled' },
+            { bg:'#f8fafc', ring:'#64748b', label:'Completed' },
           ].map(l => (
             <div class="flex items-center gap-2">
               <div class="w-5 h-5 rounded-md" style={`background:${l.bg};outline:1.5px solid ${l.ring};`}></div>
@@ -754,6 +778,16 @@ const adminName = profile.first_name
           <div><span class="text-gray-400">Phone</span><p id="bd-phone" class="font-semibold mt-0.5"></p></div>
           <div><span class="text-gray-400">Email</span><p id="bd-email" class="font-semibold mt-0.5"></p></div>
           <div><span class="text-gray-400">Pax</span><p id="bd-pax" class="font-semibold mt-0.5"></p></div>
+        </div>
+      </div>
+
+      <!-- Notification readiness -->
+      <div>
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Notifications</p>
+        <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <div><span class="text-gray-400">Email notification</span><p id="bd-email-notification" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">SMS notification</span><p id="bd-sms-notification" class="font-semibold mt-0.5"></p></div>
+          <div class="col-span-2"><span class="text-gray-400">1-week reminder</span><p id="bd-reminder" class="font-semibold mt-0.5"></p></div>
         </div>
       </div>
 
@@ -902,7 +936,6 @@ const adminName = profile.first_name
 
 <script>
 const BOOKING_STATUS_LABELS: Record<string, string> = {
-  pending: 'Pending',
   contract_signing: 'Contract Signing',
   booked: 'Booked',
   rescheduled: 'Rescheduled',
@@ -911,7 +944,6 @@ const BOOKING_STATUS_LABELS: Record<string, string> = {
 };
 
 const BOOKING_STATUS_CLASSES: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-700',
   contract_signing: 'bg-blue-100 text-blue-700',
   booked: 'bg-green-100 text-green-700',
   rescheduled: 'bg-purple-100 text-purple-700',
@@ -953,24 +985,63 @@ document.querySelectorAll<HTMLElement>('.nav-btn[data-tab]').forEach(function(bt
 switchTab('dashboard');
 
 // ── BOOKING FILTER & SEARCH ───────────────────────────────────────────────────
+let activeBookingFilter = 'all';
+
+function applyBookingTableControls() {
+  const q = ((document.getElementById('bookingSearch') as HTMLInputElement | null)?.value ?? '').toLowerCase();
+  const rows = Array.from(document.querySelectorAll<HTMLElement>('.booking-row'));
+  let visibleCount = 0;
+  rows.forEach(r => {
+    const matchesFilter = activeBookingFilter === 'all' || r.dataset.status === activeBookingFilter;
+    const matchesSearch = (r.dataset.search ?? '').toLowerCase().includes(q);
+    const show = matchesFilter && matchesSearch;
+    r.style.display = show ? '' : 'none';
+    if (show) visibleCount++;
+  });
+  const empty = document.getElementById('bookingsEmptyState');
+  if (empty) empty.classList.toggle('hidden', visibleCount > 0);
+}
+
+function sortBookingRows(sortBy: string) {
+  const tbody = document.getElementById('bookingsTableBody');
+  if (!tbody) return;
+  const rows = Array.from(tbody.querySelectorAll<HTMLElement>('.booking-row'));
+  const statusOrder: Record<string, number> = {
+    contract_signing: 1,
+    booked: 2,
+    rescheduled: 3,
+    cancelled: 4,
+    completed: 5,
+  };
+  rows.sort((a, b) => {
+    if (sortBy === 'oldest') return Date.parse(a.dataset.created ?? '') - Date.parse(b.dataset.created ?? '');
+    if (sortBy === 'event_asc') return Date.parse(a.dataset.eventDate ?? '') - Date.parse(b.dataset.eventDate ?? '');
+    if (sortBy === 'event_desc') return Date.parse(b.dataset.eventDate ?? '') - Date.parse(a.dataset.eventDate ?? '');
+    if (sortBy === 'status') {
+      return (statusOrder[a.dataset.status ?? ''] ?? 99) - (statusOrder[b.dataset.status ?? ''] ?? 99)
+        || (a.dataset.statusLabel ?? '').localeCompare(b.dataset.statusLabel ?? '');
+    }
+    return Date.parse(b.dataset.created ?? '') - Date.parse(a.dataset.created ?? '');
+  });
+  rows.forEach(row => tbody.appendChild(row));
+  applyBookingTableControls();
+}
+
 document.querySelectorAll<HTMLElement>('.filter-btn').forEach(function(btn) {
   btn.addEventListener('click', function() {
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    const f = btn.dataset.filter!;
-    document.querySelectorAll<HTMLElement>('.booking-row').forEach(r => {
-      r.style.display = (f === 'all' || r.dataset.status === f) ? '' : 'none';
-    });
+    activeBookingFilter = btn.dataset.filter ?? 'all';
+    applyBookingTableControls();
   });
 });
 document.querySelector<HTMLElement>('[data-filter="all"]')?.classList.add('active');
 
-document.getElementById('bookingSearch')?.addEventListener('input', function(e) {
-  const q = (e.target as HTMLInputElement).value.toLowerCase();
-  document.querySelectorAll<HTMLElement>('.booking-row').forEach(r => {
-    r.style.display = (r.dataset.search ?? '').toLowerCase().includes(q) ? '' : 'none';
-  });
+document.getElementById('bookingSearch')?.addEventListener('input', applyBookingTableControls);
+document.getElementById('bookingSort')?.addEventListener('change', function(e) {
+  sortBookingRows((e.target as HTMLSelectElement).value);
 });
+applyBookingTableControls();
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
 function toast(msg: string, ok: boolean = true) {
@@ -1034,7 +1105,7 @@ async function updateBookingStatus(id: string, status: string, label: string) {
   });
   const payload = await r.json().catch(() => ({}));
   if (r.ok) {
-    toast(payload.warning ? `${label} saved, but email warning: ${payload.warning}` : `${label} saved ✓`);
+    toast(payload.warning ? `${label}, but email warning: ${payload.warning}` : `${label} saved ✓`);
     location.reload();
   } else {
     toast(payload.error ?? payload.message ?? `Failed to update booking to ${label}`, false);
@@ -1053,11 +1124,23 @@ async function setBookingContractSigning(id: string) {
   await updateBookingStatus(id, 'contract_signing', 'Contract signing');
 }
 
+async function setBookingCompleted(id: string) {
+  const ok = await showConfirm({
+    title: 'Complete Booking',
+    message: 'Mark this booking as completed? The client will be notified.',
+    okLabel: 'Yes, Complete',
+    okColor: '#64748b',
+    icon: '✓',
+  });
+  if (!ok) return;
+  await updateBookingStatus(id, 'completed', 'Completed');
+}
+
 async function confirmBooking(id: string) {
   const ok = await showConfirm({
-    title: 'Confirm Booking',
-    message: 'Are you sure you want to confirm this booking? The client will be notified.',
-    okLabel: 'Yes, Confirm',
+    title: 'Book Booking',
+    message: 'Are you sure you want to mark this booking as booked? The client will be notified.',
+    okLabel: 'Yes, Book',
     okColor: '#10b981',
     icon: '✅',
   });
@@ -1065,10 +1148,10 @@ async function confirmBooking(id: string) {
   const r = await fetch('/api/bookings/ConfirmBookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: id }) });
   const payload = await r.json().catch(() => ({}));
   if (r.ok) {
-    toast(payload.warning ? `Booking booked, but email warning: ${payload.warning}` : 'Booking Booked ✓');
+    toast(payload.warning ? `Booked, but email warning: ${payload.warning}` : 'Booking booked ✓');
     location.reload();
   } else {
-    toast(payload.error ?? payload.message ?? 'Failed to confirm', false);
+    toast(payload.error ?? payload.message ?? 'Failed to book', false);
   }
 }
 
@@ -1082,7 +1165,13 @@ async function cancelBooking(id: string) {
   });
   if (!ok) return;
   const r = await fetch('/api/bookings/CancelBookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: id }) });
-  if (r.ok) { toast('Booking cancelled'); location.reload(); } else { toast('Failed to cancel', false); }
+  const payload = await r.json().catch(() => ({}));
+  if (r.ok) {
+    toast(payload.warning ? `Cancelled, but email warning: ${payload.warning}` : 'Booking cancelled');
+    location.reload();
+  } else {
+    toast(payload.error ?? payload.message ?? 'Failed to cancel', false);
+  }
 }
 
 function openReschedule(id: string) {
@@ -1101,7 +1190,14 @@ async function submitReschedule() {
   const ev    = (document.getElementById('rescheduleEventDate') as HTMLInputElement).value;
   if (!start || !end) { toast('Dates required', false); return; }
   const r = await fetch('/api/admin/reschedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: id, newStartDate: start, newEndDate: end, newEventDate: ev || null }) });
-  if (r.ok) { toast('Rescheduled ✓'); closeReschedule(); location.reload(); } else { toast('Failed to reschedule', false); }
+  const payload = await r.json().catch(() => ({}));
+  if (r.ok) {
+    toast(payload.warning ? `Rescheduled, but email warning: ${payload.warning}` : 'Rescheduled ✓');
+    closeReschedule();
+    location.reload();
+  } else {
+    toast(payload.error ?? payload.message ?? 'Failed to reschedule', false);
+  }
 }
 
 // ── VENUE MODAL ───────────────────────────────────────────────────────────────
@@ -1280,6 +1376,15 @@ function openBookingDetail(jsonStr: string) {
   setText('bd-phone', b.customerPhone ?? b.phone ?? '—');
   setText('bd-email', b.customerEmail ?? b.customer?.email ?? b.userName?.email ?? '—');
   setText('bd-pax', b.pax ? b.pax + ' pax' : '—');
+  const emailReady = b.customerEmail || b.customer?.email
+    ? (b.customer?.email_notifications_enabled === false ? 'Disabled' : 'Enabled')
+    : 'No email saved';
+  const smsReady = b.customerPhone || b.phone || b.customer?.phone
+    ? (b.customer?.sms_notifications_enabled === false ? 'Disabled' : 'Enabled')
+    : 'No phone saved';
+  setText('bd-email-notification', emailReady);
+  setText('bd-sms-notification', smsReady);
+  setText('bd-reminder', b.one_week_notice_sent_at ? 'Sent on ' + fmtTs(b.one_week_notice_sent_at) : 'Not sent');
   setText('bd-venue', b.venueName ?? '—');
   setText('bd-package', b.packageName ?? b.event_type ?? '—');
   setText('bd-event-date', fmt(b.event_date));
@@ -1306,17 +1411,17 @@ function openBookingDetail(jsonStr: string) {
 
   const actions = document.getElementById('bd-actions')!;
   actions.innerHTML = '';
-  if (b.status === 'pending') {
-    addActionBtn(actions, '📝 Contract Signing', '#3b82f6', function() { closeBookingDetail(); setBookingContractSigning(b.id); });
+  if (b.status === 'contract_signing' || b.status === 'rescheduled') {
+    addActionBtn(actions, '✓ Book', '#10b981', function() { closeBookingDetail(); confirmBooking(b.id); });
   }
-  if (b.status === 'pending' || b.status === 'contract_signing') {
-    addActionBtn(actions, '✓ Confirm', '#10b981', function() { closeBookingDetail(); confirmBooking(b.id); });
-  }
-  if (b.status === 'pending' || b.status === 'booked' || b.status === 'contract_signing') {
+  if (b.status === 'contract_signing' || b.status === 'booked') {
     addActionBtn(actions, '↻ Reschedule', '#8b5cf6', function() { closeBookingDetail(); openReschedule(b.id); });
   }
-  if (b.status !== 'cancelled' && b.status !== 'rescheduled' && b.status !== 'completed') {
+  if (b.status === 'contract_signing' || b.status === 'booked' || b.status === 'rescheduled') {
     addActionBtn(actions, '✕ Cancel', '#ef4444', function() { closeBookingDetail(); cancelBooking(b.id); });
+  }
+  if (b.status === 'booked' || b.status === 'rescheduled') {
+    addActionBtn(actions, 'Complete', '#64748b', function() { closeBookingDetail(); setBookingCompleted(b.id); });
   }
   addActionBtn(actions, 'Close', '#64748b', closeBookingDetail, true);
   document.getElementById('bookingDetailModal')?.classList.remove('hidden');
@@ -1404,9 +1509,11 @@ function generateReport() {
   });
 
   const total       = inRange.length;
+  const contractSigning = inRange.filter(function(b) { return b.status === 'contract_signing'; }).length;
   const Booked   = inRange.filter(function(b) { return b.status === 'booked'; }).length;
   const cancelled   = inRange.filter(function(b) { return b.status === 'cancelled'; }).length;
   const rescheduled = inRange.filter(function(b) { return b.status === 'rescheduled'; }).length;
+  const completed = inRange.filter(function(b) { return b.status === 'completed'; }).length;
   const revenue     = inRange.filter(function(b) { return b.status === 'booked' || b.status === 'completed'; })
                              .reduce(function(s, b) { return s + Number(b.total_price ?? 0); }, 0);
 
@@ -1414,9 +1521,11 @@ function generateReport() {
   setText('rpt-period',      periodLabel);
   setText('rpt-generated',   new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' } as any));
   setText('rpt-total',       String(total));
+  setText('rpt-contract-signing', String(contractSigning));
   setText('rpt-confirmed',   String(Booked));
   setText('rpt-cancelled',   String(cancelled));
   setText('rpt-rescheduled', String(rescheduled));
+  setText('rpt-completed', String(completed));
   setText('rpt-revenue',     '₱' + revenue.toLocaleString());
 
   // Distribution by date
@@ -1518,6 +1627,9 @@ switchReport('weekly');
 // ── EXPOSE TO HTML onclick ATTRIBUTES ────────────────────────────────────────
 (window as any).confirmBooking    = confirmBooking;
 (window as any).cancelBooking     = cancelBooking;
+(window as any).updateBookingStatus = updateBookingStatus;
+(window as any).setBookingCompleted = setBookingCompleted;
+(window as any).setBookingContractSigning = setBookingContractSigning;
 (window as any).openReschedule    = openReschedule;
 (window as any).closeReschedule   = closeReschedule;
 (window as any).submitReschedule  = submitReschedule;
@@ -1576,7 +1688,6 @@ function admBuildDateMap(bookings: any[]): Record<string, any[]> {
 const STATUS_CELL: Record<string, { bg: string; ring: string; text: string }> = {
   booked:   { bg: '#f0fdf4', ring: '#22c55e', text: '#15803d' },
   contract_signing: { bg: '#eff6ff', ring: '#3b82f6', text: '#1d4ed8' },
-  pending:     { bg: '#fffbeb', ring: '#f59e0b', text: '#92400e' },
   rescheduled: { bg: '#f3e8ff', ring: '#a855f7', text: '#6b21a8' },
   completed: { bg: '#f8fafc', ring: '#64748b', text: '#334155' },
 };
@@ -1622,7 +1733,7 @@ async function admRenderCalendar() {
       // Booking chips (max 3)
       const shown = dayBookings.slice(0, 3);
       for (const b of shown) {
-        const s = STATUS_CELL[b.status] ?? STATUS_CELL.pending;
+        const s = STATUS_CELL[b.status] ?? STATUS_CELL.contract_signing;
         const chip = document.createElement('div');
         chip.textContent = statusLabel(b.status);
         chip.style.cssText = `font-size:0.65rem;font-weight:700;padding:1px 5px;border-radius:4px;background:${s.bg};color:${s.text};outline:1px solid ${s.ring};margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
@@ -1665,12 +1776,19 @@ function admShowDayDetail(iso: string, bookings: any[]) {
 
   content.innerHTML = bookings.map(b => {
     const full = byId[b.id] ?? b;
-    const s = STATUS_CELL[b.status] ?? STATUS_CELL.pending;
-    const actionBtns = b.status === 'pending'
-      ? `<button onclick="confirmBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#10b981;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✓ Confirm</button>
+    const s = STATUS_CELL[b.status] ?? STATUS_CELL.contract_signing;
+    const actionBtns = b.status === 'contract_signing'
+      ? `<button onclick="confirmBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#10b981;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✓ Book</button>
+         <button onclick="openReschedule('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#8b5cf6;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">↻ Reschedule</button>
          <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#ef4444;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>`
       : b.status === 'booked'
-      ? `<button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#ef4444;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>`
+      ? `<button onclick="openReschedule('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#8b5cf6;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">↻ Reschedule</button>
+         <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#ef4444;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>
+         <button onclick="setBookingCompleted('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#64748b;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">Complete</button>`
+      : b.status === 'rescheduled'
+      ? `<button onclick="confirmBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#10b981;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✓ Book</button>
+         <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#ef4444;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>
+         <button onclick="setBookingCompleted('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#64748b;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">Complete</button>`
       : '';
     return `<div style="padding:12px 16px;border-radius:12px;background:${s.bg};outline:1.5px solid ${s.ring};display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
       <div>

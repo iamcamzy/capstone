@@ -4,6 +4,25 @@ const dateString = z
   .string()
   .refine((v) => !isNaN(Date.parse(v)), "Invalid date — use YYYY-MM-DD");
 
+function parseDateOnly(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function addOneCalendarMonth(date: Date) {
+  const oneMonthLater = new Date(date.getFullYear(), date.getMonth() + 1, date.getDate());
+  if (oneMonthLater.getDate() !== date.getDate()) {
+    oneMonthLater.setDate(0);
+  }
+  return oneMonthLater;
+}
+
+function getMinimumBookingDate() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return addOneCalendarMonth(today);
+}
+
 export const createBookingSchema = z
   .object({
     venueId:         z.string().uuid("venueId must be a valid UUID"),
@@ -20,14 +39,15 @@ export const createBookingSchema = z
     phone:           z.string().max(30).optional().nullable(),
     // Special requests is fully optional — users can leave it blank
     specialRequests: z.string().max(1000).optional().nullable(),
+    termsAccepted:   z.literal(true).optional(),
   })
   .refine(
-    (d) => new Date(d.endDate) > new Date(d.startDate),
+    (d) => parseDateOnly(d.endDate) > parseDateOnly(d.startDate),
     { message: "endDate must be after startDate", path: ["endDate"] }
   )
   .refine(
-    (d) => new Date(d.startDate) >= new Date(new Date().toDateString()),
-    { message: "startDate cannot be in the past", path: ["startDate"] }
+    (d) => parseDateOnly(d.startDate) >= getMinimumBookingDate(),
+    { message: "startDate must be at least one month in advance", path: ["startDate"] }
   )
   .transform((d) => ({
     ...d,

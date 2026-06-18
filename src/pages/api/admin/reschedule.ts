@@ -40,8 +40,12 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     .single();
 
   if (fetchError || !booking) return error("Booking not found", 404);
-  if (normalizeBookingStatus(booking.status) === "cancelled") {
+  const bookingStatus = normalizeBookingStatus(booking.status);
+  if (bookingStatus === "cancelled") {
     return error("Cannot reschedule a cancelled booking", 400);
+  }
+  if (bookingStatus === "completed" || bookingStatus === "rescheduled") {
+    return error("Only contract signing or booked bookings can be rescheduled", 400);
   }
 
   const updateData: Record<string, string> = {

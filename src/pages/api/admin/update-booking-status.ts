@@ -36,10 +36,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return error(parsed.error.errors.map((item) => item.message).join(", "), 400);
   }
 
-  const status = normalizeBookingStatus(parsed.data.status);
-  if (!ALLOWED_STATUS_UPDATES.includes(status)) {
+  if (!ALLOWED_STATUS_UPDATES.includes(parsed.data.status as BookingStatus)) {
     return error(`status must be one of: ${ALLOWED_STATUS_UPDATES.join(", ")}`, 400);
   }
+  const status = normalizeBookingStatus(parsed.data.status);
 
   try {
     const result = await updateBookingStatusAndNotify(parsed.data.bookingId, status, { client: db });
@@ -54,4 +54,3 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return error(message, 500);
   }
 };
-

@@ -8,7 +8,7 @@ import { BOOKING_STATUSES, normalizeBookingStatus, type BookingStatus } from "..
 export const prerender = false;
 
 const db = supabaseAdmin ?? supabase;
-const VALID_STATUSES = [...BOOKING_STATUSES, "confirmed"];
+const VALID_STATUSES = [...BOOKING_STATUSES];
 
 export const GET: APIRoute = async ({ cookies, url }) => {
   const guard = await adminGuard(cookies);
@@ -20,7 +20,7 @@ export const GET: APIRoute = async ({ cookies, url }) => {
   const normalizedStatus = status ? normalizeBookingStatus(status) : null;
   const offset = (page - 1) * limit;
 
-  if (status && !VALID_STATUSES.includes(status as BookingStatus | "confirmed")) {
+  if (status && !VALID_STATUSES.includes(status as BookingStatus)) {
     return error(`Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`, 400);
   }
 

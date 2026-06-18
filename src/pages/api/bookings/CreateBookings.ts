@@ -106,7 +106,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       phone:            phone            ?? null,
       special_requests: specialRequests  ?? null,
       total_price:      totalPrice + packagePrice,
-      status:           "pending",
+      status:           "contract_signing",
       created_at:       now,
       updated_at:       now,
     })
@@ -121,6 +121,6 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   return created({
     bookingId:   newBooking.id,
     totalPrice:  totalPrice + packagePrice,
-    message:     "Booking created successfully",
+    message:     "Booking submitted successfully. Our staff will coordinate contract signing details.",
   });
 };

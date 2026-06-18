@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 export const BOOKING_STATUSES = [
-  "pending",
   "contract_signing",
   "booked",
   "rescheduled",
@@ -23,7 +22,6 @@ export type NotifiableBookingStatus = (typeof NOTIFIABLE_BOOKING_STATUSES)[numbe
 export const bookingStatusSchema = z.enum(BOOKING_STATUSES);
 
 export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
-  pending: "Pending",
   contract_signing: "Contract Signing",
   booked: "Booked",
   rescheduled: "Rescheduled",
@@ -32,12 +30,12 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
 };
 
 export function normalizeBookingStatus(status: string | null | undefined): BookingStatus {
+  if (status === "pending") return "contract_signing";
   if (status === "confirmed") return "booked";
   if (BOOKING_STATUSES.includes(status as BookingStatus)) return status as BookingStatus;
-  return "pending";
+  return "contract_signing";
 }
 
 export function isNotifiableBookingStatus(status: BookingStatus): status is NotifiableBookingStatus {
   return NOTIFIABLE_BOOKING_STATUSES.includes(status as NotifiableBookingStatus);
 }
-

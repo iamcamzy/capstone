@@ -95,6 +95,34 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       </div>
     </div>
 
+    <!-- Terms and Conditions -->
+    <div class="pt-6 border-t border-gray-200 space-y-4">
+      <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+        <h3 class="text-lg font-semibold mb-3" style="color: var(--lion-primary);">Terms and Conditions</h3>
+        <div class="max-h-64 overflow-y-auto pr-2 space-y-3 text-sm leading-6 text-gray-700">
+          <p class="font-bold" style="color: var(--jet-primary);">TERMS OF SERVICE</p>
+          <p>All reservations must be made upon payment of 50% of the SUB-TOTAL-AMOUNT as deposit. Payment of the remaining balance must be made on or before the reservation date.</p>
+          <p>Cancellation of reserved date shall be made three (3) weeks before the reserved date to refund 50% of the deposited amount. Failure to do so shall mean forfeiture of the deposit.</p>
+          <p>Venue/room rental is restricted to the allotted time only. In case of excess hours, the client shall pay the corresponding amount for excess hours.</p>
+          <p>A maximum of four (4) guests are allowed to stay per room; otherwise, additional payments will be made.</p>
+          <p>The client shall see to it that all belongings are personally attended. The management shall not be liable for any accidents, damages, or loss.</p>
+          <p>Preparation and arrangement of the place should be done four (4) hours before the start of the event. Php500.00 will be charged for extra hours, if not included in the package.</p>
+          <p>Use of videoke, sound systems, and rooms should be paid as per customer's request.</p>
+          <p>Room accommodation only does not include the use of the swimming pool.</p>
+          <p>We charge a corkage fee for booths that require electricity.</p>
+          <p>Liquors and drugs are not allowed inside the venue.</p>
+          <p>No other fees shall be collected by the management unless stated above.</p>
+          <p>We always abide by the rules/laws mandated by local and national government.</p>
+          <p><strong>Note:</strong> The client or their representative hereby states that he/she has read and fully understood these Terms and Conditions.</p>
+        </div>
+      </div>
+      <label for="termsAccepted" class="flex items-start gap-3 rounded-lg border border-gray-200 p-4 text-sm font-medium" style="color: var(--jet-primary);">
+        <input type="checkbox" id="termsAccepted" name="termsAccepted" required
+          class="mt-1 h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400" />
+        <span>I have read and agree to the Terms and Conditions</span>
+      </label>
+    </div>
+
     <!-- Submit Button -->
     <button type="submit"
       class="w-full py-3 px-4 text-white font-semibold rounded-lg transition-all hover:opacity-90 text-center"
@@ -102,7 +130,6 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       id="submitBtn">
       Review Booking →
     </button>
-    <p class="text-xs text-gray-500 text-center">By booking, you agree to our terms and conditions</p>
   </form>
 </div>
 
@@ -198,7 +225,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       </div>
 
       <p class="text-xs text-gray-400 text-center">
-        Your booking will be <strong>pending review</strong> until booked by our staff. You will be notified once booked.
+        Your booking will be submitted in the <strong>contract signing</strong> stage. Our staff will coordinate contract signing details with you.
       </p>
     </div>
 
@@ -245,6 +272,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   var checkInInput = document.getElementById('checkIn');
   var checkOutInput= document.getElementById('checkOut');
   var eventDateInput = document.getElementById('eventDate');
+  var termsAcceptedInput = document.getElementById('termsAccepted');
   var nightsCountEl= document.getElementById('nightsCount');
   var totalPriceEl = document.getElementById('totalPrice');
   var submitBtn    = document.getElementById('submitBtn');
@@ -263,6 +291,39 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     var d = new Date(str + 'T00:00:00');
     return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
   }
+
+  function parseDateOnly(str) {
+    if (!str) return null;
+    var parts = str.split('-').map(Number);
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+
+  function formatDateOnly(date) {
+    var year = date.getFullYear();
+    var month = String(date.getMonth() + 1).padStart(2, '0');
+    var day = String(date.getDate()).padStart(2, '0');
+    return year + '-' + month + '-' + day;
+  }
+
+  function addOneCalendarMonth(date) {
+    var oneMonthLater = new Date(date.getFullYear(), date.getMonth() + 1, date.getDate());
+    if (oneMonthLater.getDate() !== date.getDate()) {
+      oneMonthLater.setDate(0);
+    }
+    return oneMonthLater;
+  }
+
+  function getMinimumBookingDate() {
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return addOneCalendarMonth(today);
+  }
+
+  var minimumBookingDate = getMinimumBookingDate();
+  var minimumBookingDateValue = formatDateOnly(minimumBookingDate);
+  checkInInput.min = minimumBookingDateValue;
+  checkOutInput.min = minimumBookingDateValue;
+  eventDateInput.min = minimumBookingDateValue;
 
   function showNotice(msg, type) {
     if (!noticeEl) return;
@@ -286,13 +347,40 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     return 0;
   }
 
-  checkInInput.addEventListener('change', calculateNights);
+  checkInInput.addEventListener('change', function() {
+    checkOutInput.min = checkInInput.value && checkInInput.value > minimumBookingDateValue
+      ? checkInInput.value
+      : minimumBookingDateValue;
+    calculateNights();
+  });
   checkOutInput.addEventListener('change', calculateNights);
 
   // ── STEP 1: form submit → show confirmation modal ──────────────────
   form.addEventListener('submit', function(e) {
     e.preventDefault();
     if (noticeEl) noticeEl.classList.add('hidden');
+
+    var selectedStartDate = parseDateOnly(checkInInput.value);
+    var selectedEndDate = parseDateOnly(checkOutInput.value);
+    var selectedEventDate = parseDateOnly(eventDateInput.value);
+
+    if (
+      !selectedStartDate ||
+      !selectedEndDate ||
+      !selectedEventDate ||
+      selectedStartDate < minimumBookingDate ||
+      selectedEndDate < minimumBookingDate ||
+      selectedEventDate < minimumBookingDate
+    ) {
+      showNotice('Bookings must be made at least one month in advance.', 'error');
+      return;
+    }
+
+    if (!termsAcceptedInput.checked) {
+      showNotice('You must agree to the Terms and Conditions before submitting your booking.', 'error');
+      termsAcceptedInput.focus();
+      return;
+    }
 
     var nights = calculateNights();
     var total  = nights * pricePerNight;
@@ -348,6 +436,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       pax:             parseInt(document.getElementById('guests').value) || null,
       eventType:       document.getElementById('eventType').value || null,
       specialRequests: document.getElementById('specialRequests').value || null,
+      termsAccepted:   termsAcceptedInput.checked,
     };
 
     try {

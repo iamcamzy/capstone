@@ -40,14 +40,18 @@ set status = 'booked',
     updated_at = now()
 where status = 'confirmed';
 
+update public.bookings
+set status = 'contract_signing',
+    status_updated_at = coalesce(status_updated_at, updated_at, now()),
+    updated_at = now()
+where status = 'pending';
+
 alter table public.bookings
   add constraint bookings_status_check
   check (
     status in (
-      'pending',
       'contract_signing',
       'booked',
-      'confirmed',
       'rescheduled',
       'cancelled',
       'completed'

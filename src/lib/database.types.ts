@@ -88,7 +88,7 @@ export type Database = {
           event_type: string | null;
           special_requests: string | null;
           total_price: number | null;
-          status: "pending" | "contract_signing" | "booked" | "rescheduled" | "cancelled" | "completed";
+          status: "contract_signing" | "booked" | "rescheduled" | "cancelled" | "completed";
           status_updated_at: string | null;
           confirmed_at: string | null;
           cancelled_at: string | null;
@@ -113,7 +113,7 @@ export type Database = {
           event_type?: string | null;
           special_requests?: string | null;
           total_price?: number | null;
-          status?: "pending" | "contract_signing" | "booked" | "rescheduled" | "cancelled" | "completed";
+          status?: "contract_signing" | "booked" | "rescheduled" | "cancelled" | "completed";
           status_updated_at?: string | null;
           confirmed_at?: string | null;
           cancelled_at?: string | null;
@@ -138,7 +138,7 @@ export type Database = {
           event_type?: string | null;
           special_requests?: string | null;
           total_price?: number | null;
-          status?: "pending" | "contract_signing" | "booked" | "rescheduled" | "cancelled" | "completed";
+          status?: "contract_signing" | "booked" | "rescheduled" | "cancelled" | "completed";
           status_updated_at?: string | null;
           confirmed_at?: string | null;
           cancelled_at?: string | null;

@@ -53,7 +53,7 @@
         {[
           { color:'#22c55e', label:'Available' },
           { color:'#ef4444', label:'Booked' },
-          { color:'#f59e0b', label:'Pending' },
+          { color:'#3b82f6', label:'Contract Signing' },
           { color:'#e5e7eb', label:'Past' },
         ].map(item => (
           <div style="display:flex;align-items:center;gap:6px;">
@@ -101,7 +101,7 @@
       const res  = await fetch(`/api/bookings/availability?year=${year}&month=${month + 1}`);
       const json = await res.json();
       const booked = new Set<string>();
-      const pending = new Set<string>();
+      const contractSigning = new Set<string>();
 
       for (const b of (json.bookings ?? [])) {
         // Mark every day in start_date..end_date range
@@ -109,19 +109,19 @@
         const end   = new Date(b.end_date   + 'T00:00:00');
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
           const iso = d.toISOString().split('T')[0];
-          if (b.status === 'pending') pending.add(iso);
+          if (b.status === 'contract_signing') contractSigning.add(iso);
           else booked.add(iso);
         }
         // Also mark event_date if set
         if (b.event_date) {
-          if (b.status === 'pending') pending.add(b.event_date.split('T')[0]);
+          if (b.status === 'contract_signing') contractSigning.add(b.event_date.split('T')[0]);
           else booked.add(b.event_date.split('T')[0]);
         }
       }
 
-      // Store combined: booked overrides pending
+      // Store combined: booked/rescheduled/completed overrides contract signing
       const combined = new Set<string>();
-      pending.forEach(d => combined.add('p:' + d));   // prefix p = pending
+      contractSigning.forEach(d => combined.add('c:' + d));   // prefix c = contract signing
       booked.forEach(d  => combined.add('b:' + d));   // prefix b = booked/rescheduled
 
       cache[key] = combined;
@@ -157,15 +157,15 @@
         const isToday = dateISO === todayISO;
         const isPast  = dateISO < todayISO;
         const isBooked   = bookedSet.has('b:' + dateISO);
-        const isPending  = !isBooked && bookedSet.has('p:' + dateISO);
+        const isContractSigning  = !isBooked && bookedSet.has('c:' + dateISO);
 
         let bg = '#f0fdf4', textColor = '#166534', ring = '#22c55e'; // available
         if (isPast) {
           bg = '#f9fafb'; textColor = '#d1d5db'; ring = '#e5e7eb';
         } else if (isBooked) {
           bg = '#fef2f2'; textColor = '#991b1b'; ring = '#ef4444';
-        } else if (isPending) {
-          bg = '#fffbeb'; textColor = '#92400e'; ring = '#f59e0b';
+        } else if (isContractSigning) {
+          bg = '#eff6ff'; textColor = '#1d4ed8'; ring = '#3b82f6';
         }
 
         cell.style.background = bg;

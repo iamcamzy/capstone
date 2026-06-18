@@ -4,6 +4,7 @@ import { supabaseAdmin, supabase } from "../../../lib/supabase";
 import { getUser } from "../../../lib/auth";
 import { ok, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
+import { normalizeBookingStatus } from "../../../lib/bookingStatus";
 import { updateBookingStatusAndNotify } from "../../../services/notifications";
 
 export const prerender = false;
@@ -27,7 +28,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     .single();
 
   if (fetchError || !booking) return error("Booking not found", 404);
-  if (booking.status === "cancelled") return error("Booking is already cancelled", 400);
+  const bookingStatus = normalizeBookingStatus(booking.status);
+  if (bookingStatus === "cancelled") return error("Booking is already cancelled", 400);
+  if (bookingStatus === "completed") return error("Cannot cancel a completed booking", 400);
 
   const { data: adminRow } = await db.from("admins").select("id").eq("id", user.id).single();
   const isAdmin = !!adminRow;
