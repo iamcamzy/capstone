@@ -8,58 +8,321 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   </h2>
 
   <!-- Notification banner -->
-  <div id="bookingNotice" class="hidden mb-4 px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-2"></div>
+  <div
+    id="bookingNotice"
+    class="hidden mb-4 px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-2"
+  >
+  </div>
 
   <form id="bookingForm" class="space-y-6">
     <!-- Guest Information -->
     <div class="space-y-4">
-      <h3 class="text-lg font-semibold" style="color: var(--lion-primary);">Guest Information</h3>
+      <h3 class="text-lg font-semibold" style="color: var(--lion-primary);">
+        Guest Information
+      </h3>
       <div>
-        <label for="fullName" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Full Name *</label>
-        <input type="text" id="fullName" name="fullName" required
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+        <label
+          for="fullName"
+          class="block text-sm font-medium mb-2"
+          style="color: var(--jet-primary);">Full Name *</label
+        >
+        <input
+          type="text"
+          id="fullName"
+          name="fullName"
+          required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+        />
       </div>
       <div>
-        <label for="email" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Email Address *</label>
-        <input type="email" id="email" name="email" required
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+        <label
+          for="email"
+          class="block text-sm font-medium mb-2"
+          style="color: var(--jet-primary);">Email Address *</label
+        >
+        <input
+          type="email"
+          id="email"
+          name="email"
+          required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+        />
       </div>
       <div>
-        <label for="phone" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Phone Number *</label>
-        <input type="tel" id="phone" name="phone" required
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+        <label
+          for="phone"
+          class="block text-sm font-medium mb-2"
+          style="color: var(--jet-primary);">Phone Number *</label
+        >
+        <input
+          type="tel"
+          id="phone"
+          name="phone"
+          required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+        />
+      </div>
+      <div>
+        <label
+          for="address"
+          class="block text-sm font-medium mb-2"
+          style="color: var(--jet-primary);">Address *</label
+        >
+        <input
+          type="text"
+          id="address"
+          name="address"
+          required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+        />
       </div>
     </div>
 
     <!-- Booking Details -->
     <div class="space-y-4 pt-6 border-t border-gray-200">
-      <h3 class="text-lg font-semibold" style="color: var(--lion-primary);">Booking Details</h3>
+      <h3 class="text-lg font-semibold" style="color: var(--lion-primary);">
+        Booking Details
+      </h3>
+      <p class="text-sm text-gray-600">
+        Please choose booking dates at least one month in advance.
+      </p>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label for="checkIn" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Check-in Date *</label>
-          <input type="date" id="checkIn" name="checkIn" required
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+          <label
+            for="checkIn"
+            class="block text-sm font-medium mb-2"
+            style="color: var(--jet-primary);">Check-in Date *</label
+          >
+          <input
+            type="date"
+            id="checkIn"
+            name="checkIn"
+            required
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+          />
         </div>
         <div>
-          <label for="checkOut" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Check-out Date *</label>
-          <input type="date" id="checkOut" name="checkOut" required
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+          <label
+            for="checkOut"
+            class="block text-sm font-medium mb-2"
+            style="color: var(--jet-primary);">Check-out Date *</label
+          >
+          <input
+            type="date"
+            id="checkOut"
+            name="checkOut"
+            required
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+          />
         </div>
       </div>
       <div>
-        <label for="eventDate" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Event Date *</label>
-        <input type="date" id="eventDate" name="eventDate" required
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+        <label
+          for="eventDate"
+          class="block text-sm font-medium mb-2"
+          style="color: var(--jet-primary);">Event Date *</label
+        >
+        <input
+          type="date"
+          id="eventDate"
+          name="eventDate"
+          required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+        />
       </div>
       <div>
-        <label for="guests" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Number of Guests *</label>
-        <input type="number" id="guests" name="guests" min="1" required
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+        <label
+          for="guests"
+          class="block text-sm font-medium mb-2"
+          style="color: var(--jet-primary);">Number of Guests *</label
+        >
+        <input
+          type="number"
+          id="guests"
+          name="guests"
+          min="1"
+          required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+        />
+      </div>
+      <div class="space-y-4 pt-4 border-t border-gray-100">
+        <h4 class="text-base font-semibold" style="color: var(--lion-primary);">
+          Package Inclusions / Facilities
+        </h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label
+            for="facility-pavillion"
+            class="flex items-center gap-3 rounded-lg border border-gray-200 p-3 text-sm font-medium"
+            style="color: var(--jet-primary);"
+          >
+            <input
+              type="checkbox"
+              id="facility-pavillion"
+              name="facilities"
+              value="pavillion"
+              data-facility="pavillion"
+              class="h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400"
+            />
+            <span>Pavillion</span>
+          </label>
+          <label
+            for="facility-pool"
+            class="flex items-center gap-3 rounded-lg border border-gray-200 p-3 text-sm font-medium"
+            style="color: var(--jet-primary);"
+          >
+            <input
+              type="checkbox"
+              id="facility-pool"
+              name="facilities"
+              value="pool"
+              data-facility="pool"
+              class="h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400"
+            />
+            <span>Pool</span>
+          </label>
+          <div class="rounded-lg border border-gray-200 p-3 space-y-3">
+            <label
+              for="facility-rooms"
+              class="flex items-center gap-3 text-sm font-medium"
+              style="color: var(--jet-primary);"
+            >
+              <input
+                type="checkbox"
+                id="facility-rooms"
+                name="facilities"
+                value="rooms"
+                data-facility="rooms"
+                class="h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400"
+              />
+              <span>Rooms</span>
+            </label>
+            <div>
+              <label
+                for="roomsCount"
+                class="block text-xs font-medium mb-1"
+                style="color: var(--jet-primary);">Number of rooms</label
+              >
+              <input
+                type="number"
+                id="roomsCount"
+                name="roomsCount"
+                min="0"
+                disabled
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all disabled:bg-gray-100 disabled:text-gray-400"
+              />
+            </div>
+          </div>
+          <label
+            for="facility-sound-system"
+            class="flex items-center gap-3 rounded-lg border border-gray-200 p-3 text-sm font-medium"
+            style="color: var(--jet-primary);"
+          >
+            <input
+              type="checkbox"
+              id="facility-sound-system"
+              name="facilities"
+              value="sound-system"
+              data-facility="sound-system"
+              class="h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400"
+            />
+            <span>Sound System</span>
+          </label>
+          <label
+            for="facility-videoke"
+            class="flex items-center gap-3 rounded-lg border border-gray-200 p-3 text-sm font-medium"
+            style="color: var(--jet-primary);"
+          >
+            <input
+              type="checkbox"
+              id="facility-videoke"
+              name="facilities"
+              value="videoke"
+              data-facility="videoke"
+              class="h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400"
+            />
+            <span>Videoke</span>
+          </label>
+        </div>
+        <div id="facilityTimeRanges" class="space-y-3">
+          <div class="hidden rounded-lg border border-gray-200 p-3" data-time-range="pavillion">
+            <p class="text-sm font-semibold mb-3" style="color: var(--jet-primary);">Pavillion</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="pavillionFrom" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">From</label>
+                <input type="datetime-local" id="pavillionFrom" data-facility-from="pavillion" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+              </div>
+              <div>
+                <label for="pavillionTo" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">To</label>
+                <input type="datetime-local" id="pavillionTo" data-facility-to="pavillion" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+              </div>
+            </div>
+          </div>
+          <div class="hidden rounded-lg border border-gray-200 p-3" data-time-range="pool">
+            <p class="text-sm font-semibold mb-3" style="color: var(--jet-primary);">Pool</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="poolFrom" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">From</label>
+                <input type="datetime-local" id="poolFrom" data-facility-from="pool" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+              </div>
+              <div>
+                <label for="poolTo" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">To</label>
+                <input type="datetime-local" id="poolTo" data-facility-to="pool" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+              </div>
+            </div>
+          </div>
+          <div class="hidden rounded-lg border border-gray-200 p-3" data-time-range="rooms">
+            <p class="text-sm font-semibold mb-3" style="color: var(--jet-primary);">Rooms</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="roomsFrom" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">From</label>
+                <input type="datetime-local" id="roomsFrom" data-facility-from="rooms" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+              </div>
+              <div>
+                <label for="roomsTo" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">To</label>
+                <input type="datetime-local" id="roomsTo" data-facility-to="rooms" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+              </div>
+            </div>
+          </div>
+          <div class="hidden rounded-lg border border-gray-200 p-3" data-time-range="sound-system">
+            <p class="text-sm font-semibold mb-3" style="color: var(--jet-primary);">Sound System</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="soundSystemFrom" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">From</label>
+                <input type="datetime-local" id="soundSystemFrom" data-facility-from="sound-system" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+              </div>
+              <div>
+                <label for="soundSystemTo" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">To</label>
+                <input type="datetime-local" id="soundSystemTo" data-facility-to="sound-system" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+              </div>
+            </div>
+          </div>
+          <div class="hidden rounded-lg border border-gray-200 p-3" data-time-range="videoke">
+            <p class="text-sm font-semibold mb-3" style="color: var(--jet-primary);">Videoke</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="videokeFrom" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">From</label>
+                <input type="datetime-local" id="videokeFrom" data-facility-from="videoke" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+              </div>
+              <div>
+                <label for="videokeTo" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">To</label>
+                <input type="datetime-local" id="videokeTo" data-facility-to="videoke" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       <div>
-        <label for="eventType" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Event Type *</label>
-        <select id="eventType" name="eventType" required
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all">
+        <label
+          for="eventType"
+          class="block text-sm font-medium mb-2"
+          style="color: var(--jet-primary);">Event Type *</label
+        >
+        <select
+          id="eventType"
+          name="eventType"
+          required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+        >
           <option value="">Select event type</option>
           <option value="wedding">Wedding</option>
           <option value="birthday">Birthday Party</option>
@@ -69,11 +332,63 @@ const { venueId, venueName, pricePerNight } = Astro.props;
           <option value="other">Other</option>
         </select>
       </div>
+      <div class="space-y-3">
+        <label
+          for="caterer"
+          class="block text-sm font-medium mb-2"
+          style="color: var(--jet-primary);"
+          >Caterer <span class="text-gray-400 font-normal">(optional)</span
+          ></label
+        >
+        <input
+          type="text"
+          id="caterer"
+          name="caterer"
+          placeholder="Enter caterer name, if applicable"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all disabled:bg-gray-100 disabled:text-gray-500"
+        />
+        <label
+          for="useWoodberryCaterer"
+          class="flex items-center gap-3 rounded-lg border border-gray-200 p-3 text-sm font-medium"
+          style="color: var(--jet-primary);"
+        >
+          <input
+            type="checkbox"
+            id="useWoodberryCaterer"
+            name="useWoodberryCaterer"
+            class="h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400"
+          />
+          <span>Use Woodberry's Caterer</span>
+        </label>
+      </div>
       <div>
-        <label for="specialRequests" class="block text-sm font-medium mb-2" style="color: var(--jet-primary);">Special Requests <span class="text-gray-400 font-normal">(optional)</span></label>
-        <textarea id="specialRequests" name="specialRequests" rows="4"
+        <label
+          for="specialRequests"
+          class="block text-sm font-medium mb-2"
+          style="color: var(--jet-primary);"
+          >Special Requests <span class="text-gray-400 font-normal"
+            >(optional)</span
+          ></label
+        >
+        <textarea
+          id="specialRequests"
+          name="specialRequests"
+          rows="4"
           placeholder="Any special requests or requirements..."
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all resize-none"></textarea>
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all resize-none"
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- Additionals -->
+    <div class="space-y-4 pt-6 border-t border-gray-200">
+      <h3 class="text-lg font-semibold" style="color: var(--lion-primary);">
+        Additionals
+      </h3>
+      <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <p class="text-sm text-gray-600">
+          Additional items and charges will be added later.
+        </p>
       </div>
     </div>
 
@@ -82,82 +397,191 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       <div class="bg-gray-50 rounded-lg p-4 space-y-2 mb-6">
         <div class="flex justify-between text-sm">
           <span class="text-gray-600">Price per night</span>
-          <span style="color: var(--butterscotch-primary);" id="pricePerNightDisplay"></span>
+          <span
+            style="color: var(--butterscotch-primary);"
+            id="pricePerNightDisplay"></span>
         </div>
         <div class="flex justify-between text-sm">
           <span class="text-gray-600">Number of nights</span>
           <span id="nightsCount">0</span>
         </div>
-        <div class="flex justify-between font-bold pt-2 border-t border-gray-200" style="color: var(--jet-primary);">
+        <div
+          class="flex justify-between font-bold pt-2 border-t border-gray-200"
+          style="color: var(--jet-primary);"
+        >
           <span>Estimated Total</span>
-          <span id="totalPrice" style="color: var(--butterscotch-primary);">₱0.00</span>
+          <span id="totalPrice" style="color: var(--butterscotch-primary);"
+            >&#8369;0.00</span
+          >
         </div>
+        <div class="flex justify-between text-sm pt-2">
+          <span class="text-gray-600">
+            Minimum payment for contract signing (50%)
+          </span>
+          <span
+            id="minimumPayment"
+            class="font-semibold"
+            style="color: var(--butterscotch-primary);">&#8369;0.00</span
+          >
+        </div>
+        <div class="flex justify-between text-sm">
+          <span class="text-gray-600">Remaining estimated balance</span>
+          <span id="remainingBalance" class="font-semibold">&#8369;0.00</span>
+        </div>
+        <p class="text-xs text-gray-500 pt-1">
+          Minimum payment is required upon face-to-face contract signing.
+        </p>
       </div>
     </div>
+
 
     <!-- Terms and Conditions -->
     <div class="pt-6 border-t border-gray-200 space-y-4">
       <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
-        <h3 class="text-lg font-semibold mb-3" style="color: var(--lion-primary);">Terms and Conditions</h3>
-        <div class="max-h-64 overflow-y-auto pr-2 space-y-3 text-sm leading-6 text-gray-700">
-          <p class="font-bold" style="color: var(--jet-primary);">TERMS OF SERVICE</p>
-          <p>All reservations must be made upon payment of 50% of the SUB-TOTAL-AMOUNT as deposit. Payment of the remaining balance must be made on or before the reservation date.</p>
-          <p>Cancellation of reserved date shall be made three (3) weeks before the reserved date to refund 50% of the deposited amount. Failure to do so shall mean forfeiture of the deposit.</p>
-          <p>Venue/room rental is restricted to the allotted time only. In case of excess hours, the client shall pay the corresponding amount for excess hours.</p>
-          <p>A maximum of four (4) guests are allowed to stay per room; otherwise, additional payments will be made.</p>
-          <p>The client shall see to it that all belongings are personally attended. The management shall not be liable for any accidents, damages, or loss.</p>
-          <p>Preparation and arrangement of the place should be done four (4) hours before the start of the event. Php500.00 will be charged for extra hours, if not included in the package.</p>
-          <p>Use of videoke, sound systems, and rooms should be paid as per customer's request.</p>
-          <p>Room accommodation only does not include the use of the swimming pool.</p>
-          <p>We charge a corkage fee for booths that require electricity.</p>
-          <p>Liquors and drugs are not allowed inside the venue.</p>
-          <p>No other fees shall be collected by the management unless stated above.</p>
-          <p>We always abide by the rules/laws mandated by local and national government.</p>
-          <p><strong>Note:</strong> The client or their representative hereby states that he/she has read and fully understood these Terms and Conditions.</p>
+        <h3
+          class="text-lg font-semibold mb-3"
+          style="color: var(--lion-primary);"
+        >
+          Terms and Conditions
+        </h3>
+        <div
+          class="max-h-64 overflow-y-auto pr-2 space-y-3 text-sm leading-6 text-gray-700"
+        >
+          <p class="font-bold" style="color: var(--jet-primary);">
+            TERMS OF SERVICE
+          </p>
+          <p>
+            1. All reservations must be made upon payment of 50% of the
+            SUB-TOTAL-AMOUNT as deposit. Payment of the remaining balance must
+            be made on or before the reservation date.
+          </p>
+          <p>
+            2. Cancellation of reserved date shall be made three (3) weeks
+            before the reserved date to refund 50% of the deposited amount.
+            Failure to do so shall mean forfeiture of the deposit.
+          </p>
+          <p>
+            3. Venue/room rental is restricted to the allotted time only. In
+            case of excess hours, the client shall pay the corresponding amount
+            for excess hours.
+          </p>
+          <p>
+            4. A maximum of four (4) guests are allowed to stay per room;
+            otherwise, additional payments will be made.
+          </p>
+          <p>
+            5. The client shall see to it that all belongings are personally
+            attended. The management shall not be liable for any accidents,
+            damages, or loss.
+          </p>
+          <p>
+            6. Preparation and arrangement of the place should be done four (4)
+            hours before the start of the event. Php500.00 will be charged for
+            extra hours, if not included in the package.
+          </p>
+          <p>
+            7. Use of videoke, sound systems, and rooms should be paid as per
+            customer's request.
+          </p>
+          <p>
+            8. Room accommodation only does not include the use of the swimming
+            pool.
+          </p>
+          <p>9. We charge a corkage fee for booths that require electricity.</p>
+          <p>10. Liquors and drugs are not allowed inside the venue.</p>
+          <p>
+            11. No other fees shall be collected by the management unless stated
+            above.
+          </p>
+          <p>
+            12. We always abide by the rules/laws mandated by local and national
+            government.
+          </p>
+          <p>
+            <strong>Note:</strong> The client or their representative hereby states
+            that he/she has read and fully understood these Terms and Conditions.
+          </p>
         </div>
       </div>
-      <label for="termsAccepted" class="flex items-start gap-3 rounded-lg border border-gray-200 p-4 text-sm font-medium" style="color: var(--jet-primary);">
-        <input type="checkbox" id="termsAccepted" name="termsAccepted" required
-          class="mt-1 h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400" />
+      <label
+        for="termsAccepted"
+        class="flex items-start gap-3 rounded-lg border border-gray-200 p-4 text-sm font-medium"
+        style="color: var(--jet-primary);"
+      >
+        <input
+          type="checkbox"
+          id="termsAccepted"
+          name="termsAccepted"
+          required
+          class="mt-1 h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400"
+        />
         <span>I have read and agree to the Terms and Conditions</span>
       </label>
     </div>
 
     <!-- Submit Button -->
-    <button type="submit"
+    <button
+      type="submit"
       class="w-full py-3 px-4 text-white font-semibold rounded-lg transition-all hover:opacity-90 text-center"
       style="background-color: var(--butterscotch-primary);"
-      id="submitBtn">
-      Review Booking →
+      id="submitBtn"
+    >
+      Review Booking ->
     </button>
   </form>
 </div>
 
-<!-- ── BOOKING CONFIRMATION MODAL (Figure 16) ─────────────────────── -->
-<div id="bookingConfirmModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.6);">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden max-h-[92vh] overflow-y-auto">
-
+<!-- Booking confirmation modal -->
+<div
+  id="bookingConfirmModal"
+  class="hidden fixed inset-0 z-50 flex items-center justify-center"
+  style="background:rgba(0,0,0,0.6);"
+>
+  <div
+    class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden max-h-[92vh] overflow-y-auto"
+  >
     <!-- Header -->
     <div class="px-7 pt-7 pb-4 border-b border-gray-100">
       <div class="flex items-center gap-3 mb-1">
-        <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl" style="background:#ed9b4020;">📋</div>
-        <h3 class="text-xl font-black" style="color:var(--jet-primary);">Review Your Booking</h3>
+        <div
+          class="w-10 h-10 rounded-full flex items-center justify-center text-xl"
+          style="background:#ed9b4020;"
+        >
+          Booking
+        </div>
+        <h3 class="text-xl font-black" style="color:var(--jet-primary);">
+          Review Your Booking
+        </h3>
       </div>
-      <p class="text-sm text-gray-500">Please review your booking details before submitting.</p>
+      <p class="text-sm text-gray-500">
+        Please review your booking details before submitting.
+      </p>
     </div>
 
     <!-- Summary body -->
     <div class="px-7 py-5 space-y-4">
-
       <!-- Venue -->
       <div class="rounded-xl p-4" style="background:#f9f7f4;">
-        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">Venue</p>
-        <p id="conf-venue" class="font-bold text-lg" style="color:var(--jet-primary);"></p>
+        <p
+          class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1"
+        >
+          Venue
+        </p>
+        <p
+          id="conf-venue"
+          class="font-bold text-lg"
+          style="color:var(--jet-primary);"
+        >
+        </p>
       </div>
 
       <!-- Guest info -->
       <div>
-        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Guest Information</p>
+        <p
+          class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2"
+        >
+          Guest Information
+        </p>
         <div class="grid grid-cols-2 gap-3">
           <div class="bg-gray-50 rounded-lg p-3">
             <p class="text-xs text-gray-400">Full Name</p>
@@ -171,12 +595,20 @@ const { venueId, venueName, pricePerNight } = Astro.props;
             <p class="text-xs text-gray-400">Email</p>
             <p id="conf-email" class="font-semibold text-sm mt-0.5"></p>
           </div>
+          <div class="bg-gray-50 rounded-lg p-3 col-span-2">
+            <p class="text-xs text-gray-400">Address</p>
+            <p id="conf-address" class="font-semibold text-sm mt-0.5"></p>
+          </div>
         </div>
       </div>
 
       <!-- Booking dates -->
       <div>
-        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Booking Details</p>
+        <p
+          class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2"
+        >
+          Booking Details
+        </p>
         <div class="grid grid-cols-2 gap-3">
           <div class="bg-gray-50 rounded-lg p-3">
             <p class="text-xs text-gray-400">Check-in</p>
@@ -202,111 +634,256 @@ const { venueId, venueName, pricePerNight } = Astro.props;
             <p class="text-xs text-gray-400">Nights</p>
             <p id="conf-nights" class="font-semibold text-sm mt-0.5"></p>
           </div>
+          <div class="bg-gray-50 rounded-lg p-3 col-span-2">
+            <p class="text-xs text-gray-400">Caterer</p>
+            <p id="conf-caterer" class="font-semibold text-sm mt-0.5"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Package inclusions -->
+      <div>
+        <p
+          class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2"
+        >
+          Package Inclusions / Facilities
+        </p>
+        <div id="conf-inclusions" class="space-y-2"></div>
+      </div>
+
+      <!-- Additionals -->
+      <div>
+        <p
+          class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2"
+        >
+          Additionals
+        </p>
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-sm text-gray-600">
+            Additional items and charges will be added later.
+          </p>
         </div>
       </div>
 
       <!-- Special requests -->
       <div id="conf-requests-wrap" class="hidden">
-        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Special Requests</p>
+        <p
+          class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2"
+        >
+          Special Requests
+        </p>
         <div class="bg-gray-50 rounded-lg p-3">
           <p id="conf-requests" class="text-sm text-gray-700 italic"></p>
         </div>
       </div>
 
       <!-- Price total -->
-      <div class="rounded-xl p-4 border-2" style="border-color:var(--butterscotch-primary);background:#fffbf5;">
+      <div
+        class="rounded-xl p-4 border-2"
+        style="border-color:var(--butterscotch-primary);background:#fffbf5;"
+      >
         <div class="flex justify-between items-center">
           <div>
-            <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Estimated Total</p>
-            <p class="text-xs text-gray-400 mt-0.5">Subject to final confirmation by staff</p>
+            <p
+              class="text-xs font-bold uppercase tracking-widest text-gray-400"
+            >
+              Estimated Total
+            </p>
+            <p class="text-xs text-gray-400 mt-0.5">
+              Subject to final confirmation by staff
+            </p>
           </div>
-          <p id="conf-total" class="text-2xl font-black" style="color:var(--butterscotch-primary);"></p>
+          <p
+            id="conf-total"
+            class="text-2xl font-black"
+            style="color:var(--butterscotch-primary);"
+          >
+          </p>
+        </div>
+        <div class="mt-4 pt-3 border-t border-amber-100 space-y-2">
+          <div class="flex justify-between gap-4 text-sm">
+            <span class="text-gray-500">
+              Minimum payment for contract signing (50%)
+            </span>
+            <span
+              id="conf-minimum-payment"
+              class="font-bold"
+              style="color:var(--butterscotch-primary);"
+            ></span>
+          </div>
+          <div class="flex justify-between gap-4 text-sm">
+            <span class="text-gray-500">Remaining estimated balance</span>
+            <span id="conf-remaining-balance" class="font-bold"></span>
+          </div>
+          <p class="text-xs text-gray-400">
+            Minimum payment is required upon face-to-face contract signing.
+          </p>
         </div>
       </div>
 
       <p class="text-xs text-gray-400 text-center">
-        Your booking will be submitted in the <strong>contract signing</strong> stage. Our staff will coordinate contract signing details with you.
+        Your booking will be submitted in the <strong>contract signing</strong> stage.
+        Our staff will coordinate contract signing details with you.
       </p>
     </div>
 
     <!-- Action buttons -->
     <div class="px-7 pb-7 flex gap-3">
-      <button id="conf-back-btn"
+      <button
+        id="conf-back-btn"
         class="flex-1 py-3 rounded-xl border-2 font-semibold text-sm transition hover:bg-gray-50"
-        style="border-color:#d1d5db;color:#374151;">
-        ← Go Back & Edit
+        style="border-color:#d1d5db;color:#374151;"
+      >
+        Go Back & Edit
       </button>
-      <button id="conf-submit-btn"
+      <button
+        id="conf-submit-btn"
         class="flex-1 py-3 rounded-xl text-white font-bold text-sm transition hover:opacity-90"
-        style="background:var(--butterscotch-primary);">
+        style="background:var(--butterscotch-primary);"
+      >
         Submit Booking Request
       </button>
     </div>
   </div>
 </div>
 
-<!-- ── BOOKING SUCCESS SCREEN (Figure 16 — after submit) ────────────── -->
-<div id="bookingSuccessScreen" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.6);">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 text-center">
-    <div class="w-20 h-20 rounded-full flex items-center justify-center text-4xl mx-auto mb-4" style="background:#10b98120;">✅</div>
-    <h3 class="text-2xl font-black mb-2" style="color:var(--jet-primary);">Booking Submitted!</h3>
-    <p class="text-gray-500 text-sm mb-2">Your booking request has been successfully recorded.</p>
-    <p class="text-gray-500 text-sm mb-6">Our staff will review and book your request. You can track your booking status in your dashboard.</p>
+<!-- Booking success screen -->
+<div
+  id="bookingSuccessScreen"
+  class="hidden fixed inset-0 z-50 flex items-center justify-center"
+  style="background:rgba(0,0,0,0.6);"
+>
+  <div
+    class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 text-center"
+  >
+    <div
+      class="w-20 h-20 rounded-full flex items-center justify-center text-4xl mx-auto mb-4"
+      style="background:#10b98120;"
+    >
+      OK
+    </div>
+    <h3 class="text-2xl font-black mb-2" style="color:var(--jet-primary);">
+      Booking Submitted!
+    </h3>
+    <p class="text-gray-500 text-sm mb-2">
+      Your booking request has been successfully recorded.
+    </p>
+    <p class="text-gray-500 text-sm mb-6">
+      Our staff will review and book your request. You can track your booking
+      status in your dashboard.
+    </p>
     <div class="bg-gray-50 rounded-xl p-4 mb-6 text-left">
-      <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Booking Reference</p>
-      <p id="success-ref" class="font-mono font-bold text-sm" style="color:var(--butterscotch-primary);"></p>
+      <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">
+        Booking Reference
+      </p>
+      <p
+        id="success-ref"
+        class="font-mono font-bold text-sm"
+        style="color:var(--butterscotch-primary);"
+      >
+      </p>
       <p id="success-venue" class="text-sm text-gray-600 mt-1"></p>
       <p id="success-dates" class="text-sm text-gray-600"></p>
     </div>
-    <p class="text-xs text-gray-400 mb-5">Redirecting to your dashboard in <span id="success-countdown">5</span>s...</p>
-    <a href="/dashboard"
+    <p class="text-xs text-gray-400 mb-5">
+      Redirecting to your dashboard in <span id="success-countdown">5</span>s...
+    </p>
+    <a
+      href="/dashboard"
       class="block w-full py-3 rounded-xl text-white font-bold text-sm transition hover:opacity-90"
-      style="background:var(--butterscotch-primary);">
+      style="background:var(--butterscotch-primary);"
+    >
       Go to Dashboard Now
     </a>
   </div>
 </div>
 
 <script is:inline define:vars={{ venueId, venueName, pricePerNight }}>
-  var form         = document.getElementById('bookingForm');
-  var checkInInput = document.getElementById('checkIn');
-  var checkOutInput= document.getElementById('checkOut');
-  var eventDateInput = document.getElementById('eventDate');
-  var termsAcceptedInput = document.getElementById('termsAccepted');
-  var nightsCountEl= document.getElementById('nightsCount');
-  var totalPriceEl = document.getElementById('totalPrice');
-  var submitBtn    = document.getElementById('submitBtn');
-  var noticeEl     = document.getElementById('bookingNotice');
-  var confirmModal = document.getElementById('bookingConfirmModal');
-  var successScreen= document.getElementById('bookingSuccessScreen');
-  var confBackBtn  = document.getElementById('conf-back-btn');
-  var confSubmitBtn= document.getElementById('conf-submit-btn');
+  var form = document.getElementById("bookingForm");
+  var checkInInput = document.getElementById("checkIn");
+  var checkOutInput = document.getElementById("checkOut");
+  var eventDateInput = document.getElementById("eventDate");
+  var termsAcceptedInput = document.getElementById("termsAccepted");
+  var addressInput = document.getElementById("address");
+  var catererInput = document.getElementById("caterer");
+  var useWoodberryCatererInput = document.getElementById("useWoodberryCaterer");
+  var roomsCountInput = document.getElementById("roomsCount");
+  var nightsCountEl = document.getElementById("nightsCount");
+  var totalPriceEl = document.getElementById("totalPrice");
+  var minimumPaymentEl = document.getElementById("minimumPayment");
+  var remainingBalanceEl = document.getElementById("remainingBalance");
+  var noticeEl = document.getElementById("bookingNotice");
+  var confirmModal = document.getElementById("bookingConfirmModal");
+  var successScreen = document.getElementById("bookingSuccessScreen");
+  var confBackBtn = document.getElementById("conf-back-btn");
+  var confSubmitBtn = document.getElementById("conf-submit-btn");
+  var pricePerNightValue = Number(pricePerNight) || 0;
+  var woodberryCatererName = "Woodberry's Caterer";
+  var facilityOptions = [
+    { key: "pavillion", label: "Pavillion" },
+    { key: "pool", label: "Pool" },
+    { key: "rooms", label: "Rooms" },
+    { key: "sound-system", label: "Sound System" },
+    { key: "videoke", label: "Videoke" },
+  ];
 
-  // Set price display
-  var ppnDisplay = document.getElementById('pricePerNightDisplay');
-  if (ppnDisplay) ppnDisplay.textContent = '₱' + Number(pricePerNight).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+  var ppnDisplay = document.getElementById("pricePerNightDisplay");
+  if (ppnDisplay) ppnDisplay.textContent = formatCurrency(pricePerNightValue);
+
+  function formatCurrency(amount) {
+    return new Intl.NumberFormat("en-PH", {
+      style: "currency",
+      currency: "PHP",
+      minimumFractionDigits: 2,
+    }).format(Number(amount) || 0);
+  }
 
   function fmtDate(str) {
-    if (!str) return '—';
-    var d = new Date(str + 'T00:00:00');
-    return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+    if (!str) return "N/A";
+    var d = new Date(str + "T00:00:00");
+    return d.toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  }
+
+  function fmtDateTime(str) {
+    if (!str) return "Not specified";
+    return new Date(str).toLocaleString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
   }
 
   function parseDateOnly(str) {
     if (!str) return null;
-    var parts = str.split('-').map(Number);
+    var parts = str.split("-").map(Number);
     return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+
+  function parseDateTimeLocal(str) {
+    if (!str) return null;
+    var date = new Date(str);
+    return Number.isNaN(date.getTime()) ? null : date;
   }
 
   function formatDateOnly(date) {
     var year = date.getFullYear();
-    var month = String(date.getMonth() + 1).padStart(2, '0');
-    var day = String(date.getDate()).padStart(2, '0');
-    return year + '-' + month + '-' + day;
+    var month = String(date.getMonth() + 1).padStart(2, "0");
+    var day = String(date.getDate()).padStart(2, "0");
+    return year + "-" + month + "-" + day;
   }
 
   function addOneCalendarMonth(date) {
-    var oneMonthLater = new Date(date.getFullYear(), date.getMonth() + 1, date.getDate());
+    var oneMonthLater = new Date(
+      date.getFullYear(),
+      date.getMonth() + 1,
+      date.getDate(),
+    );
     if (oneMonthLater.getDate() !== date.getDate()) {
       oneMonthLater.setDate(0);
     }
@@ -327,38 +904,230 @@ const { venueId, venueName, pricePerNight } = Astro.props;
 
   function showNotice(msg, type) {
     if (!noticeEl) return;
-    noticeEl.className = 'mb-4 px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-2 '
-      + (type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
-    noticeEl.innerHTML = (type === 'success' ? '✅ ' : '❌ ') + msg;
-    noticeEl.classList.remove('hidden');
-    noticeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    noticeEl.className =
+      "mb-4 px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-2 " +
+      (type === "success"
+        ? "bg-green-100 text-green-800"
+        : "bg-red-100 text-red-800");
+    noticeEl.textContent = (type === "success" ? "Success: " : "Error: ") + msg;
+    noticeEl.classList.remove("hidden");
+    noticeEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   function calculateNights() {
+    var nights = 0;
     if (checkInInput.value && checkOutInput.value) {
-      var checkIn  = new Date(checkInInput.value);
-      var checkOut = new Date(checkOutInput.value);
-      var nights = Math.max(1, Math.ceil((checkOut - checkIn) / 86400000));
-      nightsCountEl.textContent = nights;
-      var total = nights * pricePerNight;
-      totalPriceEl.textContent = '₱' + total.toLocaleString('en-PH', { minimumFractionDigits: 2 });
-      return nights;
+      var checkIn = parseDateOnly(checkInInput.value);
+      var checkOut = parseDateOnly(checkOutInput.value);
+      if (checkIn && checkOut && checkOut > checkIn) {
+        nights = Math.ceil((checkOut - checkIn) / 86400000);
+      }
     }
-    return 0;
+
+    var total = nights * pricePerNightValue;
+    var minimumPayment = total * 0.5;
+    var remainingBalance = total - minimumPayment;
+
+    nightsCountEl.textContent = String(nights);
+    totalPriceEl.textContent = formatCurrency(total);
+    minimumPaymentEl.textContent = formatCurrency(minimumPayment);
+    remainingBalanceEl.textContent = formatCurrency(remainingBalance);
+
+    return {
+      nights: nights,
+      total: total,
+      minimumPayment: minimumPayment,
+      remainingBalance: remainingBalance,
+    };
   }
 
-  checkInInput.addEventListener('change', function() {
-    checkOutInput.min = checkInInput.value && checkInInput.value > minimumBookingDateValue
-      ? checkInInput.value
-      : minimumBookingDateValue;
+  function getFacilityCheckbox(key) {
+    return document.querySelector('[data-facility="' + key + '"]');
+  }
+
+  function getFacilityFromInput(key) {
+    return document.querySelector('[data-facility-from="' + key + '"]');
+  }
+
+  function getFacilityToInput(key) {
+    return document.querySelector('[data-facility-to="' + key + '"]');
+  }
+
+  function syncFacility(key) {
+    var checkbox = getFacilityCheckbox(key);
+    var timeRange = document.querySelector('[data-time-range="' + key + '"]');
+    var fromInput = getFacilityFromInput(key);
+    var toInput = getFacilityToInput(key);
+    var isChecked = checkbox && checkbox.checked;
+
+    if (timeRange) timeRange.classList.toggle("hidden", !isChecked);
+    if (!isChecked) {
+      if (fromInput) fromInput.value = "";
+      if (toInput) toInput.value = "";
+    }
+
+    if (key === "rooms" && roomsCountInput) {
+      roomsCountInput.disabled = !isChecked;
+      if (!isChecked) roomsCountInput.value = "";
+    }
+  }
+
+  function syncAllFacilities() {
+    facilityOptions.forEach(function (facility) {
+      syncFacility(facility.key);
+    });
+  }
+
+  function syncCaterer() {
+    if (!catererInput || !useWoodberryCatererInput) return;
+    if (useWoodberryCatererInput.checked) {
+      catererInput.value = woodberryCatererName;
+      catererInput.disabled = true;
+    } else {
+      catererInput.disabled = false;
+      if (catererInput.value === woodberryCatererName) catererInput.value = "";
+    }
+  }
+
+  function getSelectedInclusions() {
+    return facilityOptions
+      .map(function (facility) {
+        var checkbox = getFacilityCheckbox(facility.key);
+        if (!checkbox || !checkbox.checked) return null;
+        return {
+          key: facility.key,
+          label: facility.label,
+          from: getFacilityFromInput(facility.key)?.value || "",
+          to: getFacilityToInput(facility.key)?.value || "",
+          roomsCount:
+            facility.key === "rooms" && roomsCountInput ? roomsCountInput.value : "",
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function isDateTimeWithinBookingDates(date) {
+    var selectedStartDate = parseDateOnly(checkInInput.value);
+    var selectedEndDate = parseDateOnly(checkOutInput.value);
+    var selectedEventDate = parseDateOnly(eventDateInput.value);
+    if (!date || !selectedStartDate || !selectedEndDate) return false;
+
+    var bookingStart = new Date(selectedStartDate);
+    bookingStart.setHours(0, 0, 0, 0);
+    var bookingEnd = new Date(selectedEndDate);
+    bookingEnd.setHours(23, 59, 59, 999);
+
+    var withinBooking = date >= bookingStart && date <= bookingEnd;
+    var withinEventDate = false;
+    if (selectedEventDate) {
+      var eventStart = new Date(selectedEventDate);
+      eventStart.setHours(0, 0, 0, 0);
+      var eventEnd = new Date(selectedEventDate);
+      eventEnd.setHours(23, 59, 59, 999);
+      withinEventDate = date >= eventStart && date <= eventEnd;
+    }
+
+    return withinBooking || withinEventDate;
+  }
+
+  function validateFacilityRanges(inclusions) {
+    for (var i = 0; i < inclusions.length; i++) {
+      var inclusion = inclusions[i];
+      var fromDate = parseDateTimeLocal(inclusion.from);
+      var toDate = parseDateTimeLocal(inclusion.to);
+
+      if (fromDate && toDate && toDate <= fromDate) {
+        showNotice("Facility time range To must be after From.", "error");
+        return false;
+      }
+
+      if (
+        (fromDate && !isDateTimeWithinBookingDates(fromDate)) ||
+        (toDate && !isDateTimeWithinBookingDates(toDate))
+      ) {
+        showNotice(
+          "Facility time ranges must fall within the selected booking dates.",
+          "error",
+        );
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function getEventTypeLabel() {
+    var eventType = document.getElementById("eventType");
+    if (!eventType || !eventType.value) return "N/A";
+    return eventType.options[eventType.selectedIndex].textContent || eventType.value;
+  }
+
+  function populateInclusionSummary(inclusions) {
+    var wrap = document.getElementById("conf-inclusions");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+
+    if (!inclusions.length) {
+      var empty = document.createElement("div");
+      empty.className = "bg-gray-50 rounded-lg p-3 text-sm text-gray-600";
+      empty.textContent = "No package inclusions selected.";
+      wrap.appendChild(empty);
+      return;
+    }
+
+    inclusions.forEach(function (inclusion) {
+      var item = document.createElement("div");
+      item.className = "bg-gray-50 rounded-lg p-3 text-sm text-gray-700";
+
+      var title = document.createElement("p");
+      title.className = "font-semibold";
+      title.textContent =
+        inclusion.label +
+        (inclusion.key === "rooms" && inclusion.roomsCount
+          ? " (" + inclusion.roomsCount + " room" + (inclusion.roomsCount === "1" ? "" : "s") + ")"
+          : "");
+      item.appendChild(title);
+
+      var from = document.createElement("p");
+      from.className = "text-xs text-gray-500 mt-1";
+      from.textContent = "From: " + fmtDateTime(inclusion.from);
+      item.appendChild(from);
+
+      var to = document.createElement("p");
+      to.className = "text-xs text-gray-500";
+      to.textContent = "To: " + fmtDateTime(inclusion.to);
+      item.appendChild(to);
+
+      wrap.appendChild(item);
+    });
+  }
+
+  checkInInput.addEventListener("change", function () {
+    checkOutInput.min =
+      checkInInput.value && checkInInput.value > minimumBookingDateValue
+        ? checkInInput.value
+        : minimumBookingDateValue;
     calculateNights();
   });
-  checkOutInput.addEventListener('change', calculateNights);
+  checkOutInput.addEventListener("change", calculateNights);
+  useWoodberryCatererInput.addEventListener("change", syncCaterer);
+  facilityOptions.forEach(function (facility) {
+    var checkbox = getFacilityCheckbox(facility.key);
+    if (checkbox) {
+      checkbox.addEventListener("change", function () {
+        syncFacility(facility.key);
+      });
+    }
+  });
 
-  // ── STEP 1: form submit → show confirmation modal ──────────────────
-  form.addEventListener('submit', function(e) {
+  form.addEventListener("submit", function (e) {
     e.preventDefault();
-    if (noticeEl) noticeEl.classList.add('hidden');
+    if (noticeEl) noticeEl.classList.add("hidden");
+
+    if (!form.checkValidity()) {
+      showNotice("Please complete all required booking details.", "error");
+      form.reportValidity();
+      return;
+    }
 
     var selectedStartDate = parseDateOnly(checkInInput.value);
     var selectedEndDate = parseDateOnly(checkOutInput.value);
@@ -372,114 +1141,157 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       selectedEndDate < minimumBookingDate ||
       selectedEventDate < minimumBookingDate
     ) {
-      showNotice('Bookings must be made at least one month in advance.', 'error');
+      showNotice("Bookings must be made at least one month in advance.", "error");
+      return;
+    }
+
+    if (selectedEndDate <= selectedStartDate) {
+      showNotice("Check-out date must be after check-in date.", "error");
+      return;
+    }
+
+    if (selectedEventDate < selectedStartDate || selectedEventDate > selectedEndDate) {
+      showNotice("Event date must fall within the selected booking dates.", "error");
       return;
     }
 
     if (!termsAcceptedInput.checked) {
-      showNotice('You must agree to the Terms and Conditions before submitting your booking.', 'error');
+      showNotice(
+        "You must agree to the Terms and Conditions before submitting your booking.",
+        "error",
+      );
       termsAcceptedInput.focus();
       return;
     }
 
-    var nights = calculateNights();
-    var total  = nights * pricePerNight;
+    var inclusions = getSelectedInclusions();
+    if (!validateFacilityRanges(inclusions)) return;
 
-    // Populate confirmation modal
-    document.getElementById('conf-venue').textContent      = venueName || 'Venue';
-    document.getElementById('conf-name').textContent       = document.getElementById('fullName').value || '—';
-    document.getElementById('conf-phone').textContent      = document.getElementById('phone').value || '—';
-    document.getElementById('conf-email').textContent      = document.getElementById('email').value || '—';
-    document.getElementById('conf-checkin').textContent    = fmtDate(checkInInput.value);
-    document.getElementById('conf-checkout').textContent   = fmtDate(checkOutInput.value);
-    document.getElementById('conf-eventdate').textContent  = fmtDate(eventDateInput.value);
-    document.getElementById('conf-guests').textContent     = document.getElementById('guests').value + ' guests';
-    document.getElementById('conf-eventtype').textContent  = document.getElementById('eventType').value || '—';
-    document.getElementById('conf-nights').textContent     = nights + ' night' + (nights !== 1 ? 's' : '');
-    document.getElementById('conf-total').textContent      = '₱' + total.toLocaleString('en-PH', { minimumFractionDigits: 2 });
+    var totals = calculateNights();
+    var catererValue = catererInput.value.trim() || "N/A";
 
-    var requests = document.getElementById('specialRequests').value;
-    var reqWrap  = document.getElementById('conf-requests-wrap');
+    document.getElementById("conf-venue").textContent = venueName || "Venue";
+    document.getElementById("conf-name").textContent =
+      document.getElementById("fullName").value || "N/A";
+    document.getElementById("conf-phone").textContent =
+      document.getElementById("phone").value || "N/A";
+    document.getElementById("conf-email").textContent =
+      document.getElementById("email").value || "N/A";
+    document.getElementById("conf-address").textContent = addressInput.value || "N/A";
+    document.getElementById("conf-checkin").textContent = fmtDate(checkInInput.value);
+    document.getElementById("conf-checkout").textContent = fmtDate(checkOutInput.value);
+    document.getElementById("conf-eventdate").textContent = fmtDate(eventDateInput.value);
+    document.getElementById("conf-guests").textContent =
+      document.getElementById("guests").value + " guests";
+    document.getElementById("conf-eventtype").textContent = getEventTypeLabel();
+    document.getElementById("conf-nights").textContent =
+      totals.nights + " night" + (totals.nights !== 1 ? "s" : "");
+    document.getElementById("conf-caterer").textContent = catererValue;
+    document.getElementById("conf-total").textContent = formatCurrency(totals.total);
+    document.getElementById("conf-minimum-payment").textContent = formatCurrency(
+      totals.minimumPayment,
+    );
+    document.getElementById("conf-remaining-balance").textContent = formatCurrency(
+      totals.remainingBalance,
+    );
+    populateInclusionSummary(inclusions);
+
+    var requests = document.getElementById("specialRequests").value;
+    var reqWrap = document.getElementById("conf-requests-wrap");
     if (requests) {
-      document.getElementById('conf-requests').textContent = requests;
-      reqWrap.classList.remove('hidden');
+      document.getElementById("conf-requests").textContent = requests;
+      reqWrap.classList.remove("hidden");
     } else {
-      reqWrap.classList.add('hidden');
+      reqWrap.classList.add("hidden");
     }
 
-    confirmModal.classList.remove('hidden');
+    confirmModal.classList.remove("hidden");
   });
 
-  // ── Go back & edit ─────────────────────────────────────────────────
-  confBackBtn.addEventListener('click', function() {
-    confirmModal.classList.add('hidden');
+  confBackBtn.addEventListener("click", function () {
+    confirmModal.classList.add("hidden");
   });
 
-  // Close modal on backdrop click
-  confirmModal.addEventListener('click', function(e) {
-    if (e.target === confirmModal) confirmModal.classList.add('hidden');
+  confirmModal.addEventListener("click", function (e) {
+    if (e.target === confirmModal) confirmModal.classList.add("hidden");
   });
 
-  // Step 2: user confirmed the summary, then submit
-  confSubmitBtn.addEventListener('click', async function() {
+  confSubmitBtn.addEventListener("click", async function () {
     confSubmitBtn.disabled = true;
-    confSubmitBtn.textContent = 'Submitting...';
+    confSubmitBtn.textContent = "Submitting...";
 
+    // TODO: Persist address/caterer/inclusions once booking schema supports these fields.
     var formData = {
-      venueId:         venueId,
-      startDate:       checkInInput.value,
-      endDate:         checkOutInput.value,
-      eventDate:       eventDateInput.value || null,
-      fullName:        document.getElementById('fullName').value,
-      email:           document.getElementById('email').value,
-      phone:           document.getElementById('phone').value,
-      pax:             parseInt(document.getElementById('guests').value) || null,
-      eventType:       document.getElementById('eventType').value || null,
-      specialRequests: document.getElementById('specialRequests').value || null,
-      termsAccepted:   termsAcceptedInput.checked,
+      venueId: venueId,
+      startDate: checkInInput.value,
+      endDate: checkOutInput.value,
+      eventDate: eventDateInput.value || null,
+      fullName: document.getElementById("fullName").value,
+      email: document.getElementById("email").value,
+      phone: document.getElementById("phone").value,
+      pax: parseInt(document.getElementById("guests").value) || null,
+      eventType: document.getElementById("eventType").value || null,
+      specialRequests: document.getElementById("specialRequests").value || null,
+      termsAccepted: termsAcceptedInput.checked,
     };
 
     try {
-      var response = await fetch('/api/bookings/CreateBookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      var response = await fetch("/api/bookings/CreateBookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
-      var result = await response.json().catch(function() { return {}; });
+      var result = await response.json().catch(function () {
+        return {};
+      });
 
       if (response.ok) {
-        // Hide confirmation modal, show success screen
-        confirmModal.classList.add('hidden');
-        var refId = result.bookingId ? result.bookingId.substring(0, 8).toUpperCase() : '—';
-        document.getElementById('success-ref').textContent   = 'REF-' + refId;
-        document.getElementById('success-venue').textContent = venueName || '';
-        document.getElementById('success-dates').textContent =
-          fmtDate(checkInInput.value) + ' → ' + fmtDate(checkOutInput.value);
-        successScreen.classList.remove('hidden');
+        confirmModal.classList.add("hidden");
+        var refId = result.bookingId
+          ? result.bookingId.substring(0, 8).toUpperCase()
+          : "N/A";
+        document.getElementById("success-ref").textContent = "REF-" + refId;
+        document.getElementById("success-venue").textContent = venueName || "";
+        document.getElementById("success-dates").textContent =
+          fmtDate(checkInInput.value) + " to " + fmtDate(checkOutInput.value);
+        successScreen.classList.remove("hidden");
         form.reset();
-        nightsCountEl.textContent = '0';
-        totalPriceEl.textContent  = '₱0.00';
-        // Countdown redirect
+        syncCaterer();
+        syncAllFacilities();
+        calculateNights();
         var seconds = 5;
-        var countdown = document.getElementById('success-countdown');
-        var timer = setInterval(function() {
+        var countdown = document.getElementById("success-countdown");
+        var timer = setInterval(function () {
           seconds--;
           if (countdown) countdown.textContent = String(seconds);
-          if (seconds <= 0) { clearInterval(timer); window.location.href = '/dashboard'; }
+          if (seconds <= 0) {
+            clearInterval(timer);
+            window.location.href = "/dashboard";
+          }
         }, 1000);
       } else {
-        confirmModal.classList.add('hidden');
-        showNotice('Booking failed: ' + (result.error ?? 'Please try again.'), 'error');
+        confirmModal.classList.add("hidden");
+        showNotice(
+          "Booking failed: " + (result.error ?? "Please try again."),
+          "error",
+        );
       }
     } catch (err) {
-      confirmModal.classList.add('hidden');
-      showNotice('An error occurred. Please check your connection and try again.', 'error');
+      confirmModal.classList.add("hidden");
+      showNotice(
+        "An error occurred. Please check your connection and try again.",
+        "error",
+      );
     } finally {
       confSubmitBtn.disabled = false;
-      confSubmitBtn.textContent = 'Submit Booking Request';
+      confSubmitBtn.textContent = "Submit Booking Request";
     }
   });
+
+  syncCaterer();
+  syncAllFacilities();
+  calculateNights();
 </script>
 
 <style>
@@ -495,4 +1307,3 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     ring: 2px solid var(--butterscotch-primary);
   }
 </style>
-
