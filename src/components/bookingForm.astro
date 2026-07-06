@@ -1397,8 +1397,10 @@ const { venueId, venueName, pricePerNight } = Astro.props;
         }, 1000);
       } else {
         confirmModal.classList.add("hidden");
+        var fallbackMessage = "Please try again.";
+        var apiMessage = result.error ?? result.message ?? fallbackMessage;
         showNotice(
-          "Booking failed: " + (result.error ?? "Please try again."),
+          response.status === 409 ? apiMessage : "Booking failed: " + apiMessage,
           "error",
         );
       }

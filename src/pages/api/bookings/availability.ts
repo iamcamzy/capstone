@@ -21,33 +21,16 @@ export const GET: APIRoute = async ({ url }) => {
         .split("T")[0];
     const endOfMonth = new Date(year, month, 0).toISOString().split("T")[0];
 
-    // Fetch all non-cancelled bookings whose event_date or date range overlaps the month
+    // Only cancelled bookings free dates. Every other status blocks its date range.
     const { data, error: dbError } = await db
         .from("bookings")
         .select("id, start_date, end_date, event_date, status")
         .neq("status", "cancelled")
-        .or(`event_date.gte.${startOfMonth},start_date.lte.${endOfMonth}`)
         .lte("start_date", endOfMonth)
         .gte("end_date", startOfMonth);
 
     if (dbError) {
-        // Fallback: fetch without the complex filter
-        const { data: fallback, error: err2 } = await db
-            .from("bookings")
-            .select("id, start_date, end_date, event_date, status")
-            .neq("status", "cancelled")
-            .gte("end_date", startOfMonth)
-            .lte("start_date", endOfMonth);
-
-        if (err2) return error(err2.message, 500);
-        return ok({
-            bookings: (fallback ?? []).map((booking) => ({
-                ...booking,
-                status: normalizeBookingStatus(booking.status),
-            })),
-            year,
-            month,
-        });
+        return error(dbError.message, 500);
     }
 
     return ok({

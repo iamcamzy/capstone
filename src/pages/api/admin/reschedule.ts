@@ -35,7 +35,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   const { data: booking, error: fetchError } = await db
     .from("bookings")
-    .select("id, status")
+    .select("id, status, venue_id")
     .eq("id", bookingId)
     .single();
 
@@ -46,6 +46,28 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
   if (bookingStatus === "completed" || bookingStatus === "rescheduled") {
     return error("Only contract signing or booked bookings can be rescheduled", 400);
+  }
+
+  const { data: overlap, error: overlapError } = await db
+    .from("bookings")
+    .select("id")
+    .eq("venue_id", booking.venue_id)
+    .neq("id", bookingId)
+    .neq("status", "cancelled")
+    .lte("start_date", newEndDate)
+    .gte("end_date", newStartDate)
+    .limit(1);
+
+  if (overlapError) {
+    console.error("[Reschedule] Availability check failed", overlapError.message);
+    return error("Could not verify venue availability. Please try again.", 500);
+  }
+
+  if (overlap && overlap.length > 0) {
+    return error(
+      "Selected dates overlap an existing non-cancelled booking for this venue. Please choose another date range.",
+      409,
+    );
   }
 
   const updateData: Record<string, string> = {

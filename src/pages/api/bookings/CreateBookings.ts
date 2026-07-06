@@ -64,17 +64,25 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
   }
 
-  const { data: overlap } = await supabase
+  const { data: overlap, error: overlapError } = await db
     .from("bookings")
     .select("id")
     .eq("venue_id", venueId)
     .neq("status", "cancelled")
-    .lt("start_date", endDate)
-    .gt("end_date", startDate)
+    .lte("start_date", endDate)
+    .gte("end_date", startDate)
     .limit(1);
 
+  if (overlapError) {
+    console.error("[CreateBookings] Availability check failed", overlapError.message);
+    return error("Could not verify venue availability. Please try again.", 500);
+  }
+
   if (overlap && overlap.length > 0) {
-    return error("This venue is already booked for the selected dates", 409);
+    return error(
+      "Selected dates overlap an existing non-cancelled booking for this venue. Please choose another date range.",
+      409,
+    );
   }
 
   const { data: venue } = await supabase

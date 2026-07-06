@@ -53,7 +53,6 @@
         {[
           { color:'#22c55e', label:'Available' },
           { color:'#ef4444', label:'Booked' },
-          { color:'#3b82f6', label:'Contract Signing' },
           { color:'#e5e7eb', label:'Unavailable' },
         ].map(item => (
           <div style="display:flex;align-items:center;gap:6px;">
@@ -116,28 +115,22 @@
       const res  = await fetch(`/api/bookings/availability?year=${year}&month=${month + 1}`);
       const json = await res.json();
       const booked = new Set<string>();
-      const contractSigning = new Set<string>();
 
       for (const b of (json.bookings ?? [])) {
-        // Mark every day in start_date..end_date range
+        // The API only returns non-cancelled bookings, and all of them block dates.
         const start = new Date(b.start_date + 'T00:00:00');
         const end   = new Date(b.end_date   + 'T00:00:00');
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
           const iso = d.toISOString().split('T')[0];
-          if (b.status === 'contract_signing') contractSigning.add(iso);
-          else booked.add(iso);
+          booked.add(iso);
         }
-        // Also mark event_date if set
         if (b.event_date) {
-          if (b.status === 'contract_signing') contractSigning.add(b.event_date.split('T')[0]);
-          else booked.add(b.event_date.split('T')[0]);
+          booked.add(b.event_date.split('T')[0]);
         }
       }
 
-      // Store combined: booked/rescheduled/completed overrides contract signing
       const combined = new Set<string>();
-      contractSigning.forEach(d => combined.add('c:' + d));   // prefix c = contract signing
-      booked.forEach(d  => combined.add('b:' + d));   // prefix b = booked/rescheduled
+      booked.forEach(d  => combined.add('b:' + d));
 
       cache[key] = combined;
       return combined;
@@ -173,7 +166,6 @@
         const isPast  = dateISO < todayISO;
         const isTooSoon = dateISO < minimumBookingDateISO;
         const isBooked   = bookedSet.has('b:' + dateISO);
-        const isContractSigning  = !isBooked && bookedSet.has('c:' + dateISO);
 
         let state = 'available';
         let bg = '#f0fdf4', textColor = '#166534', ring = '#22c55e'; // available
@@ -183,9 +175,6 @@
         } else if (isBooked) {
           state = 'booked';
           bg = '#fef2f2'; textColor = '#991b1b'; ring = '#ef4444';
-        } else if (isContractSigning) {
-          state = 'contract-signing';
-          bg = '#eff6ff'; textColor = '#1d4ed8'; ring = '#3b82f6';
         }
 
         cell.dataset.state = state;
@@ -283,12 +272,6 @@
     background: #253823 !important;
     color: #b7dca8 !important;
     outline-color: #8fca7c !important;
-  }
-
-  :global(html.dark) #calGrid > div[data-state="contract-signing"] {
-    background: #3d3021 !important;
-    color: #d5bf98 !important;
-    outline-color: #f0ae63 !important;
   }
 
   :global(html.dark) #calGrid > div[data-state="booked"] {

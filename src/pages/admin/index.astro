@@ -288,11 +288,6 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
           </div>
         </div>
 
-        <!-- Info callout about order badges -->
-        <div class="flex items-center gap-2 mb-3 px-1">
-          <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-xs font-black text-blue-600">1</div>
-          <p class="text-xs text-gray-400">The <strong class="text-gray-500">numbered badge</strong> shows booking order on the same date — #1 booked first. Contact #1 first when dates conflict.</p>
-        </div>
         {bookingsError && (
           <div class="mb-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">Failed to load bookings.</div>
         )}
@@ -305,7 +300,6 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
             <table class="w-full text-sm">
               <thead>
                 <tr style="background:#f8f9fa;border-bottom:2px solid #f3f4f6;">
-                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">#</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Guest</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Venue</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Package</th>
@@ -320,14 +314,7 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
                 </tr>
               </thead>
               <tbody id="bookingsTableBody">
-                {(() => {
-                  // Group by event_date to determine order within same date
-                  const dateGroups = {} as {[k:string]:number};
-                  return enrichedBookings.map((b, globalIdx) => {
-                    const dateKey = b.event_date?.split('T')[0] ?? b.start_date?.split('T')[0] ?? 'nodate';
-                    dateGroups[dateKey] = (dateGroups[dateKey] ?? 0) + 1;
-                    const orderOnDate = dateGroups[dateKey];
-                    const isFirst = orderOnDate === 1;
+                {enrichedBookings.map((b) => {
                     const statusColors = {
                       booked:'bg-green-100 text-green-700',
                       contract_signing:'bg-blue-100 text-blue-700',
@@ -345,17 +332,6 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
                         class="booking-row border-t border-gray-50 hover:bg-amber-50 transition-colors"
                         style={b.status==='cancelled'?'opacity:0.6':''}
                       >
-                        {/* Order badge */}
-                        <td class="px-4 py-3">
-                          <div class="flex flex-col items-center gap-1">
-                            <div class={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ${isFirst ? 'text-white' : 'text-blue-600'}`}
-                              style={isFirst ? 'background:linear-gradient(135deg,#4a7c3f,#2d5a27);box-shadow:0 2px 6px rgba(74,124,63,0.28);' : 'background:#e8f2e3;'}>
-                              {orderOnDate}
-                            </div>
-                            {isFirst && <span class="text-xs font-bold" style="color:#4a7c3f;">FIRST</span>}
-                          </div>
-                        </td>
-
                         {/* Guest */}
                         <td class="px-4 py-3">
                           <p class="font-bold" style="color:var(--jet-primary);">{b.full_name??'—'}</p>
@@ -445,8 +421,7 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
                         </td>
                       </tr>
                     );
-                  });
-                })()}
+                })}
               </tbody>
             </table>
           </div>
@@ -743,10 +718,7 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
         <div class="flex gap-4 flex-wrap mb-5">
           {[
             { bg:'#dcfce7', ring:'#4a7c3f', label:'Available' },
-            { bg:'#fbe7df', ring:'#9a4a36', label:'Booked' },
-            { bg:'#e8f2e3', ring:'#4a7c3f', label:'Contract Signing' },
-            { bg:'#eee8e0', ring:'#aa8f66', label:'Rescheduled' },
-            { bg:'#eee8e0', ring:'#5e5c60', label:'Completed' },
+            { bg:'#fbe7df', ring:'#9a4a36', label:'Unavailable / booked' },
           ].map(l => (
             <div class="flex items-center gap-2">
               <div class="w-5 h-5 rounded-md" style={`background:${l.bg};outline:1.5px solid ${l.ring};`}></div>
@@ -2693,9 +2665,10 @@ async function admRenderCalendar() {
       const dayBookings = dateMap[iso] ?? [];
       const isPast  = iso < todayISO;
       const isToday = iso === todayISO;
+      const isUnavailable = dayBookings.length > 0;
 
-      cell.style.background = isPast ? '#fafafa' : '#fff';
-      if (isToday) cell.style.background = '#f0fdf4';
+      cell.style.background = isPast ? '#fafafa' : isUnavailable ? '#fef2f2' : '#fff';
+      if (isToday && !isUnavailable) cell.style.background = '#f0fdf4';
 
       // Day number
       const num = document.createElement('div');
@@ -2719,8 +2692,10 @@ async function admRenderCalendar() {
         cell.appendChild(more);
       }
 
-      cell.addEventListener('mouseenter', () => { if (!isPast) cell.style.background = '#f8faff'; });
-      cell.addEventListener('mouseleave', () => { cell.style.background = isToday ? '#f0fdf4' : isPast ? '#fafafa' : '#fff'; });
+      cell.addEventListener('mouseenter', () => { if (!isPast) cell.style.background = isUnavailable ? '#fee2e2' : '#f8faff'; });
+      cell.addEventListener('mouseleave', () => {
+        cell.style.background = isPast ? '#fafafa' : isUnavailable ? '#fef2f2' : isToday ? '#f0fdf4' : '#fff';
+      });
       cell.addEventListener('click', () => admShowDayDetail(iso, dayBookings));
     }
 
