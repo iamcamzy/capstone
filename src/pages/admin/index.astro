@@ -855,6 +855,7 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
       <div><label class="block text-sm font-semibold mb-1">New Event Date</label><input type="date" id="rescheduleEventDate" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none" /></div>
       <div><label class="block text-sm font-semibold mb-1">New Check-in *</label><input type="date" id="rescheduleStart" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none" required /></div>
       <div><label class="block text-sm font-semibold mb-1">New Check-out *</label><input type="date" id="rescheduleEnd" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none" required /></div>
+      <p id="rescheduleOverrideWarning" class="hidden rounded-lg border px-3 py-2 text-sm font-semibold"></p>
     </div>
     <div class="flex gap-3 mt-6">
       <button onclick="closeReschedule()" class="flex-1 py-2 rounded-lg border-2 font-semibold" style="border-color:var(--lion-light);">Cancel</button>
@@ -1465,6 +1466,13 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
     outline: 0 !important;
   }
 
+  #rescheduleOverrideWarning {
+    border-color: rgba(237, 155, 64, 0.36);
+    background: rgba(251, 235, 217, 0.72);
+    color: #6e400a;
+    line-height: 1.45;
+  }
+
   #bd-requests {
     background: var(--wb-surface-soft) !important;
     color: var(--wb-muted) !important;
@@ -1668,6 +1676,12 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
   :global(html.dark) #packageModal > div {
     background: var(--wb-surface-raised) !important;
     color: var(--wb-text) !important;
+  }
+
+  :global(html.dark) #rescheduleOverrideWarning {
+    border-color: rgba(240, 174, 99, 0.42);
+    background: rgba(61, 48, 33, 0.72);
+    color: var(--wb-earth);
   }
 
   :global(html.dark) #bookingDetailModal .sticky,
@@ -2112,8 +2126,58 @@ async function cancelBooking(id: string) {
   }
 }
 
+function parseAdminDateOnly(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const parts = value.split('-').map(Number);
+  const parsed = new Date(parts[0], parts[1] - 1, parts[2]);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function addOneCalendarMonthForAdmin(date: Date): Date {
+  const oneMonthLater = new Date(date.getFullYear(), date.getMonth() + 1, date.getDate());
+  if (oneMonthLater.getDate() !== date.getDate()) {
+    oneMonthLater.setDate(0);
+  }
+  return oneMonthLater;
+}
+
+function getAdminMinimumBookingDate(): Date {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return addOneCalendarMonthForAdmin(today);
+}
+
+const adminMinimumBookingDate = getAdminMinimumBookingDate();
+const adminMinimumBookingDateLabel = adminMinimumBookingDate.toLocaleDateString('en-PH', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
+
+function getRescheduleOverrideState(): boolean {
+  const start = parseAdminDateOnly((document.getElementById('rescheduleStart') as HTMLInputElement).value);
+  const end = parseAdminDateOnly((document.getElementById('rescheduleEnd') as HTMLInputElement).value);
+  const eventDate = parseAdminDateOnly((document.getElementById('rescheduleEventDate') as HTMLInputElement).value);
+  return [start, end, eventDate].some((date) => date !== null && date < adminMinimumBookingDate);
+}
+
+function updateRescheduleOverrideWarning() {
+  const warning = document.getElementById('rescheduleOverrideWarning');
+  if (!warning) return;
+  const requiresOverride = getRescheduleOverrideState();
+  warning.classList.toggle('hidden', !requiresOverride);
+  if (requiresOverride) {
+    warning.textContent = `One or more selected dates are earlier than the normal one-month rule (${adminMinimumBookingDateLabel}). Admin confirmation is required.`;
+  }
+}
+
 function openReschedule(id: string) {
+  const booking = ((window as any).__allBookings ?? []).find((b: any) => b.id === id);
   (document.getElementById('rescheduleBookingId') as HTMLInputElement).value = id;
+  (document.getElementById('rescheduleEventDate') as HTMLInputElement).value = booking?.event_date?.slice(0, 10) ?? '';
+  (document.getElementById('rescheduleStart') as HTMLInputElement).value = booking?.start_date?.slice(0, 10) ?? '';
+  (document.getElementById('rescheduleEnd') as HTMLInputElement).value = booking?.end_date?.slice(0, 10) ?? '';
+  updateRescheduleOverrideWarning();
   document.getElementById('rescheduleModal')?.classList.remove('hidden');
 }
 
@@ -2127,7 +2191,45 @@ async function submitReschedule() {
   const end   = (document.getElementById('rescheduleEnd') as HTMLInputElement).value;
   const ev    = (document.getElementById('rescheduleEventDate') as HTMLInputElement).value;
   if (!start || !end) { toast('Dates required', false); return; }
-  const r = await fetch('/api/admin/reschedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: id, newStartDate: start, newEndDate: end, newEventDate: ev || null }) });
+  const startDate = parseAdminDateOnly(start);
+  const endDate = parseAdminDateOnly(end);
+  const eventDate = ev ? parseAdminDateOnly(ev) : null;
+
+  if (!startDate || !endDate || (ev && !eventDate)) {
+    toast('Please use valid reschedule dates.', false);
+    return;
+  }
+  if (endDate <= startDate) {
+    toast('New check-out must be after new check-in.', false);
+    return;
+  }
+  if (eventDate && (eventDate < startDate || eventDate > endDate)) {
+    toast('New event date must fall within the new check-in and check-out dates.', false);
+    return;
+  }
+
+  const adminOverrideOneMonth = getRescheduleOverrideState();
+  if (adminOverrideOneMonth) {
+    const confirmed = await showConfirm({
+      title: 'Confirm Date Override',
+      message: `This reschedule is earlier than the normal one-month rule (${adminMinimumBookingDateLabel}). Submit it as an admin override?`,
+      okLabel: 'Submit Override',
+      okColor: '#aa8f66',
+      icon: '!',
+    });
+    if (!confirmed) return;
+  }
+  const r = await fetch('/api/admin/reschedule', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      bookingId: id,
+      newStartDate: start,
+      newEndDate: end,
+      newEventDate: ev || null,
+      adminOverrideOneMonth,
+    }),
+  });
   const payload = await r.json().catch(() => ({}));
   if (r.ok) {
     toast(payload.warning ? `Rescheduled, but email warning: ${payload.warning}` : 'Rescheduled ✓');
@@ -2139,6 +2241,11 @@ async function submitReschedule() {
 }
 
 // ── VENUE MODAL ───────────────────────────────────────────────────────────────
+['rescheduleStart', 'rescheduleEnd', 'rescheduleEventDate'].forEach(function(id) {
+  document.getElementById(id)?.addEventListener('input', updateRescheduleOverrideWarning);
+  document.getElementById(id)?.addEventListener('change', updateRescheduleOverrideWarning);
+});
+
 function openVenueModal(jsonStr?: string) {
   const title = document.getElementById('venueModalTitle')!;
   if (jsonStr) {

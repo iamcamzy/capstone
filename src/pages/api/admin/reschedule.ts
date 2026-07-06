@@ -10,6 +10,30 @@ import { updateBookingStatusAndNotify } from "../../../services/notifications";
 export const prerender = false;
 
 const db = supabaseAdmin ?? supabase;
+const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseDateOnly(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function isDateOnly(value: string) {
+  return dateOnlyPattern.test(value) && !Number.isNaN(parseDateOnly(value).getTime());
+}
+
+function addOneCalendarMonth(date: Date) {
+  const oneMonthLater = new Date(date.getFullYear(), date.getMonth() + 1, date.getDate());
+  if (oneMonthLater.getDate() !== date.getDate()) {
+    oneMonthLater.setDate(0);
+  }
+  return oneMonthLater;
+}
+
+function getMinimumBookingDate() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return addOneCalendarMonth(today);
+}
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const guard = await adminGuard(cookies);
@@ -19,18 +43,45 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     bookingId?: string;
     newStartDate?: string;
     newEndDate?: string;
-    newEventDate?: string;
+    newEventDate?: string | null;
+    adminOverrideOneMonth?: boolean;
   }>(request);
   if (!body.ok) return body.response;
 
-  const { bookingId, newStartDate, newEndDate, newEventDate } = body.data;
+  const { bookingId, newStartDate, newEndDate, adminOverrideOneMonth } = body.data;
+  const newEventDate = body.data.newEventDate || null;
 
   if (!bookingId) return error("bookingId is required", 400);
   if (!newStartDate) return error("newStartDate is required", 400);
   if (!newEndDate) return error("newEndDate is required", 400);
 
-  if (new Date(newEndDate) <= new Date(newStartDate)) {
+  if (!isDateOnly(newStartDate)) return error("newStartDate must use YYYY-MM-DD", 400);
+  if (!isDateOnly(newEndDate)) return error("newEndDate must use YYYY-MM-DD", 400);
+  if (newEventDate && !isDateOnly(newEventDate)) {
+    return error("newEventDate must use YYYY-MM-DD", 400);
+  }
+
+  const startDate = parseDateOnly(newStartDate);
+  const endDate = parseDateOnly(newEndDate);
+  const eventDate = newEventDate ? parseDateOnly(newEventDate) : null;
+
+  if (endDate <= startDate) {
     return error("newEndDate must be after newStartDate", 400);
+  }
+
+  if (eventDate && (eventDate < startDate || eventDate > endDate)) {
+    return error("newEventDate must fall within the new start and end dates", 400);
+  }
+
+  const minimumBookingDate = getMinimumBookingDate();
+  const requiresOneMonthOverride =
+    startDate < minimumBookingDate || (eventDate !== null && eventDate < minimumBookingDate);
+
+  if (requiresOneMonthOverride && adminOverrideOneMonth !== true) {
+    return error(
+      "This reschedule is earlier than the normal one-month rule and requires admin override confirmation.",
+      400,
+    );
   }
 
   const { data: booking, error: fetchError } = await db
@@ -44,8 +95,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (bookingStatus === "cancelled") {
     return error("Cannot reschedule a cancelled booking", 400);
   }
-  if (bookingStatus === "completed" || bookingStatus === "rescheduled") {
-    return error("Only contract signing or booked bookings can be rescheduled", 400);
+  if (bookingStatus === "completed") {
+    return error("Cannot reschedule a completed booking", 400);
   }
 
   const { data: overlap, error: overlapError } = await db
