@@ -22,7 +22,7 @@ if (!profile) return Astro.redirect('/dashboard');
 
 const { data: bookings, error: bookingsError } = await adminClient
   .from('bookings')
-  .select('id, full_name, phone, pax, event_date, start_date, end_date, event_type, status, total_price, created_at, updated_at, confirmed_at, cancelled_at, rescheduled_at, one_week_notice_sent_at, special_requests, venue_id, user_id, package_id')
+  .select('id, full_name, phone, pax, event_date, start_date, end_date, contract_signing_date, contract_signing_time, event_type, status, total_price, created_at, updated_at, confirmed_at, cancelled_at, rescheduled_at, one_week_notice_sent_at, special_requests, venue_id, user_id, package_id')
   .order('created_at', { ascending: false })
   .limit(200);
 
@@ -131,6 +131,19 @@ const stats = {
 const adminName = profile.first_name
   ? `${profile.first_name} ${profile.last_name ?? ''}`.trim()
   : user.email;
+
+const formatContractSigningSchedule = (date?: string | null, time?: string | null) => {
+  if (!date || !time) return 'Not set';
+  const parsed = new Date(`${date}T${time}`);
+  if (Number.isNaN(parsed.getTime())) return `${date} ${time}`;
+  return parsed.toLocaleString('en-PH', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+};
 ---
 
 <Layout title="Admin Dashboard">
@@ -300,6 +313,7 @@ const adminName = profile.first_name
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Hold Period</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Pax</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Total</th>
+                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Contract Signing</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Booked On</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Actions</th>
@@ -379,6 +393,10 @@ const adminName = profile.first_name
                           {b.total_price?`₱${Number(b.total_price).toLocaleString()}`:'—'}
                         </td>
 
+                        <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                          {formatContractSigningSchedule(b.contract_signing_date, b.contract_signing_time)}
+                        </td>
+
                         {/* Status */}
                         <td class="px-4 py-3">
                           <span class={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${statusColors[b.status]??'bg-gray-100 text-gray-600'}`}>
@@ -395,6 +413,11 @@ const adminName = profile.first_name
                         {/* Actions */}
                         <td class="px-4 py-3">
                           <div class="flex gap-1.5 flex-wrap">
+                            {(b.status!=='cancelled'&&b.status!=='completed')&&(
+                              <button onclick={`openContractSigningSchedule(${JSON.stringify(JSON.stringify(b))})`}
+                                class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
+                                style="background:#2d5a27;">Signing</button>
+                            )}
                             {(b.status==='contract_signing'||b.status==='rescheduled')&&(
                               <button onclick={`confirmBooking('${b.id}')`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80 hover:-translate-y-0.5"
@@ -798,6 +821,7 @@ const adminName = profile.first_name
           <div><span class="text-gray-400">Venue</span><p id="bd-venue" class="font-semibold mt-0.5"></p></div>
           <div><span class="text-gray-400">Package</span><p id="bd-package" class="font-semibold mt-0.5"></p></div>
           <div><span class="text-gray-400">Event Date</span><p id="bd-event-date" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Contract Signing</span><p id="bd-contract-signing" class="font-semibold mt-0.5"></p></div>
           <div><span class="text-gray-400">Hold Period</span><p id="bd-hold" class="font-semibold mt-0.5"></p></div>
           <div><span class="text-gray-400">Event Type</span><p id="bd-event-type" class="font-semibold mt-0.5"></p></div>
           <div><span class="text-gray-400">Total Price</span><p id="bd-price" class="font-semibold mt-0.5" style="color:var(--butterscotch-primary);"></p></div>
@@ -863,6 +887,29 @@ const adminName = profile.first_name
     <div class="flex gap-3 mt-6">
       <button onclick="closeReschedule()" class="flex-1 py-2 rounded-lg border-2 font-semibold" style="border-color:var(--lion-light);">Cancel</button>
       <button onclick="submitReschedule()" class="flex-1 py-2 rounded-lg text-white font-semibold" style="background:var(--butterscotch-primary);">Reschedule</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONTRACT SIGNING SCHEDULE MODAL -->
+<div id="contractSigningScheduleModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.5);">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+    <h3 class="text-xl font-bold mb-2" style="color:var(--jet-primary);">Contract Signing Schedule</h3>
+    <p class="text-sm text-gray-500 mb-5">Set the date and time the customer should visit for contract signing.</p>
+    <input id="contractSigningBookingId" type="hidden" />
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-semibold mb-1" for="contractSigningDate">Contract-signing date *</label>
+        <input type="date" id="contractSigningDate" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none" required />
+      </div>
+      <div>
+        <label class="block text-sm font-semibold mb-1" for="contractSigningTime">Contract-signing time *</label>
+        <input type="time" id="contractSigningTime" class="w-full p-2 rounded-lg border border-gray-200 focus:outline-none" required />
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="closeContractSigningSchedule()" class="flex-1 py-2 rounded-lg border-2 font-semibold" style="border-color:var(--lion-light);">Cancel</button>
+      <button onclick="submitContractSigningSchedule()" class="flex-1 py-2 rounded-lg text-white font-semibold" style="background:var(--butterscotch-primary);">Save Schedule</button>
     </div>
   </div>
 </div>
@@ -1045,6 +1092,7 @@ const adminName = profile.first_name
   #confirmDialog > div,
   #bookingDetailModal > div,
   #rescheduleModal > div,
+  #contractSigningScheduleModal > div,
   #venueModal > div,
   #packageModal > div {
     box-shadow: var(--wb-shadow-sm) !important;
@@ -1378,6 +1426,7 @@ const adminName = profile.first_name
   #bookingDetailModal,
   #confirmDialog,
   #rescheduleModal,
+  #contractSigningScheduleModal,
   #venueModal,
   #packageModal {
     padding: 1rem;
@@ -1388,6 +1437,7 @@ const adminName = profile.first_name
   #bookingDetailModal > div,
   #confirmDialog > div,
   #rescheduleModal > div,
+  #contractSigningScheduleModal > div,
   #venueModal > div,
   #packageModal > div {
     border: 1px solid var(--wb-border);
@@ -1396,7 +1446,8 @@ const adminName = profile.first_name
     max-width: min(100%, var(--modal-w, 42rem));
   }
 
-  #rescheduleModal > div { --modal-w: 30rem; }
+  #rescheduleModal > div,
+  #contractSigningScheduleModal > div { --modal-w: 30rem; }
   #venueModal > div,
   #packageModal > div { --modal-w: 36rem; }
   #confirmDialog > div { --modal-w: 26rem; }
@@ -1410,6 +1461,7 @@ const adminName = profile.first_name
   #bookingDetailModal h3,
   #confirmDialog h3,
   #rescheduleModal h3,
+  #contractSigningScheduleModal h3,
   #venueModal h3,
   #packageModal h3 {
     color: var(--wb-green-dark) !important;
@@ -1418,6 +1470,7 @@ const adminName = profile.first_name
   }
 
   #rescheduleModal input,
+  #contractSigningScheduleModal input,
   #venueModal input,
   #venueModal textarea,
   #packageModal input,
@@ -1430,6 +1483,7 @@ const adminName = profile.first_name
   }
 
   #rescheduleModal input:focus,
+  #contractSigningScheduleModal input:focus,
   #venueModal input:focus,
   #venueModal textarea:focus,
   #packageModal input:focus,
@@ -1447,6 +1501,7 @@ const adminName = profile.first_name
   #bd-actions button,
   #confirmDialog button,
   #rescheduleModal button,
+  #contractSigningScheduleModal button,
   #venueModal button,
   #packageModal button {
     min-height: 2.45rem;
@@ -1454,6 +1509,7 @@ const adminName = profile.first_name
 
   #confirmDialogOk,
   #rescheduleModal button[onclick="submitReschedule()"],
+  #contractSigningScheduleModal button[onclick="submitContractSigningSchedule()"],
   #venueModal button[onclick="submitVenue()"],
   #packageModal button[onclick="submitPackage()"] {
     background: var(--wb-green) !important;
@@ -1462,6 +1518,7 @@ const adminName = profile.first_name
 
   #confirmDialogCancel,
   #rescheduleModal button[onclick="closeReschedule()"],
+  #contractSigningScheduleModal button[onclick="closeContractSigningSchedule()"],
   #venueModal button[onclick="closeVenueModal()"],
   #packageModal button[onclick="closePackageModal()"] {
     background: #fff !important;
@@ -1548,6 +1605,7 @@ const adminName = profile.first_name
   :global(html.dark) #admin-root select,
   :global(html.dark) #admin-root textarea,
   :global(html.dark) #rescheduleModal input,
+  :global(html.dark) #contractSigningScheduleModal input,
   :global(html.dark) #venueModal input,
   :global(html.dark) #venueModal textarea,
   :global(html.dark) #packageModal input,
@@ -1565,6 +1623,7 @@ const adminName = profile.first_name
   :global(html.dark) #admin-root main button[onclick^="printReport"],
   :global(html.dark) #confirmDialogCancel,
   :global(html.dark) #rescheduleModal button[onclick="closeReschedule()"],
+  :global(html.dark) #contractSigningScheduleModal button[onclick="closeContractSigningSchedule()"],
   :global(html.dark) #venueModal button[onclick="closeVenueModal()"],
   :global(html.dark) #packageModal button[onclick="closePackageModal()"],
   :global(html.dark) #adm-prev-month,
@@ -1632,6 +1691,7 @@ const adminName = profile.first_name
   :global(html.dark) #bookingDetailModal > div,
   :global(html.dark) #confirmDialog > div,
   :global(html.dark) #rescheduleModal > div,
+  :global(html.dark) #contractSigningScheduleModal > div,
   :global(html.dark) #venueModal > div,
   :global(html.dark) #packageModal > div {
     background: var(--wb-surface-raised) !important;
@@ -1736,6 +1796,7 @@ const adminName = profile.first_name
 
     #bd-actions,
     #rescheduleModal .flex.gap-3,
+    #contractSigningScheduleModal .flex.gap-3,
     #venueModal .flex.gap-3,
     #packageModal .flex.gap-3 {
       flex-direction: column;
@@ -1969,6 +2030,54 @@ async function updateBookingStatus(id: string, status: string, label: string) {
   }
 }
 
+function formatContractSigningScheduleForAdmin(date: string | null, time: string | null): string {
+  if (!date || !time) return 'Not set';
+  const parsed = new Date(date + 'T' + time);
+  if (Number.isNaN(parsed.getTime())) return date + ' ' + time;
+  return parsed.toLocaleString('en-PH', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  } as any);
+}
+
+function openContractSigningSchedule(jsonStr: string) {
+  const b = JSON.parse(jsonStr);
+  (document.getElementById('contractSigningBookingId') as HTMLInputElement).value = b.id;
+  (document.getElementById('contractSigningDate') as HTMLInputElement).value = b.contract_signing_date ?? '';
+  (document.getElementById('contractSigningTime') as HTMLInputElement).value = b.contract_signing_time
+    ? String(b.contract_signing_time).slice(0, 5)
+    : '';
+  document.getElementById('contractSigningScheduleModal')?.classList.remove('hidden');
+}
+
+function closeContractSigningSchedule() {
+  document.getElementById('contractSigningScheduleModal')?.classList.add('hidden');
+}
+
+async function submitContractSigningSchedule() {
+  const id = (document.getElementById('contractSigningBookingId') as HTMLInputElement).value;
+  const contractSigningDate = (document.getElementById('contractSigningDate') as HTMLInputElement).value;
+  const contractSigningTime = (document.getElementById('contractSigningTime') as HTMLInputElement).value;
+  if (!contractSigningDate || !contractSigningTime) {
+    toast('Contract signing date and time are required', false);
+    return;
+  }
+
+  const r = await fetch('/api/admin/update-booking-status', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bookingId: id, contractSigningDate, contractSigningTime }),
+  });
+  const payload = await r.json().catch(() => ({}));
+  if (r.ok) {
+    toast(payload.warning ? `Schedule saved, but notification warning: ${payload.warning}` : 'Contract signing schedule saved');
+    closeContractSigningSchedule();
+    location.reload();
+  } else {
+    toast(payload.error ?? payload.message ?? 'Failed to save contract signing schedule', false);
+  }
+}
+
 async function setBookingContractSigning(id: string) {
   const ok = await showConfirm({
     title: 'Set Contract Signing',
@@ -2187,7 +2296,7 @@ async function demoteUser(id: string) {
 }
 
 // ── MODAL BACKDROP CLOSE ──────────────────────────────────────────────────────
-['rescheduleModal', 'venueModal', 'packageModal'].forEach(function(id) {
+['rescheduleModal', 'contractSigningScheduleModal', 'venueModal', 'packageModal'].forEach(function(id) {
   document.getElementById(id)?.addEventListener('click', function(e) {
     if (e.target === document.getElementById(id)) document.getElementById(id)?.classList.add('hidden');
   });
@@ -2245,6 +2354,7 @@ function openBookingDetail(jsonStr: string) {
   setText('bd-venue', b.venueName ?? '—');
   setText('bd-package', b.packageName ?? b.event_type ?? '—');
   setText('bd-event-date', fmt(b.event_date));
+  setText('bd-contract-signing', formatContractSigningScheduleForAdmin(b.contract_signing_date ?? null, b.contract_signing_time ?? null));
   setText('bd-hold', fmt(b.start_date) + ' → ' + fmt(b.end_date));
   setText('bd-event-type', b.event_type ?? '—');
   setText('bd-price', b.total_price ? '₱' + Number(b.total_price).toLocaleString() : '—');
@@ -2268,6 +2378,9 @@ function openBookingDetail(jsonStr: string) {
 
   const actions = document.getElementById('bd-actions')!;
   actions.innerHTML = '';
+  if (b.status !== 'cancelled' && b.status !== 'completed') {
+    addActionBtn(actions, 'Set Signing Schedule', '#2d5a27', function() { closeBookingDetail(); openContractSigningSchedule(JSON.stringify(b)); });
+  }
   if (b.status === 'contract_signing' || b.status === 'rescheduled') {
     addActionBtn(actions, '✓ Book', '#4a7c3f', function() { closeBookingDetail(); confirmBooking(b.id); });
   }
@@ -2487,6 +2600,9 @@ switchReport('weekly');
 (window as any).updateBookingStatus = updateBookingStatus;
 (window as any).setBookingCompleted = setBookingCompleted;
 (window as any).setBookingContractSigning = setBookingContractSigning;
+(window as any).openContractSigningSchedule = openContractSigningSchedule;
+(window as any).closeContractSigningSchedule = closeContractSigningSchedule;
+(window as any).submitContractSigningSchedule = submitContractSigningSchedule;
 (window as any).openReschedule    = openReschedule;
 (window as any).closeReschedule   = closeReschedule;
 (window as any).submitReschedule  = submitReschedule;

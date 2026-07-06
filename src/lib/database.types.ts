@@ -83,6 +83,8 @@ export type Database = {
           event_date: string | null;
           start_date: string;
           end_date: string;
+          contract_signing_date: string | null;
+          contract_signing_time: string | null;
           package_id: string | null;
           event_type_id: string | null;
           event_type: string | null;
@@ -108,6 +110,8 @@ export type Database = {
           event_date?: string | null;
           start_date: string;
           end_date: string;
+          contract_signing_date?: string | null;
+          contract_signing_time?: string | null;
           package_id?: string | null;
           event_type_id?: string | null;
           event_type?: string | null;
@@ -133,6 +137,8 @@ export type Database = {
           event_date?: string | null;
           start_date?: string;
           end_date?: string;
+          contract_signing_date?: string | null;
+          contract_signing_time?: string | null;
           package_id?: string | null;
           event_type_id?: string | null;
           event_type?: string | null;

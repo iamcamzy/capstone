@@ -22,6 +22,8 @@ type NotificationBooking = {
   eventDate: string;
   startDate: string;
   endDate: string;
+  contractSigningDate: string | null;
+  contractSigningTime: string | null;
   packageName: string;
   venueName: string;
   email: string | null;
@@ -51,6 +53,8 @@ const STATUS_MESSAGES: Record<NotifiableBookingStatus, string> = {
   completed: "Thank you for choosing us. Your event has been marked completed.",
 };
 
+type BookingNotificationKind = NotifiableBookingStatus | "reminder" | "contract_signing_schedule";
+
 function formatDate(value: string | null | undefined): string {
   if (!value) return "No event date provided";
   const parsed = new Date(value);
@@ -60,6 +64,25 @@ function formatDate(value: string | null | undefined): string {
     month: "long",
     day: "numeric",
   });
+}
+
+function formatTime(value: string | null | undefined): string {
+  if (!value) return "";
+  const [hourValue, minuteValue] = value.split(":");
+  const hour = Number(hourValue);
+  const minute = Number(minuteValue);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return value;
+
+  return new Date(2000, 0, 1, hour, minute).toLocaleTimeString("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatContractSigningSchedule(booking: NotificationBooking): string {
+  const date = formatDate(booking.contractSigningDate);
+  const time = formatTime(booking.contractSigningTime);
+  return time ? `${date} at ${time}` : date;
 }
 
 function escapeHtml(value: string): string {
@@ -72,16 +95,27 @@ function escapeHtml(value: string): string {
 
 function buildEmailContent(
   booking: NotificationBooking,
-  status: NotifiableBookingStatus | "reminder",
+  status: BookingNotificationKind,
 ): { subject: string; textContent: string; htmlContent: string } {
-  const label = status === "reminder" ? "1-Week Reminder" : BOOKING_STATUS_LABELS[status];
+  const isScheduleNotification = status === "contract_signing_schedule";
+  const contractSigningSchedule = formatContractSigningSchedule(booking);
+  const label =
+    status === "reminder"
+      ? "1-Week Reminder"
+      : isScheduleNotification
+        ? "Contract Signing Schedule"
+        : BOOKING_STATUS_LABELS[status];
   const statusLine =
     status === "reminder"
       ? "Your event is scheduled one week from now."
-      : `Your booking status has been updated to: ${label}.`;
+      : isScheduleNotification
+        ? `Your contract signing is scheduled for ${contractSigningSchedule}.`
+        : `Your booking status has been updated to: ${label}.`;
   const statusMessage =
     status === "reminder"
       ? "Your event is scheduled one week from now. Please coordinate any remaining details with Woodberry Resorts and Events Place."
+      : isScheduleNotification
+        ? `Please visit Woodberry Resorts and Events Place for contract signing on ${contractSigningSchedule}.`
       : STATUS_MESSAGES[status];
 
   const lines = [
@@ -92,6 +126,7 @@ function buildEmailContent(
     "Booking Details:",
     `Venue: ${booking.venueName}`,
     `Event Date: ${formatDate(booking.eventDate)}`,
+    ...(isScheduleNotification ? [`Contract Signing: ${contractSigningSchedule}`] : []),
     `Package: ${booking.packageName}`,
     `Reference ID: ${booking.id}`,
     "",
@@ -121,7 +156,7 @@ async function fetchNotificationBooking(
   const { data: booking, error: bookingError } = await client
     .from("bookings")
     .select(
-      "id, user_id, status, full_name, phone, event_date, start_date, end_date, package_id, venue_id",
+      "id, user_id, status, full_name, phone, event_date, start_date, end_date, contract_signing_date, contract_signing_time, package_id, venue_id",
     )
     .eq("id", bookingId)
     .single();
@@ -154,6 +189,8 @@ async function fetchNotificationBooking(
     eventDate: booking.event_date ?? booking.start_date ?? "No event date provided",
     startDate: booking.start_date,
     endDate: booking.end_date,
+    contractSigningDate: booking.contract_signing_date,
+    contractSigningTime: booking.contract_signing_time,
     packageName: pkg?.name ?? "No package selected",
     venueName: venue?.name ?? "Unknown venue",
     email: customer?.email ?? null,
@@ -177,7 +214,7 @@ export async function notifyBookingStatusChange(
 
 async function sendBookingNotification(
   booking: NotificationBooking,
-  status: NotifiableBookingStatus | "reminder",
+  status: BookingNotificationKind,
 ): Promise<NotificationResult> {
   const content = buildEmailContent(booking, status);
   const result: NotificationResult = {};
@@ -271,6 +308,16 @@ export async function sendOneWeekReminder(
   return sendBookingNotification(booking, "reminder");
 }
 
+export async function notifyContractSigningSchedule(
+  bookingId: string,
+  client: DbClient = db,
+): Promise<NotificationResult> {
+  const booking = await fetchNotificationBooking(bookingId, client);
+  if (!booking) return {};
+
+  return sendBookingNotification(booking, "contract_signing_schedule");
+}
+
 export function notificationSucceeded(result: NotificationResult): boolean {
   return delivered(result.email) || delivered(result.sms);
 }
@@ -320,6 +367,55 @@ export async function updateBookingStatusAndNotify(
 
   try {
     result.notification = await notifyBookingStatusChange(bookingId, normalizedStatus, client);
+    const warning = notificationWarning(result.notification);
+    if (warning) {
+      result.warning = warning;
+      console.warn("[Notifications]", warning);
+    }
+  } catch (notificationError) {
+    const message =
+      notificationError instanceof Error ? notificationError.message : "Notification failed";
+    result.warning = message;
+    console.error("[Notifications]", message);
+  }
+
+  return result;
+}
+
+export async function updateContractSigningScheduleAndNotify(
+  bookingId: string,
+  schedule: {
+    contractSigningDate: string;
+    contractSigningTime: string;
+  },
+  options: {
+    client?: DbClient;
+  } = {},
+): Promise<BookingStatusUpdateResult> {
+  const client = options.client ?? db;
+  const now = new Date().toISOString();
+
+  const { data: booking, error: updateError } = await client
+    .from("bookings")
+    .update({
+      contract_signing_date: schedule.contractSigningDate,
+      contract_signing_time: schedule.contractSigningTime,
+      updated_at: now,
+    })
+    .eq("id", bookingId)
+    .select("id, status")
+    .single();
+
+  if (updateError || !booking) {
+    throw new Error(updateError?.message ?? "Contract signing schedule update failed");
+  }
+
+  const result: BookingStatusUpdateResult = {
+    booking: { id: booking.id, status: normalizeBookingStatus(booking.status) },
+  };
+
+  try {
+    result.notification = await notifyContractSigningSchedule(bookingId, client);
     const warning = notificationWarning(result.notification);
     if (warning) {
       result.warning = warning;
