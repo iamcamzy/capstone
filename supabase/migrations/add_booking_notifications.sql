@@ -17,7 +17,15 @@ begin
 end $$;
 
 alter table public.bookings
-  add column if not exists one_week_notice_sent_at timestamptz null;
+  add column if not exists one_week_notice_sent_at timestamptz null,
+  add column if not exists one_week_email_sent_at timestamptz null,
+  add column if not exists one_week_sms_sent_at timestamptz null;
+
+update public.bookings
+set one_week_email_sent_at = coalesce(one_week_email_sent_at, one_week_notice_sent_at),
+    one_week_sms_sent_at = coalesce(one_week_sms_sent_at, one_week_notice_sent_at)
+where one_week_notice_sent_at is not null
+  and (one_week_email_sent_at is null or one_week_sms_sent_at is null);
 
 do $$
 declare

@@ -7,6 +7,7 @@ import { normalizeBookingStatus, type BookingStatus } from "../../../lib/booking
 import { ok, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
 import {
+  ContractSigningScheduleStatusError,
   updateBookingStatusAndNotify,
   updateContractSigningScheduleAndNotify,
 } from "../../../services/notifications";
@@ -85,15 +86,21 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       : await updateBookingStatusAndNotify(parsed.data.bookingId, status!, { client: db });
 
     return ok({
-      message: hasSchedule
-        ? "Contract signing schedule updated successfully"
-        : "Booking status updated successfully",
+      message:
+        result.message ??
+        (hasSchedule
+          ? "Contract signing schedule updated successfully"
+          : "Booking status updated successfully"),
       booking: result.booking,
+      ...(result.unchanged ? { unchanged: result.unchanged } : {}),
       ...(result.warning ? { warning: result.warning } : {}),
     });
   } catch (updateError) {
     const message = updateError instanceof Error ? updateError.message : "Booking update failed";
     console.error("[UpdateBookingStatus]", message);
+    if (updateError instanceof ContractSigningScheduleStatusError) {
+      return error(message, 400);
+    }
     return error(message, 500);
   }
 };

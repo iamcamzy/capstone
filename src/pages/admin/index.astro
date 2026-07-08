@@ -22,7 +22,7 @@ if (!profile) return Astro.redirect('/dashboard');
 
 const { data: bookings, error: bookingsError } = await adminClient
   .from('bookings')
-  .select('id, full_name, phone, pax, event_date, start_date, end_date, contract_signing_date, contract_signing_time, event_type, status, total_price, created_at, updated_at, confirmed_at, cancelled_at, rescheduled_at, one_week_notice_sent_at, special_requests, venue_id, user_id, package_id')
+  .select('id, full_name, phone, address, pax, event_date, start_date, end_date, contract_signing_date, contract_signing_time, event_type, status, total_price, created_at, updated_at, confirmed_at, cancelled_at, rescheduled_at, one_week_notice_sent_at, special_requests, venue_id, user_id, package_id, package_type, package_price, package_inclusions, rooms_count, selected_rooms, add_ons, extension_selections, corkage_selections, additionals, caterer, use_woodberry_caterer, estimate_summary, minimum_payment_amount, remaining_balance_amount')
   .order('created_at', { ascending: false })
   .limit(200);
 
@@ -40,6 +40,14 @@ const { data: pkgMap } = packageIds.length > 0
   : { data: [] };
 const packageById: Record<string, string> = {};
 (pkgMap ?? []).forEach((p: any) => { packageById[p.id] = p.name; });
+
+const woodberryPackageNames: Record<string, string> = {
+  'lunch-time': 'Lunch Time Package',
+  'dinner-time': 'Dinner Time Package',
+  'barkada-staycation': 'Barkada Staycation',
+  'pamilya-staycation': 'Pamilya Staycation',
+  'room-rates': 'Room Rates',
+};
 
 const userIds = [...new Set((bookings ?? []).map(b => b.user_id).filter(Boolean))];
 const { data: userMap } = userIds.length > 0
@@ -64,7 +72,7 @@ const enrichedBookings = (bookings ?? []).map(b => {
     ...b,
     status: normalizeBookingStatus(b.status),
     venueName: venueById[b.venue_id] ?? '—',
-    packageName: b.package_id ? (packageById[b.package_id] ?? '—') : null,
+    packageName: b.package_type ? (woodberryPackageNames[b.package_type] ?? b.package_type) : b.package_id ? (packageById[b.package_id] ?? '—') : null,
     userName: userInfo,
     customer,
     customerEmail: customer?.email ?? userInfo?.email ?? null,
@@ -73,6 +81,8 @@ const enrichedBookings = (bookings ?? []).map(b => {
 });
 
 const statusLabels = BOOKING_STATUS_LABELS;
+const canUpdateContractSigningSchedule = (status: string) =>
+  status === 'contract_signing' || status === 'rescheduled';
 
 const { data: venues } = await adminClient.from('venues').select('*').order('name');
 const { data: packages } = await adminClient.from('packages').select('*').order('price');
@@ -389,7 +399,7 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
                         {/* Actions */}
                         <td class="px-4 py-3">
                           <div class="flex gap-1.5 flex-wrap">
-                            {(b.status!=='cancelled'&&b.status!=='completed')&&(
+                            {canUpdateContractSigningSchedule(b.status)&&(
                               <button onclick={`openContractSigningSchedule(${JSON.stringify(JSON.stringify(b))})`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
                                 style="background:#2d5a27;">Signing</button>
@@ -792,11 +802,26 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
         <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
           <div><span class="text-gray-400">Venue</span><p id="bd-venue" class="font-semibold mt-0.5"></p></div>
           <div><span class="text-gray-400">Package</span><p id="bd-package" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Package Base</span><p id="bd-package-price" class="font-semibold mt-0.5"></p></div>
           <div><span class="text-gray-400">Event Date</span><p id="bd-event-date" class="font-semibold mt-0.5"></p></div>
           <div><span class="text-gray-400">Contract Signing</span><p id="bd-contract-signing" class="font-semibold mt-0.5"></p></div>
           <div><span class="text-gray-400">Hold Period</span><p id="bd-hold" class="font-semibold mt-0.5"></p></div>
           <div><span class="text-gray-400">Event Type</span><p id="bd-event-type" class="font-semibold mt-0.5"></p></div>
           <div><span class="text-gray-400">Total Price</span><p id="bd-price" class="font-semibold mt-0.5" style="color:var(--butterscotch-primary);"></p></div>
+          <div><span class="text-gray-400">50% Minimum</span><p id="bd-minimum" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Balance</span><p id="bd-balance" class="font-semibold mt-0.5"></p></div>
+        </div>
+      </div>
+
+      <div>
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Package Details</p>
+        <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <div class="col-span-2"><span class="text-gray-400">Inclusions</span><p id="bd-inclusions" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Rooms</span><p id="bd-rooms" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Add-ons</span><p id="bd-addons" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Extensions</span><p id="bd-extensions" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Corkage</span><p id="bd-corkage" class="font-semibold mt-0.5"></p></div>
+          <div class="col-span-2"><span class="text-gray-400">Caterer</span><p id="bd-caterer" class="font-semibold mt-0.5"></p></div>
         </div>
       </div>
 
@@ -2026,8 +2051,16 @@ function formatContractSigningScheduleForAdmin(date: string | null, time: string
   } as any);
 }
 
+function canUpdateContractSigningScheduleForAdmin(status: string): boolean {
+  return status === 'contract_signing' || status === 'rescheduled';
+}
+
 function openContractSigningSchedule(jsonStr: string) {
   const b = JSON.parse(jsonStr);
+  if (!canUpdateContractSigningScheduleForAdmin(b.status)) {
+    toast('Contract signing schedule can only be updated for Contract Signing or Rescheduled bookings.', false);
+    return;
+  }
   (document.getElementById('contractSigningBookingId') as HTMLInputElement).value = b.id;
   (document.getElementById('contractSigningDate') as HTMLInputElement).value = b.contract_signing_date ?? '';
   (document.getElementById('contractSigningTime') as HTMLInputElement).value = b.contract_signing_time
@@ -2056,9 +2089,9 @@ async function submitContractSigningSchedule() {
   });
   const payload = await r.json().catch(() => ({}));
   if (r.ok) {
-    toast(payload.warning ? `Schedule saved, but notification warning: ${payload.warning}` : 'Contract signing schedule saved');
+    toast(payload.warning ? `Schedule saved, but notification warning: ${payload.warning}` : (payload.message ?? 'Contract signing schedule saved'));
     closeContractSigningSchedule();
-    location.reload();
+    if (!payload.unchanged) location.reload();
   } else {
     toast(payload.error ?? payload.message ?? 'Failed to save contract signing schedule', false);
   }
@@ -2403,6 +2436,26 @@ function addActionBtn(container: HTMLElement, label: string, color: string, fn: 
   container.appendChild(btn);
 }
 
+function formatMoney(value: unknown): string {
+  const amount = Number(value ?? 0);
+  return amount ? '₱' + amount.toLocaleString() : '—';
+}
+
+function formatBookingItems(items: any): string {
+  if (!Array.isArray(items) || items.length === 0) return '—';
+  return items.map((item: any) => {
+    const suffix = item.hours ? ` (${item.hours} hr, ${formatMoney(item.amount)})` : item.amount ? ` (${formatMoney(item.amount)})` : '';
+    return `${item.label ?? item.key}${suffix}`;
+  }).join(', ');
+}
+
+function formatInclusions(value: any): string {
+  if (!value) return '—';
+  if (Array.isArray(value)) return value.map((item: any) => item.label ?? item).join(', ');
+  if (Array.isArray(value.included)) return value.included.join(', ');
+  return '—';
+}
+
 function openBookingDetail(jsonStr: string) {
   const b = JSON.parse(jsonStr);
 
@@ -2432,11 +2485,20 @@ function openBookingDetail(jsonStr: string) {
   setText('bd-reminder', b.one_week_notice_sent_at ? 'Sent on ' + fmtTs(b.one_week_notice_sent_at) : 'Not sent');
   setText('bd-venue', b.venueName ?? '—');
   setText('bd-package', b.packageName ?? b.event_type ?? '—');
+  setText('bd-package-price', formatMoney(b.package_price ?? b.estimate_summary?.packageBase));
   setText('bd-event-date', fmt(b.event_date));
   setText('bd-contract-signing', formatContractSigningScheduleForAdmin(b.contract_signing_date ?? null, b.contract_signing_time ?? null));
   setText('bd-hold', fmt(b.start_date) + ' → ' + fmt(b.end_date));
   setText('bd-event-type', b.event_type ?? '—');
-  setText('bd-price', b.total_price ? '₱' + Number(b.total_price).toLocaleString() : '—');
+  setText('bd-price', formatMoney(b.total_price));
+  setText('bd-minimum', formatMoney(b.minimum_payment_amount ?? b.estimate_summary?.minimumPayment));
+  setText('bd-balance', formatMoney(b.remaining_balance_amount ?? b.estimate_summary?.remainingBalance));
+  setText('bd-inclusions', formatInclusions(b.package_inclusions));
+  setText('bd-rooms', formatBookingItems(b.selected_rooms ?? b.additionals?.rooms));
+  setText('bd-addons', formatBookingItems(b.add_ons ?? b.additionals?.addOns));
+  setText('bd-extensions', formatBookingItems(b.extension_selections ?? b.additionals?.extensions));
+  setText('bd-corkage', formatBookingItems(b.corkage_selections ?? b.additionals?.corkage));
+  setText('bd-caterer', b.caterer ?? '—');
   setText('bd-created', fmtTs(b.created_at));
   setText('bd-updated', fmtTs(b.updated_at ?? null));
 
@@ -2457,7 +2519,7 @@ function openBookingDetail(jsonStr: string) {
 
   const actions = document.getElementById('bd-actions')!;
   actions.innerHTML = '';
-  if (b.status !== 'cancelled' && b.status !== 'completed') {
+  if (canUpdateContractSigningScheduleForAdmin(b.status)) {
     addActionBtn(actions, 'Set Signing Schedule', '#2d5a27', function() { closeBookingDetail(); openContractSigningSchedule(JSON.stringify(b)); });
   }
   if (b.status === 'contract_signing' || b.status === 'rescheduled') {

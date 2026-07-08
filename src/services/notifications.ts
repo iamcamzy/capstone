@@ -29,20 +29,45 @@ type NotificationBooking = {
   email: string | null;
   emailNotificationsEnabled: boolean;
   smsNotificationsEnabled: boolean;
+  oneWeekEmailSentAt: string | null;
+  oneWeekSmsSentAt: string | null;
 };
 
-type NotificationResult = {
+export type NotificationResult = {
   email?: EmailSendResult;
   sms?: SmsSendResult;
+};
+
+export type OneWeekReminderResult = NotificationResult & {
+  enabledChannels: {
+    email: boolean;
+    sms: boolean;
+  };
+  sentAt: {
+    email: string | null;
+    sms: string | null;
+  };
 };
 
 export type BookingStatusUpdateResult = {
   booking: { id: string; status: BookingStatus };
   notification?: NotificationResult;
+  message?: string;
+  unchanged?: boolean;
   warning?: string;
 };
 
 const db = supabaseAdmin ?? supabase;
+const CONTRACT_SIGNING_SCHEDULE_STATUSES: BookingStatus[] = ["contract_signing", "rescheduled"];
+const CONTRACT_SIGNING_SCHEDULE_STATUS_MESSAGE =
+  "Contract signing schedule can only be updated for bookings with Contract Signing or Rescheduled status.";
+
+export class ContractSigningScheduleStatusError extends Error {
+  constructor() {
+    super(CONTRACT_SIGNING_SCHEDULE_STATUS_MESSAGE);
+    this.name = "ContractSigningScheduleStatusError";
+  }
+}
 
 const STATUS_MESSAGES: Record<NotifiableBookingStatus, string> = {
   contract_signing:
@@ -77,6 +102,13 @@ function formatTime(value: string | null | undefined): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function normalizeScheduleTime(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const [hour, minute] = value.split(":");
+  if (!hour || !minute) return value;
+  return `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`;
 }
 
 function formatContractSigningSchedule(booking: NotificationBooking): string {
@@ -156,7 +188,7 @@ async function fetchNotificationBooking(
   const { data: booking, error: bookingError } = await client
     .from("bookings")
     .select(
-      "id, user_id, status, full_name, phone, event_date, start_date, end_date, contract_signing_date, contract_signing_time, package_id, venue_id",
+      "id, user_id, status, full_name, phone, event_date, start_date, end_date, contract_signing_date, contract_signing_time, package_id, venue_id, one_week_email_sent_at, one_week_sms_sent_at",
     )
     .eq("id", bookingId)
     .single();
@@ -196,6 +228,8 @@ async function fetchNotificationBooking(
     email: customer?.email ?? null,
     emailNotificationsEnabled: customer?.email_notifications_enabled ?? true,
     smsNotificationsEnabled: customer?.sms_notifications_enabled ?? true,
+    oneWeekEmailSentAt: booking.one_week_email_sent_at,
+    oneWeekSmsSentAt: booking.one_week_sms_sent_at,
   };
 }
 
@@ -222,9 +256,12 @@ async function sendBookingNotification(
     channel: "email" | "sms";
     promise: Promise<EmailSendResult | SmsSendResult>;
   }> = [];
+  const isReminder = status === "reminder";
 
   if (!booking.emailNotificationsEnabled) {
     result.email = { ok: true, skipped: true, reason: "Email notifications are disabled for this customer" };
+  } else if (isReminder && booking.oneWeekEmailSentAt) {
+    result.email = { ok: true, skipped: true, reason: "One-week email reminder was already sent" };
   } else if (!booking.email) {
     result.email = { ok: false, error: "No customer email is saved for this booking" };
   } else {
@@ -240,6 +277,8 @@ async function sendBookingNotification(
 
   if (!booking.smsNotificationsEnabled) {
     result.sms = { ok: true, skipped: true, reason: "SMS notifications are disabled for this customer" };
+  } else if (isReminder && booking.oneWeekSmsSentAt) {
+    result.sms = { ok: true, skipped: true, reason: "One-week SMS reminder was already sent" };
   } else {
     tasks.push({
       channel: "sms",
@@ -301,11 +340,27 @@ function notificationWarning(result: NotificationResult): string | undefined {
 export async function sendOneWeekReminder(
   bookingId: string,
   client: DbClient = db,
-): Promise<NotificationResult> {
+): Promise<OneWeekReminderResult> {
   const booking = await fetchNotificationBooking(bookingId, client);
-  if (!booking) return {};
+  if (!booking) {
+    return {
+      enabledChannels: { email: false, sms: false },
+      sentAt: { email: null, sms: null },
+    };
+  }
 
-  return sendBookingNotification(booking, "reminder");
+  const result = await sendBookingNotification(booking, "reminder");
+  return {
+    ...result,
+    enabledChannels: {
+      email: booking.emailNotificationsEnabled,
+      sms: booking.smsNotificationsEnabled,
+    },
+    sentAt: {
+      email: booking.oneWeekEmailSentAt,
+      sms: booking.oneWeekSmsSentAt,
+    },
+  };
 }
 
 export async function notifyContractSigningSchedule(
@@ -320,6 +375,12 @@ export async function notifyContractSigningSchedule(
 
 export function notificationSucceeded(result: NotificationResult): boolean {
   return delivered(result.email) || delivered(result.sms);
+}
+
+export function notificationChannelSucceeded(
+  result: EmailSendResult | SmsSendResult | undefined,
+): boolean {
+  return delivered(result);
 }
 
 export async function updateBookingStatusAndNotify(
@@ -394,6 +455,33 @@ export async function updateContractSigningScheduleAndNotify(
 ): Promise<BookingStatusUpdateResult> {
   const client = options.client ?? db;
   const now = new Date().toISOString();
+
+  const { data: currentBooking, error: fetchError } = await client
+    .from("bookings")
+    .select("id, status, contract_signing_date, contract_signing_time")
+    .eq("id", bookingId)
+    .single();
+
+  if (fetchError || !currentBooking) {
+    throw new Error(fetchError?.message ?? "Booking not found");
+  }
+
+  const currentStatus = normalizeBookingStatus(currentBooking.status);
+  if (!CONTRACT_SIGNING_SCHEDULE_STATUSES.includes(currentStatus)) {
+    throw new ContractSigningScheduleStatusError();
+  }
+
+  const currentDate = currentBooking.contract_signing_date ?? null;
+  const currentTime = normalizeScheduleTime(currentBooking.contract_signing_time);
+  const newTime = normalizeScheduleTime(schedule.contractSigningTime);
+
+  if (currentDate === schedule.contractSigningDate && currentTime === newTime) {
+    return {
+      booking: { id: currentBooking.id, status: currentStatus },
+      message: "Contract signing schedule unchanged.",
+      unchanged: true,
+    };
+  }
 
   const { data: booking, error: updateError } = await client
     .from("bookings")

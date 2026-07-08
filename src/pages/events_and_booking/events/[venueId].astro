@@ -2,12 +2,14 @@
 import Layout from '../../../layouts/Layout.astro';
 import { getVenue } from '../../../services/venues';
 import BookingForm from '../../../components/bookingForm.astro';
+import { getUser } from '../../../lib/auth';
 
 const { venueId } = Astro.params;
 
 if (!venueId) return Astro.redirect('/events_and_booking/events');
 
 const { data, error } = await getVenue(venueId);
+const user = await getUser(Astro.cookies);
 
 if (error || !data) return Astro.redirect('/events_and_booking/events');
 
@@ -124,13 +126,48 @@ const venue = {
 
         <!-- Booking Form -->
         <div class="lg:col-span-2">
-          <div class="booking-page__form-card">
-            <BookingForm
-              venueId={venue.id}
-              venueName={venue.name}
-              pricePerNight={venue.price_per_night}
-            />
-          </div>
+          {
+            user ? (
+              <div class="booking-page__form-card">
+                <BookingForm
+                  venueId={venue.id}
+                  venueName={venue.name}
+                  pricePerNight={venue.price_per_night}
+                />
+              </div>
+            ) : (
+              <section
+                class="booking-page__login-panel"
+                aria-labelledby="booking-login-required-title"
+              >
+                <p class="booking-page__login-eyebrow">Booking Access</p>
+                <h2 id="booking-login-required-title">Sign in to book</h2>
+                <p class="booking-page__login-message">
+                  You must be logged in to book this venue.
+                </p>
+                <div class="booking-page__login-actions">
+                  <a
+                    href="/signin"
+                    class="booking-page__login-button booking-page__login-button--primary"
+                  >
+                    Log In
+                  </a>
+                  <a
+                    href="/signup"
+                    class="booking-page__login-button booking-page__login-button--secondary"
+                  >
+                    Sign Up
+                  </a>
+                  <a
+                    href="/events_and_booking/events"
+                    class="booking-page__login-button booking-page__login-button--ghost"
+                  >
+                    Back to Events
+                  </a>
+                </div>
+              </section>
+            )
+          }
         </div>
       </div>
     </div>
@@ -205,6 +242,105 @@ const venue = {
     padding: clamp(1rem, 3vw, 2rem);
   }
 
+  .booking-page__login-panel {
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius-lg);
+    background:
+      radial-gradient(circle at top right, rgba(232, 242, 227, 0.98), transparent 16rem),
+      rgba(255, 255, 255, 0.9);
+    box-shadow: var(--wb-shadow-md);
+    color: var(--wb-text);
+    padding: clamp(1.5rem, 4vw, 2.35rem);
+  }
+
+  .booking-page__login-eyebrow {
+    margin: 0 0 0.4rem;
+    color: var(--wb-green);
+    font-size: 0.74rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .booking-page__login-panel h2 {
+    margin: 0;
+    color: var(--wb-green-dark);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.85rem, 5vw, 2.65rem);
+    letter-spacing: 0;
+    line-height: 1.1;
+  }
+
+  .booking-page__login-message {
+    max-width: 34rem;
+    margin: 0.85rem 0 0;
+    color: var(--wb-muted);
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+
+  .booking-page__login-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  .booking-page__login-button {
+    display: inline-flex;
+    min-height: 2.9rem;
+    flex: 1 1 10rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: var(--wb-radius-md);
+    font-size: 0.84rem;
+    font-weight: 900;
+    line-height: 1.2;
+    padding: 0.85rem 1rem;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      color 0.2s ease,
+      transform 0.2s ease;
+  }
+
+  .booking-page__login-button:hover {
+    transform: translateY(-1px);
+  }
+
+  .booking-page__login-button--primary {
+    background: var(--wb-green);
+    box-shadow: 0 12px 22px rgba(74, 124, 63, 0.18);
+    color: #ffffff;
+  }
+
+  .booking-page__login-button--primary:hover {
+    background: var(--wb-green-mid);
+  }
+
+  .booking-page__login-button--secondary {
+    border-color: var(--wb-border);
+    background: var(--wb-surface-soft);
+    color: var(--wb-green-mid);
+  }
+
+  .booking-page__login-button--secondary:hover,
+  .booking-page__login-button--ghost:hover {
+    background: var(--wb-green-soft);
+    color: var(--wb-green-dark);
+  }
+
+  .booking-page__login-button--ghost {
+    border-color: transparent;
+    background: transparent;
+    color: var(--wb-green-mid);
+  }
+
   .booking-page__card-title {
     margin: 0 0 1rem;
     color: var(--wb-green-dark);
@@ -275,9 +411,15 @@ const venue = {
   }
 
   :global(html.dark) .booking-page__venue-card,
-  :global(html.dark) .booking-page__form-card {
+  :global(html.dark) .booking-page__form-card,
+  :global(html.dark) .booking-page__login-panel {
     background: var(--wb-surface-raised) !important;
     border-color: var(--wb-border) !important;
+  }
+
+  :global(html.dark) .booking-page__login-button--secondary {
+    background: var(--wb-surface-soft);
+    border-color: var(--wb-border);
   }
 
   :global(html.dark) .booking-page__note,

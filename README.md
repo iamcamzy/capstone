@@ -122,7 +122,7 @@ Auth is handled by HttpOnly cookies — no token management needed on the fronte
 | POST   | `/api/admin/reschedule`         | Admin  | Reschedule a booking                              |
 | POST   | `/api/admin/update-booking-status` | Admin | Update a booking to contract signing, booked, rescheduled, cancelled, or completed |
 | GET/POST | `/api/user/notification-preferences` | User | View or update email/SMS notification preferences |
-| POST   | `/api/notifications/send-weekly-reminders` | Admin or cron secret | Send one-week reminders once per eligible booking |
+| POST   | `/api/notifications/send-weekly-reminders` | Admin or cron secret | Send one-week email/SMS reminders once per eligible booking channel |
 | GET    | `/api/venues`                   | Public | List all active venues                            |
 | GET    | `/api/venues/:id`               | Public | Get single venue                                  |
 | POST   | `/api/venues`                   | Admin  | Create a venue                                    |
@@ -143,6 +143,8 @@ For full request/response shapes, see **`API_REFERENCE.md`**.
 ### Weekly Reminder Cron
 
 Call `POST /api/notifications/send-weekly-reminders` once per day from your scheduler. If `NOTIFICATION_CRON_SECRET` is set, pass it as `Authorization: Bearer YOUR_SECRET`, `x-cron-secret`, or `?secret=YOUR_SECRET`; otherwise the endpoint requires an admin session cookie.
+
+One-week reminders are tracked per channel with `bookings.one_week_email_sent_at` and `bookings.one_week_sms_sent_at`. Email-only, SMS-only, and both-channel preferences are supported; a failed channel stays null so a later cron run can retry it without resending channels that already succeeded. The legacy `one_week_notice_sent_at` is filled only after all enabled channels are sent.
 
 ---
 

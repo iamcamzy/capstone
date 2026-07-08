@@ -1,0 +1,18 @@
+alter table public.bookings
+  add column if not exists address text null,
+  add column if not exists caterer text null,
+  add column if not exists use_woodberry_caterer boolean not null default false,
+  add column if not exists package_type text null,
+  add column if not exists package_price numeric null,
+  add column if not exists package_inclusions jsonb null,
+  add column if not exists rooms_count integer null,
+  add column if not exists selected_rooms jsonb null,
+  add column if not exists facility_time_ranges jsonb null,
+  add column if not exists additionals jsonb null,
+  add column if not exists add_ons jsonb null,
+  add column if not exists extension_selections jsonb null,
+  add column if not exists corkage_selections jsonb null,
+  add column if not exists estimate_summary jsonb null,
+  add column if not exists minimum_payment_amount numeric null,
+  add column if not exists remaining_balance_amount numeric null,
+  add column if not exists terms_accepted_at timestamptz null;

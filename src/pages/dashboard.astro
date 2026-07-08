@@ -21,7 +21,7 @@ const isAdmin = !!adminRow;
 
 const { data: bookings } = await db
   .from('bookings')
-  .select('id, full_name, phone, pax, start_date, end_date, event_type, status, total_price, venue_id, event_date, special_requests, created_at, updated_at')
+  .select('id, full_name, phone, pax, start_date, end_date, event_type, status, total_price, venue_id, event_date, special_requests, created_at, updated_at, package_type, package_price, package_inclusions, selected_rooms, add_ons, extension_selections, corkage_selections, additionals, estimate_summary, minimum_payment_amount, remaining_balance_amount')
   .eq('user_id', user.id)
   .order('created_at', { ascending: false })
   .limit(20);
@@ -36,6 +36,14 @@ const { data: venues } = venueIds.length > 0
   ? await db.from('venues').select('id, name, image_url').in('id', venueIds)
   : { data: [] };
 const venueMap = Object.fromEntries((venues ?? []).map(v => [v.id, v]));
+
+const woodberryPackageNames: Record<string, string> = {
+  'lunch-time': 'Lunch Time Package',
+  'dinner-time': 'Dinner Time Package',
+  'barkada-staycation': 'Barkada Staycation',
+  'pamilya-staycation': 'Pamilya Staycation',
+  'room-rates': 'Room Rates',
+};
 
 const bookingIds = normalizedBookings.map(b => b.id);
 const { data: existingReviews } = bookingIds.length > 0
@@ -163,6 +171,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
           const hasReview = reviewedSet.has(b.id);
           const venue     = (venueMap as any)[b.venue_id];
           const venueName = venue?.name ?? 'Unknown Venue';
+          const packageName = b.package_type ? (woodberryPackageNames[b.package_type] ?? b.package_type) : 'Woodberry Package';
           const cfg       = statusConfig[b.status] ?? statusConfig.contract_signing;
           const isCompleted = b.status === 'completed' || (b.status === 'booked' && endDate < todayD);
 
@@ -170,7 +179,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
             <div
               class="group rounded-2xl overflow-hidden transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
               style={`background:white;border:1.5px solid ${cfg.border};`}
-              onclick={`openUserBookingDetail(${JSON.stringify(JSON.stringify({ ...b, venueName, customerEmail: profile?.email ?? user.email, customerPhone: profile?.phone ?? b.phone ?? null }))})`}
+              onclick={`openUserBookingDetail(${JSON.stringify(JSON.stringify({ ...b, venueName, packageName, customerEmail: profile?.email ?? user.email, customerPhone: profile?.phone ?? b.phone ?? null }))})`}
             >
               <!-- Coloured left accent bar -->
               <div style={`height:4px;background:${cfg.dot};`}></div>
@@ -187,6 +196,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
                     </div>
                     <div class="min-w-0">
                       <p class="font-bold text-base truncate" style="color:var(--jet-primary);">{venueName}</p>
+                      <p class="text-xs mt-1 font-semibold" style="color:#4a7c3f;">{packageName}</p>
                       <p class="text-sm mt-0.5" style="color:#6b7280;">
                         {fmtDate(b.start_date)} → {fmtDate(b.end_date)}
                         {b.event_type ? <span class="text-xs ml-1 px-2 py-0.5 rounded-full" style="background:#f3f4f6;color:#374151;">{b.event_type}</span> : ''}
@@ -216,7 +226,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
                     )}
 
                     <button
-                      onclick={`event.stopPropagation();openUserBookingDetail(${JSON.stringify(JSON.stringify({ ...b, venueName, customerEmail: profile?.email ?? user.email, customerPhone: profile?.phone ?? b.phone ?? null }))})`}
+                      onclick={`event.stopPropagation();openUserBookingDetail(${JSON.stringify(JSON.stringify({ ...b, venueName, packageName, customerEmail: profile?.email ?? user.email, customerPhone: profile?.phone ?? b.phone ?? null }))})`}
                       class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border-2 transition hover:bg-gray-50"
                       style="border-color:#cbd5e1;color:#64748b;background:white;"
                     >
@@ -426,11 +436,26 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
         <h4 class="text-sm font-black tracking-widest uppercase mb-4" style="color:var(--jet-primary);">Booking Information</h4>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div><p class="text-xs text-gray-400 font-semibold">Venue</p><p id="ubd-venue" class="font-semibold mt-1">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">Package</p><p id="ubd-package" class="font-semibold mt-1">—</p></div>
           <div><p class="text-xs text-gray-400 font-semibold">Event Type</p><p id="ubd-event-type" class="font-semibold mt-1">—</p></div>
           <div><p class="text-xs text-gray-400 font-semibold">Event Date</p><p id="ubd-event-date" class="font-semibold mt-1">—</p></div>
           <div><p class="text-xs text-gray-400 font-semibold">Hold Period</p><p id="ubd-hold" class="font-semibold mt-1">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">Package Base</p><p id="ubd-package-price" class="font-semibold mt-1">—</p></div>
           <div><p class="text-xs text-gray-400 font-semibold">Total Price</p><p id="ubd-price" class="font-bold mt-1" style="color:var(--butterscotch-primary);">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">50% Minimum</p><p id="ubd-minimum" class="font-semibold mt-1">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">Balance</p><p id="ubd-balance" class="font-semibold mt-1">—</p></div>
           <div><p class="text-xs text-gray-400 font-semibold">Submitted</p><p id="ubd-created" class="font-semibold mt-1">—</p></div>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="text-sm font-black tracking-widest uppercase mb-4" style="color:var(--jet-primary);">Estimate Summary</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><p class="text-xs text-gray-400 font-semibold">Inclusions</p><p id="ubd-inclusions" class="font-semibold mt-1">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">Rooms</p><p id="ubd-rooms" class="font-semibold mt-1">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">Add-ons</p><p id="ubd-addons" class="font-semibold mt-1">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">Extensions</p><p id="ubd-extensions" class="font-semibold mt-1">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">Corkage</p><p id="ubd-corkage" class="font-semibold mt-1">—</p></div>
         </div>
       </div>
 
@@ -468,6 +493,23 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
     return value ? new Date(value).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' } as any) : '—';
   }
 
+  function userBookingMoney(value: unknown) {
+    const amount = Number(value ?? 0);
+    return amount ? '₱' + amount.toLocaleString() : '—';
+  }
+
+  function userBookingItems(items: any) {
+    if (!Array.isArray(items) || items.length === 0) return '—';
+    return items.map((item: any) => item.label ?? item.key).join(', ');
+  }
+
+  function userBookingInclusions(value: any) {
+    if (!value) return '—';
+    if (Array.isArray(value.included)) return value.included.join(', ');
+    if (Array.isArray(value)) return value.map((item: any) => item.label ?? item).join(', ');
+    return '—';
+  }
+
   function openUserBookingDetail(jsonStr: string) {
     const b = JSON.parse(jsonStr);
     const cfg = USER_BOOKING_STATUS_CONFIG[b.status] ?? USER_BOOKING_STATUS_CONFIG.contract_signing;
@@ -484,10 +526,19 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
     userBookingSetText('ubd-email', b.customerEmail ?? '—');
     userBookingSetText('ubd-pax', b.pax ? b.pax + ' pax' : '—');
     userBookingSetText('ubd-venue', b.venueName ?? '—');
+    userBookingSetText('ubd-package', b.packageName ?? 'Woodberry Package');
     userBookingSetText('ubd-event-type', b.event_type ?? '—');
     userBookingSetText('ubd-event-date', userBookingFmtDate(b.event_date));
     userBookingSetText('ubd-hold', userBookingFmtDate(b.start_date) + ' → ' + userBookingFmtDate(b.end_date));
-    userBookingSetText('ubd-price', b.total_price ? '₱' + Number(b.total_price).toLocaleString() : '—');
+    userBookingSetText('ubd-package-price', userBookingMoney(b.package_price ?? b.estimate_summary?.packageBase));
+    userBookingSetText('ubd-price', userBookingMoney(b.total_price));
+    userBookingSetText('ubd-minimum', userBookingMoney(b.minimum_payment_amount ?? b.estimate_summary?.minimumPayment));
+    userBookingSetText('ubd-balance', userBookingMoney(b.remaining_balance_amount ?? b.estimate_summary?.remainingBalance));
+    userBookingSetText('ubd-inclusions', userBookingInclusions(b.package_inclusions));
+    userBookingSetText('ubd-rooms', userBookingItems(b.selected_rooms ?? b.additionals?.rooms));
+    userBookingSetText('ubd-addons', userBookingItems(b.add_ons ?? b.additionals?.addOns));
+    userBookingSetText('ubd-extensions', userBookingItems(b.extension_selections ?? b.additionals?.extensions));
+    userBookingSetText('ubd-corkage', userBookingItems(b.corkage_selections ?? b.additionals?.corkage));
     userBookingSetText('ubd-created', userBookingFmtTs(b.created_at));
 
     const reqWrap = document.getElementById('ubd-requests-wrap');

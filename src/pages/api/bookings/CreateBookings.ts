@@ -8,6 +8,104 @@ import { parseBody } from "../../../lib/parseBody";
 
 export const prerender = false;
 
+const WOODBERRY_PACKAGES = {
+  "lunch-time": {
+    name: "Lunch Time Package",
+    price: 12000,
+    minPax: 80,
+    maxPax: 200,
+    inclusions: ["Pavilion", "Pool", "Sound system with DJ operator"],
+  },
+  "dinner-time": {
+    name: "Dinner Time Package",
+    price: 13000,
+    minPax: 80,
+    maxPax: 200,
+    inclusions: ["Pavilion", "Pool", "Sound system with DJ operator"],
+  },
+  "barkada-staycation": {
+    name: "Barkada Staycation",
+    price: 14500,
+    minPax: 10,
+    maxPax: 15,
+    inclusions: ["Pavilion", "Pool", "Videoke", "Tables/chairs", "2 rooms"],
+  },
+  "pamilya-staycation": {
+    name: "Pamilya Staycation",
+    price: 20500,
+    minPax: 20,
+    maxPax: 30,
+    inclusions: ["Pavilion", "Pool", "Videoke", "Tables/chairs", "4 rooms"],
+  },
+  "room-rates": {
+    name: "Room Rates",
+    price: 0,
+    minPax: 1,
+    maxPax: 24,
+    inclusions: ["Selected room accommodation", "Pool use not included"],
+  },
+} as const;
+
+const ROOM_RATE_PRICES: Record<string, number> = {
+  "room-1": 999,
+  "room-2": 999,
+  "room-3": 999,
+  "room-4": 999,
+  "room-5": 1499,
+  "room-6": 1999,
+  "room-extension": 200,
+};
+
+const ADD_ON_PRICES: Record<string, number> = {
+  lights: 3500,
+  projector: 1500,
+  "big-tv": 1500,
+  videoke: 500,
+  room: 1000,
+  "led-wall": 16000,
+};
+
+const EXTENSION_PRICES: Record<string, number> = {
+  "pavilion-pool": 500,
+  "sound-system": 400,
+  "over-200-guests": 1000,
+  "parking-attendant": 200,
+};
+
+const CORKAGE_PRICES: Record<string, number> = {
+  "sound-system": 1000,
+  "led-wall": 2000,
+  lights: 1000,
+  projector: 500,
+  "electric-booth": 300,
+  "electric-instrument": 300,
+};
+
+type RateItem = {
+  key: string;
+  label: string;
+  price: number;
+  quantity?: number;
+  hours?: number;
+  amount?: number;
+};
+
+function priceItems(items: RateItem[] | null | undefined, prices: Record<string, number>) {
+  return (items ?? []).map((item) => {
+    const unitPrice = prices[item.key] ?? 0;
+    const multiplier = Math.max(1, Number(item.hours ?? item.quantity ?? 1));
+    return {
+      ...item,
+      price: unitPrice,
+      amount: unitPrice * multiplier,
+    };
+  });
+}
+
+function sumItems(items: RateItem[]) {
+  return items.reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
+}
+
 export const POST: APIRoute = async ({ request, cookies }) => {
   const user = await getUser(cookies);
   if (!user) return error("Unauthorized - please sign in", 401);
@@ -27,6 +125,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     eventDate,
     eventType,
     packageId,
+    packageType,
     pax,
     fullName,
     email,
@@ -94,27 +193,39 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (!venue) return error("Venue not found", 404);
   if (!venue.is_active) return error("This venue is not available for booking", 400);
 
-  const nights = Math.max(
-    1,
-    Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000),
-  );
-  const totalPrice = nights * Number(venue.price_per_night);
-
-  let packagePrice = 0;
-  if (packageId) {
-    const { data: pkg } = await supabase
-      .from("packages")
-      .select("price")
-      .eq("id", packageId)
-      .single();
-    if (pkg) packagePrice = Number(pkg.price);
+  const selectedPackage = WOODBERRY_PACKAGES[packageType];
+  if (!selectedPackage) return error("Selected Woodberry package is not available.", 400);
+  if (!pax || pax < selectedPackage.minPax || pax > selectedPackage.maxPax) {
+    return error(
+      `${selectedPackage.name} allows ${selectedPackage.minPax}-${selectedPackage.maxPax} pax.`,
+      400,
+    );
   }
 
-  const computedTotal = totalPrice + packagePrice;
+  const selectedRooms = priceItems(parsed.data.selectedRooms, ROOM_RATE_PRICES);
+  const selectedAddOns = priceItems(parsed.data.addOns, ADD_ON_PRICES);
+  const selectedExtensions = priceItems(parsed.data.extensionSelections, EXTENSION_PRICES);
+  const selectedCorkage = priceItems(parsed.data.corkageSelections, CORKAGE_PRICES);
+  const roomsTotal = sumItems(selectedRooms);
+  const addOnsTotal = sumItems(selectedAddOns);
+  const extensionsTotal = sumItems(selectedExtensions);
+  const corkageTotal = sumItems(selectedCorkage);
+  const packagePrice = selectedPackage.price;
+  const computedTotal = packagePrice + roomsTotal + addOnsTotal + extensionsTotal + corkageTotal;
   const computedMinimumPayment = computedTotal * 0.5;
   const computedRemainingBalance = computedTotal - computedMinimumPayment;
+  const estimateSummary = {
+    packageBase: packagePrice,
+    rooms: roomsTotal,
+    addOns: addOnsTotal,
+    extensions: extensionsTotal,
+    corkage: corkageTotal,
+    total: computedTotal,
+    minimumPayment: computedMinimumPayment,
+    remainingBalance: computedRemainingBalance,
+  };
 
-  const { data: newBooking, error: insertError } = await supabase
+  const { data: newBooking, error: insertError } = await db
     .from("bookings")
     .insert({
       user_id: user.id,
@@ -124,6 +235,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       event_date: eventDate ?? null,
       event_type: eventType ?? null,
       package_id: packageId ?? null,
+      package_type: packageType,
+      package_price: packagePrice,
       pax: pax ?? null,
       full_name: fullName ?? null,
       phone: phone ?? null,
@@ -132,17 +245,30 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       status: "contract_signing",
       created_at: now,
       updated_at: now,
-      // TODO: Enable after booking database columns are added.
-      // address: parsed.data.address ?? null,
-      // caterer: parsed.data.useWoodberryCaterer ? "Woodberry's Caterer" : parsed.data.caterer ?? null,
-      // use_woodberry_caterer: parsed.data.useWoodberryCaterer ?? false,
-      // package_inclusions: parsed.data.packageInclusions ?? null,
-      // rooms_count: parsed.data.roomsCount ?? null,
-      // facility_time_ranges: parsed.data.facilityTimeRanges ?? null,
-      // additionals: parsed.data.additionals ?? null,
-      // minimum_payment_amount: computedMinimumPayment,
-      // remaining_balance_amount: computedRemainingBalance,
-      // terms_accepted_at: parsed.data.termsAccepted ? now : null,
+      address: parsed.data.address ?? null,
+      caterer: parsed.data.useWoodberryCaterer ? "Woodberry's Caterer" : parsed.data.caterer ?? null,
+      use_woodberry_caterer: parsed.data.useWoodberryCaterer ?? false,
+      package_inclusions: {
+        packageName: selectedPackage.name,
+        included: selectedPackage.inclusions,
+        requestedFacilities: parsed.data.packageInclusions ?? [],
+      },
+      rooms_count: parsed.data.roomsCount ?? null,
+      selected_rooms: selectedRooms,
+      facility_time_ranges: parsed.data.facilityTimeRanges ?? null,
+      additionals: {
+        rooms: selectedRooms,
+        addOns: selectedAddOns,
+        extensions: selectedExtensions,
+        corkage: selectedCorkage,
+      },
+      add_ons: selectedAddOns,
+      extension_selections: selectedExtensions,
+      corkage_selections: selectedCorkage,
+      estimate_summary: estimateSummary,
+      minimum_payment_amount: computedMinimumPayment,
+      remaining_balance_amount: computedRemainingBalance,
+      terms_accepted_at: parsed.data.termsAccepted ? now : null,
     })
     .select("id")
     .single();

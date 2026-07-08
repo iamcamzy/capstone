@@ -195,8 +195,22 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       </div>
       <div class="space-y-4 pt-4 border-t border-gray-100">
         <h4 class="text-base font-semibold" style="color: var(--lion-primary);">
+          Woodberry Package *
+        </h4>
+        <p class="text-sm text-gray-600">
+          Choose one pamphlet package. The guest count must fit the package limit.
+        </p>
+        <div id="packageOptions" class="woodberry-package-grid"></div>
+        <p id="packageLimitNotice" class="hidden rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"></p>
+      </div>
+      <div class="space-y-4 pt-4 border-t border-gray-100">
+        <h4 class="text-base font-semibold" style="color: var(--lion-primary);">
           Package Inclusions / Facilities
         </h4>
+        <p class="text-sm text-gray-600">
+          These are filled from the selected package. Pavilion, pool, and sound
+          system usage start at the same time.
+        </p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label
             for="facility-pavillion"
@@ -433,10 +447,35 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       <h3 class="text-lg font-semibold" style="color: var(--lion-primary);">
         Additionals
       </h3>
-      <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
-        <p class="text-sm text-gray-600">
-          Additional items and charges will be added later.
-        </p>
+      <div class="space-y-4">
+        <div>
+          <h4 class="text-sm font-bold mb-2" style="color: var(--jet-primary);">Room Rates</h4>
+          <p class="text-xs text-gray-500 mb-3">Room accommodation does not include pool use. Room extension is &#8369;200/hr.</p>
+          <div id="roomRateOptions" class="booking-option-grid"></div>
+          <div class="mt-3">
+            <label for="roomExtensionHours" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">Room extension hours</label>
+            <input id="roomExtensionHours" type="number" min="0" step="1" value="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
+          </div>
+        </div>
+        <div>
+          <h4 class="text-sm font-bold mb-2" style="color: var(--jet-primary);">Optional add-ons</h4>
+          <div id="addOnOptions" class="booking-option-grid"></div>
+        </div>
+        <div>
+          <h4 class="text-sm font-bold mb-2" style="color: var(--jet-primary);">Extension charges</h4>
+          <div id="extensionOptions" class="booking-option-grid"></div>
+        </div>
+        <div>
+          <h4 class="text-sm font-bold mb-2" style="color: var(--jet-primary);">Corkage</h4>
+          <p class="text-xs text-gray-500 mb-3">No corkage fee on food or drinks.</p>
+          <div id="corkageOptions" class="booking-option-grid"></div>
+        </div>
+        <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <p class="text-sm text-gray-600">
+            Caterers and stylists get 4 hours prep time; beyond allowed prep time is &#8369;500.
+            Parking attendant/security is provided during the event.
+          </p>
+        </div>
       </div>
     </div>
 
@@ -444,14 +483,14 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     <div class="pt-6 border-t border-gray-200">
       <div class="booking-payment-card">
         <div class="flex justify-between text-sm">
-          <span class="text-gray-600">Price per night</span>
+          <span class="text-gray-600">Selected package base</span>
           <span
             style="color: var(--butterscotch-primary);"
             id="pricePerNightDisplay"></span>
         </div>
         <div class="flex justify-between text-sm">
-          <span class="text-gray-600">Number of nights</span>
-          <span id="nightsCount">0</span>
+          <span class="text-gray-600">Rooms, add-ons, extensions, corkage</span>
+          <span id="nightsCount">&#8369;0.00</span>
         </div>
         <div
           class="flex justify-between font-bold pt-2 border-t border-gray-200"
@@ -706,6 +745,35 @@ const { venueId, venueName, pricePerNight } = Astro.props;
 
       <section class="confirmation-section">
         <div class="confirmation-section__header">
+          <p class="confirmation-section__eyebrow">Selected Package</p>
+          <h4 id="conf-package-name">Woodberry package</h4>
+        </div>
+        <div class="confirmation-detail-grid">
+          <div class="confirmation-detail">
+            <span>Base Price</span>
+            <p id="conf-package-price"></p>
+          </div>
+          <div class="confirmation-detail">
+            <span>Duration</span>
+            <p id="conf-package-duration"></p>
+          </div>
+          <div class="confirmation-detail">
+            <span>Time / Schedule</span>
+            <p id="conf-package-schedule"></p>
+          </div>
+          <div class="confirmation-detail">
+            <span>Capacity</span>
+            <p id="conf-package-capacity"></p>
+          </div>
+          <div class="confirmation-detail confirmation-detail--wide">
+            <span>Included</span>
+            <p id="conf-package-included"></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="confirmation-section">
+        <div class="confirmation-section__header">
           <p class="confirmation-section__eyebrow">Package Inclusions</p>
           <h4>Facilities requested</h4>
         </div>
@@ -716,11 +784,9 @@ const { venueId, venueName, pricePerNight } = Astro.props;
         <div>
           <div class="confirmation-section__header">
             <p class="confirmation-section__eyebrow">Additionals</p>
-            <h4>To be finalized</h4>
+            <h4>Selected items</h4>
           </div>
-          <div class="confirmation-note-card">
-            <p>Additional items and charges will be reviewed with staff later.</p>
-          </div>
+          <div id="conf-additionals" class="confirmation-inclusions"></div>
         </div>
         <div id="conf-requests-wrap" class="hidden">
           <div class="confirmation-section__header">
@@ -856,6 +922,103 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   var confSubmitBtn = document.getElementById("conf-submit-btn");
   var pricePerNightValue = Number(pricePerNight) || 0;
   var woodberryCatererName = "Woodberry's Caterer";
+  var packageOptionsWrap = document.getElementById("packageOptions");
+  var packageLimitNotice = document.getElementById("packageLimitNotice");
+  var roomRateOptionsWrap = document.getElementById("roomRateOptions");
+  var addOnOptionsWrap = document.getElementById("addOnOptions");
+  var extensionOptionsWrap = document.getElementById("extensionOptions");
+  var corkageOptionsWrap = document.getElementById("corkageOptions");
+  var roomExtensionHoursInput = document.getElementById("roomExtensionHours");
+  var selectedPackageType = "";
+  var woodberryPackages = [
+    {
+      type: "lunch-time",
+      name: "Lunch Time Package",
+      price: 12000,
+      duration: "4 hrs",
+      schedule: "11AM-3PM or 12NN-4PM",
+      minPax: 80,
+      maxPax: 200,
+      inclusions: ["Pavilion", "Pool", "Sound system with DJ operator"],
+      facilityKeys: ["pavillion", "pool", "sound-system"],
+    },
+    {
+      type: "dinner-time",
+      name: "Dinner Time Package",
+      price: 13000,
+      duration: "4 hrs",
+      schedule: "Starts at 5PM",
+      minPax: 80,
+      maxPax: 200,
+      inclusions: ["Pavilion", "Pool", "Sound system with DJ operator"],
+      facilityKeys: ["pavillion", "pool", "sound-system"],
+    },
+    {
+      type: "barkada-staycation",
+      name: "Barkada Staycation",
+      price: 14500,
+      duration: "24 hrs accommodation",
+      schedule: "Overnight stay",
+      minPax: 10,
+      maxPax: 15,
+      inclusions: ["Pavilion", "Pool", "Videoke", "Tables/chairs", "2 rooms"],
+      facilityKeys: ["pavillion", "pool", "videoke", "rooms"],
+      includedRooms: 2,
+    },
+    {
+      type: "pamilya-staycation",
+      name: "Pamilya Staycation",
+      price: 20500,
+      duration: "24 hrs accommodation",
+      schedule: "Overnight stay",
+      minPax: 20,
+      maxPax: 30,
+      inclusions: ["Pavilion", "Pool", "Videoke", "Tables/chairs", "4 rooms"],
+      facilityKeys: ["pavillion", "pool", "videoke", "rooms"],
+      includedRooms: 4,
+    },
+    {
+      type: "room-rates",
+      name: "Room Rates",
+      price: 0,
+      duration: "12 hrs per room",
+      schedule: "Room accommodation only",
+      minPax: 1,
+      maxPax: 24,
+      inclusions: ["Selected room accommodation", "Pool use not included"],
+      facilityKeys: ["rooms"],
+    },
+  ];
+  var roomRates = [
+    { key: "room-1", label: "Room 1", price: 999, detail: "12 hrs / 4 pax" },
+    { key: "room-2", label: "Room 2", price: 999, detail: "12 hrs / 4 pax" },
+    { key: "room-3", label: "Room 3", price: 999, detail: "12 hrs / 4 pax" },
+    { key: "room-4", label: "Room 4", price: 999, detail: "12 hrs / 4 pax" },
+    { key: "room-5", label: "Room 5", price: 1499, detail: "12 hrs / 2 pax" },
+    { key: "room-6", label: "Room 6", price: 1999, detail: "12 hrs / 2 pax" },
+  ];
+  var addOnOptions = [
+    { key: "lights", label: "Lights", price: 3500 },
+    { key: "projector", label: "Projector", price: 1500 },
+    { key: "big-tv", label: '65" Big TV', price: 1500 },
+    { key: "videoke", label: "Videoke", price: 500 },
+    { key: "room", label: "Room", price: 1000 },
+    { key: "led-wall", label: "LED Wall", price: 16000 },
+  ];
+  var extensionOptions = [
+    { key: "pavilion-pool", label: "Pavilion + Pool", price: 500, unit: "hr" },
+    { key: "sound-system", label: "Sound system", price: 400, unit: "hr" },
+    { key: "over-200-guests", label: "Add 50 guests over 200 pax", price: 1000, unit: "block" },
+    { key: "parking-attendant", label: "Parking attendant", price: 200, unit: "hr" },
+  ];
+  var corkageOptions = [
+    { key: "sound-system", label: "Sound system", price: 1000 },
+    { key: "led-wall", label: "LED wall", price: 2000 },
+    { key: "lights", label: "Lights", price: 1000, detail: "₱500-₱1,000" },
+    { key: "projector", label: "Projector", price: 500 },
+    { key: "electric-booth", label: "Electric booth", price: 300 },
+    { key: "electric-instrument", label: "Electric instrument", price: 300 },
+  ];
   var facilityOptions = [
     { key: "pavillion", label: "Pavillion" },
     { key: "pool", label: "Pool" },
@@ -865,7 +1028,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   ];
 
   var ppnDisplay = document.getElementById("pricePerNightDisplay");
-  if (ppnDisplay) ppnDisplay.textContent = formatCurrency(pricePerNightValue);
+  if (ppnDisplay) ppnDisplay.textContent = "Select a package";
 
   function formatCurrency(amount) {
     return new Intl.NumberFormat("en-PH", {
@@ -873,6 +1036,119 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       currency: "PHP",
       minimumFractionDigits: 2,
     }).format(Number(amount) || 0);
+  }
+
+  function getSelectedPackage() {
+    return woodberryPackages.find(function (pkg) {
+      return pkg.type === selectedPackageType;
+    }) || null;
+  }
+
+  function renderPackageOptions() {
+    if (!packageOptionsWrap) return;
+    packageOptionsWrap.innerHTML = woodberryPackages
+      .map(function (pkg) {
+        return (
+          '<label class="woodberry-package-card" for="package-' + pkg.type + '">' +
+          '<input id="package-' + pkg.type + '" type="radio" name="packageType" value="' + pkg.type + '" required />' +
+          '<span class="woodberry-package-card__body">' +
+          '<span class="woodberry-package-card__top"><strong>' + pkg.name + '</strong><em>' + formatCurrency(pkg.price) + '</em></span>' +
+          '<span>' + pkg.duration + ' · ' + pkg.schedule + '</span>' +
+          '<span>' + pkg.minPax + '-' + pkg.maxPax + ' pax</span>' +
+          '<small>' + pkg.inclusions.join(", ") + '</small>' +
+          '</span>' +
+          '</label>'
+        );
+      })
+      .join("");
+
+    packageOptionsWrap.querySelectorAll('input[name="packageType"]').forEach(function (input) {
+      input.addEventListener("change", function () {
+        selectedPackageType = input.value;
+        applySelectedPackage();
+        calculateNights();
+      });
+    });
+  }
+
+  function renderCheckedOptions(wrap, options, groupName, usesHours) {
+    if (!wrap) return;
+    wrap.innerHTML = options
+      .map(function (item) {
+        var detail = item.detail || (usesHours ? formatCurrency(item.price) + "/" + item.unit : formatCurrency(item.price));
+        var hoursInput = usesHours
+          ? '<input type="number" min="0" step="1" value="0" data-option-hours="' + groupName + '" data-key="' + item.key + '" class="booking-option-card__hours" aria-label="' + item.label + ' quantity" />'
+          : "";
+        return (
+          '<label class="booking-option-card">' +
+          '<input type="checkbox" data-option-group="' + groupName + '" value="' + item.key + '" />' +
+          '<span><strong>' + item.label + '</strong><small>' + detail + '</small></span>' +
+          hoursInput +
+          '</label>'
+        );
+      })
+      .join("");
+
+    wrap.querySelectorAll("input").forEach(function (input) {
+      input.addEventListener("change", calculateNights);
+      input.addEventListener("input", calculateNights);
+    });
+  }
+
+  function renderRateOptions() {
+    renderCheckedOptions(roomRateOptionsWrap, roomRates, "rooms", false);
+    renderCheckedOptions(addOnOptionsWrap, addOnOptions, "add-ons", false);
+    renderCheckedOptions(extensionOptionsWrap, extensionOptions, "extensions", true);
+    renderCheckedOptions(corkageOptionsWrap, corkageOptions, "corkage", false);
+    if (roomExtensionHoursInput) {
+      roomExtensionHoursInput.addEventListener("input", calculateNights);
+      roomExtensionHoursInput.addEventListener("change", calculateNights);
+    }
+  }
+
+  function collectSelectedOptions(groupName, options, usesHours) {
+    return options
+      .map(function (item) {
+        var checkbox = document.querySelector('[data-option-group="' + groupName + '"][value="' + item.key + '"]');
+        if (!checkbox || !checkbox.checked) return null;
+        var hours = 1;
+        if (usesHours) {
+          var hoursInput = document.querySelector('[data-option-hours="' + groupName + '"][data-key="' + item.key + '"]');
+          hours = Math.max(0, Number(hoursInput?.value) || 0);
+          if (hours <= 0) return null;
+        }
+        var amount = item.price * hours;
+        return {
+          key: item.key,
+          label: item.label,
+          price: item.price,
+          quantity: usesHours ? undefined : 1,
+          hours: usesHours ? hours : undefined,
+          amount: amount,
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function getSelectedRooms() {
+    var rooms = collectSelectedOptions("rooms", roomRates, false);
+    var extensionHours = Math.max(0, Number(roomExtensionHoursInput?.value) || 0);
+    if (extensionHours > 0) {
+      rooms.push({
+        key: "room-extension",
+        label: "Room extension",
+        price: 200,
+        hours: extensionHours,
+        amount: extensionHours * 200,
+      });
+    }
+    return rooms;
+  }
+
+  function sumAmounts(items) {
+    return items.reduce(function (sum, item) {
+      return sum + Number(item.amount ?? item.price ?? 0);
+    }, 0);
   }
 
   function fmtDate(str) {
@@ -961,11 +1237,23 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       }
     }
 
-    var total = nights * pricePerNightValue;
+    var selectedPackage = getSelectedPackage();
+    var packageBase = selectedPackage ? selectedPackage.price : 0;
+    var selectedRooms = getSelectedRooms();
+    var selectedAddOns = collectSelectedOptions("add-ons", addOnOptions, false);
+    var selectedExtensions = collectSelectedOptions("extensions", extensionOptions, true);
+    var selectedCorkage = collectSelectedOptions("corkage", corkageOptions, false);
+    var roomsTotal = sumAmounts(selectedRooms);
+    var addOnsTotal = sumAmounts(selectedAddOns);
+    var extensionsTotal = sumAmounts(selectedExtensions);
+    var corkageTotal = sumAmounts(selectedCorkage);
+    var total = packageBase + roomsTotal + addOnsTotal + extensionsTotal + corkageTotal;
     var minimumPayment = total * 0.5;
     var remainingBalance = total - minimumPayment;
 
     nightsCountEl.textContent = String(nights);
+    nightsCountEl.textContent = formatCurrency(roomsTotal + addOnsTotal + extensionsTotal + corkageTotal);
+    if (ppnDisplay) ppnDisplay.textContent = selectedPackage ? formatCurrency(packageBase) : "Select a package";
     totalPriceEl.textContent = formatCurrency(total);
     minimumPaymentEl.textContent = formatCurrency(minimumPayment);
     remainingBalanceEl.textContent = formatCurrency(remainingBalance);
@@ -973,8 +1261,17 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     return {
       nights: nights,
       total: total,
+      packageBase: packageBase,
+      roomsTotal: roomsTotal,
+      addOnsTotal: addOnsTotal,
+      extensionsTotal: extensionsTotal,
+      corkageTotal: corkageTotal,
       minimumPayment: minimumPayment,
       remainingBalance: remainingBalance,
+      selectedRooms: selectedRooms,
+      selectedAddOns: selectedAddOns,
+      selectedExtensions: selectedExtensions,
+      selectedCorkage: selectedCorkage,
     };
   }
 
@@ -1013,6 +1310,55 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     facilityOptions.forEach(function (facility) {
       syncFacility(facility.key);
     });
+  }
+
+  function applySelectedPackage() {
+    var selectedPackage = getSelectedPackage();
+    facilityOptions.forEach(function (facility) {
+      var checkbox = getFacilityCheckbox(facility.key);
+      if (!checkbox) return;
+      checkbox.checked = !!selectedPackage && selectedPackage.facilityKeys.includes(facility.key);
+    });
+    if (roomsCountInput) {
+      roomsCountInput.value = selectedPackage?.includedRooms ? String(selectedPackage.includedRooms) : "";
+    }
+    syncAllFacilities();
+    validatePackagePax(false);
+  }
+
+  function validatePackagePax(showMessage) {
+    var selectedPackage = getSelectedPackage();
+    var guestsInput = document.getElementById("guests");
+    var pax = Number(guestsInput?.value) || 0;
+    var valid = !!selectedPackage && pax >= selectedPackage.minPax && pax <= selectedPackage.maxPax;
+    if (packageLimitNotice) {
+      packageLimitNotice.classList.toggle("hidden", valid || !selectedPackage || !pax);
+      if (selectedPackage && pax) {
+        packageLimitNotice.textContent =
+          selectedPackage.name +
+          " allows " +
+          selectedPackage.minPax +
+          "-" +
+          selectedPackage.maxPax +
+          " pax. Please adjust the guest count or choose another package.";
+      }
+    }
+    if (!valid && showMessage) {
+      if (!selectedPackage) {
+        showNotice("Please choose a Woodberry package.", "error");
+      } else {
+        showNotice(
+          selectedPackage.name +
+            " allows " +
+            selectedPackage.minPax +
+            "-" +
+            selectedPackage.maxPax +
+            " pax.",
+          "error",
+        );
+      }
+    }
+    return valid;
   }
 
   function syncCaterer() {
@@ -1160,6 +1506,36 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     });
   }
 
+  function populateOptionSummary(items) {
+    var wrap = document.getElementById("conf-additionals");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+
+    if (!items.length) {
+      var empty = document.createElement("div");
+      empty.className = "booking-summary-card booking-summary-card--empty";
+      empty.textContent = "No add-ons, rooms, extensions, or corkage selected.";
+      wrap.appendChild(empty);
+      return;
+    }
+
+    items.forEach(function (item) {
+      var card = document.createElement("div");
+      card.className = "booking-summary-card";
+      var title = document.createElement("p");
+      title.className = "font-semibold";
+      title.textContent = item.label;
+      card.appendChild(title);
+      var meta = document.createElement("p");
+      meta.className = "booking-summary-card__meta";
+      meta.textContent =
+        (item.hours ? item.hours + " hr(s) · " : "") +
+        formatCurrency(item.amount ?? item.price);
+      card.appendChild(meta);
+      wrap.appendChild(card);
+    });
+  }
+
   checkInInput.addEventListener("change", function () {
     checkOutInput.min =
       checkInInput.value && checkInInput.value > minimumBookingDateValue
@@ -1168,6 +1544,10 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     calculateNights();
   });
   checkOutInput.addEventListener("change", calculateNights);
+  document.getElementById("guests").addEventListener("input", function () {
+    validatePackagePax(false);
+    calculateNights();
+  });
   useWoodberryCatererInput.addEventListener("change", syncCaterer);
   facilityOptions.forEach(function (facility) {
     var checkbox = getFacilityCheckbox(facility.key);
@@ -1215,6 +1595,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
 
     var inclusions = getSelectedInclusions();
     if (!validateFacilityRanges(inclusions)) return false;
+    if (!validatePackagePax(true)) return false;
 
     return true;
   }
@@ -1223,6 +1604,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     var inclusions = getSelectedInclusions();
     var totals = calculateNights();
     var catererValue = catererInput.value.trim() || "N/A";
+    var selectedPackage = getSelectedPackage();
 
     document.getElementById("conf-venue").textContent = venueName || "Venue";
     document.getElementById("conf-name").textContent =
@@ -1243,6 +1625,20 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     document.getElementById("conf-nights").textContent =
       totals.nights + " night" + (totals.nights !== 1 ? "s" : "");
     document.getElementById("conf-caterer").textContent = catererValue;
+    document.getElementById("conf-package-name").textContent =
+      selectedPackage?.name || "Woodberry package";
+    document.getElementById("conf-package-price").textContent = formatCurrency(
+      selectedPackage?.price || 0,
+    );
+    document.getElementById("conf-package-duration").textContent =
+      selectedPackage?.duration || "N/A";
+    document.getElementById("conf-package-schedule").textContent =
+      selectedPackage?.schedule || "N/A";
+    document.getElementById("conf-package-capacity").textContent = selectedPackage
+      ? selectedPackage.minPax + "-" + selectedPackage.maxPax + " pax"
+      : "N/A";
+    document.getElementById("conf-package-included").textContent =
+      selectedPackage?.inclusions.join(", ") || "N/A";
     document.getElementById("conf-total").textContent = formatCurrency(totals.total);
     document.getElementById("conf-minimum-payment").textContent = formatCurrency(
       totals.minimumPayment,
@@ -1251,6 +1647,12 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       totals.remainingBalance,
     );
     populateInclusionSummary(inclusions);
+    populateOptionSummary(
+      totals.selectedRooms
+        .concat(totals.selectedAddOns)
+        .concat(totals.selectedExtensions)
+        .concat(totals.selectedCorkage),
+    );
 
     var requests = document.getElementById("specialRequests").value;
     var reqWrap = document.getElementById("conf-requests-wrap");
@@ -1321,6 +1723,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     var inclusions = getSelectedInclusions();
     var totals = calculateNights();
     var catererValue = catererInput.value.trim();
+    var selectedPackage = getSelectedPackage();
 
     var formData = {
       venueId: venueId,
@@ -1332,6 +1735,8 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       phone: document.getElementById("phone").value,
       pax: parseInt(document.getElementById("guests").value) || null,
       eventType: document.getElementById("eventType").value || null,
+      packageType: selectedPackage?.type,
+      packagePrice: totals.packageBase,
       specialRequests: document.getElementById("specialRequests").value || null,
       notificationPreference: getNotificationPreference(),
       address: addressInput.value || null,
@@ -1339,6 +1744,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       useWoodberryCaterer: useWoodberryCatererInput.checked,
       packageInclusions: inclusions,
       roomsCount: roomsCountInput.value ? parseInt(roomsCountInput.value) : null,
+      selectedRooms: totals.selectedRooms,
       facilityTimeRanges: inclusions.map(function (inclusion) {
         return {
           key: inclusion.key,
@@ -1346,7 +1752,25 @@ const { venueId, venueName, pricePerNight } = Astro.props;
           to: inclusion.to || null,
         };
       }),
-      additionals: null,
+      additionals: {
+        rooms: totals.selectedRooms,
+        addOns: totals.selectedAddOns,
+        extensions: totals.selectedExtensions,
+        corkage: totals.selectedCorkage,
+      },
+      addOns: totals.selectedAddOns,
+      extensionSelections: totals.selectedExtensions,
+      corkageSelections: totals.selectedCorkage,
+      estimateSummary: {
+        packageBase: totals.packageBase,
+        rooms: totals.roomsTotal,
+        addOns: totals.addOnsTotal,
+        extensions: totals.extensionsTotal,
+        corkage: totals.corkageTotal,
+        total: totals.total,
+        minimumPayment: totals.minimumPayment,
+        remainingBalance: totals.remainingBalance,
+      },
       minimumPaymentAmount: totals.minimumPayment,
       remainingBalanceAmount: totals.remainingBalance,
       termsAccepted: termsAcceptedInput.checked,
@@ -1383,6 +1807,8 @@ const { venueId, venueName, pricePerNight } = Astro.props;
           });
         }
         syncCaterer();
+        selectedPackageType = "";
+        if (packageLimitNotice) packageLimitNotice.classList.add("hidden");
         syncAllFacilities();
         calculateNights();
         var seconds = 5;
@@ -1416,6 +1842,8 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     }
   });
 
+  renderPackageOptions();
+  renderRateOptions();
   syncCaterer();
   syncAllFacilities();
   calculateNights();
@@ -2377,6 +2805,93 @@ const { venueId, venueName, pricePerNight } = Astro.props;
 
   :global(.booking-summary-card--empty) {
     color: var(--wb-muted);
+  }
+
+  .woodberry-package-grid,
+  .booking-option-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  }
+
+  .woodberry-package-card,
+  .booking-option-card {
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    gap: 0.75rem;
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius-md);
+    background: rgba(255, 255, 255, 0.76);
+    cursor: pointer;
+    padding: 0.9rem;
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      transform 0.2s ease;
+  }
+
+  .woodberry-package-card:has(input:checked),
+  .booking-option-card:has(input[type="checkbox"]:checked) {
+    border-color: rgba(74, 124, 63, 0.48);
+    background: var(--wb-green-soft);
+    box-shadow: var(--wb-shadow-sm);
+  }
+
+  .woodberry-package-card:hover,
+  .booking-option-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(74, 124, 63, 0.35);
+  }
+
+  .woodberry-package-card input,
+  .booking-option-card input[type="checkbox"] {
+    margin-top: 0.25rem;
+    accent-color: var(--wb-green);
+  }
+
+  .woodberry-package-card__body,
+  .booking-option-card span {
+    display: grid;
+    min-width: 0;
+    gap: 0.25rem;
+    color: var(--wb-text);
+    font-size: 0.88rem;
+    line-height: 1.35;
+  }
+
+  .woodberry-package-card__top {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .woodberry-package-card strong,
+  .booking-option-card strong {
+    color: var(--wb-green-dark);
+    font-weight: 900;
+  }
+
+  .woodberry-package-card em {
+    color: var(--wb-warm);
+    font-style: normal;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+
+  .woodberry-package-card small,
+  .booking-option-card small {
+    color: var(--wb-muted);
+    font-size: 0.78rem;
+  }
+
+  .booking-option-card__hours {
+    width: 4.5rem;
+    flex: 0 0 auto;
+    border: 1px solid var(--wb-border);
+    border-radius: 0.65rem;
+    padding: 0.45rem 0.55rem;
   }
 
   @media (max-width: 640px) {

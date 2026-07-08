@@ -3,7 +3,11 @@ import type { APIRoute } from "astro";
 import { supabaseAdmin, supabase } from "../../../lib/supabase";
 import { adminGuard } from "../../../lib/adminGuard";
 import { ok, error } from "../../../lib/response";
-import { notificationSucceeded, sendOneWeekReminder } from "../../../services/notifications";
+import {
+  notificationChannelSucceeded,
+  notificationSucceeded,
+  sendOneWeekReminder,
+} from "../../../services/notifications";
 
 export const prerender = false;
 
@@ -39,10 +43,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const targetDate = dateSevenDaysFromToday();
   const { data: bookings, error: fetchError } = await db
     .from("bookings")
-    .select("id")
+    .select("id, one_week_notice_sent_at")
     .eq("event_date", targetDate)
-    .neq("status", "cancelled")
-    .is("one_week_notice_sent_at", null);
+    .neq("status", "cancelled");
 
   if (fetchError) {
     console.error("[WeeklyReminders]", fetchError.message);
@@ -56,22 +59,41 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   for (const booking of bookings ?? []) {
     try {
       const result = await sendOneWeekReminder(booking.id, db);
-      if (!notificationSucceeded(result)) {
-        skipped.push(booking.id);
-        continue;
+      const emailSucceeded = notificationChannelSucceeded(result.email);
+      const smsSucceeded = notificationChannelSucceeded(result.sms);
+      const emailFailed = result.email && !result.email.ok ? result.email.error : null;
+      const smsFailed = result.sms && !result.sms.ok ? result.sms.error : null;
+      const failureMessage = [emailFailed, smsFailed].filter(Boolean).join("; ");
+      const now = new Date().toISOString();
+      const emailSent = !result.enabledChannels.email || Boolean(result.sentAt.email || emailSucceeded);
+      const smsSent = !result.enabledChannels.sms || Boolean(result.sentAt.sms || smsSucceeded);
+      const updates: {
+        one_week_email_sent_at?: string;
+        one_week_sms_sent_at?: string;
+        one_week_notice_sent_at?: string;
+      } = {};
+
+      if (emailSucceeded) updates.one_week_email_sent_at = now;
+      if (smsSucceeded) updates.one_week_sms_sent_at = now;
+      if (emailSent && smsSent && !booking.one_week_notice_sent_at) {
+        updates.one_week_notice_sent_at = now;
       }
 
-      const { error: updateError } = await db
-        .from("bookings")
-        .update({ one_week_notice_sent_at: new Date().toISOString() })
-        .eq("id", booking.id);
+      if (Object.keys(updates).length > 0) {
+        const { error: updateError } = await db
+          .from("bookings")
+          .update(updates)
+          .eq("id", booking.id);
 
-      if (updateError) {
-        failed.push({ bookingId: booking.id, error: updateError.message });
-        continue;
+        if (updateError) {
+          failed.push({ bookingId: booking.id, error: updateError.message });
+          continue;
+        }
       }
 
-      sent.push(booking.id);
+      if (notificationSucceeded(result)) sent.push(booking.id);
+      if (failureMessage) failed.push({ bookingId: booking.id, error: failureMessage });
+      if (!notificationSucceeded(result) && !failureMessage) skipped.push(booking.id);
     } catch (reminderError) {
       failed.push({
         bookingId: booking.id,

@@ -18,6 +18,42 @@ const facilityTimeRangeSchema = z.object({
   roomsCount: z.string().optional().nullable(),
 });
 
+const woodberryPackageSchema = z.enum([
+  "lunch-time",
+  "dinner-time",
+  "barkada-staycation",
+  "pamilya-staycation",
+  "room-rates",
+]);
+
+const packageLimits: Record<z.infer<typeof woodberryPackageSchema>, { min: number; max: number }> = {
+  "lunch-time": { min: 80, max: 200 },
+  "dinner-time": { min: 80, max: 200 },
+  "barkada-staycation": { min: 10, max: 15 },
+  "pamilya-staycation": { min: 20, max: 30 },
+  "room-rates": { min: 1, max: 24 },
+};
+
+const selectedItemSchema = z.object({
+  key: z.string().max(100),
+  label: z.string().max(200),
+  price: z.number().min(0),
+  quantity: z.number().int().min(1).optional(),
+  hours: z.number().min(0).optional(),
+  amount: z.number().min(0).optional(),
+});
+
+const estimateSummarySchema = z.object({
+  packageBase: z.number().min(0),
+  rooms: z.number().min(0),
+  addOns: z.number().min(0),
+  extensions: z.number().min(0),
+  corkage: z.number().min(0),
+  total: z.number().min(0),
+  minimumPayment: z.number().min(0),
+  remainingBalance: z.number().min(0),
+});
+
 function addOneCalendarMonth(date: Date) {
   const oneMonthLater = new Date(date.getFullYear(), date.getMonth() + 1, date.getDate());
   if (oneMonthLater.getDate() !== date.getDate()) {
@@ -45,6 +81,8 @@ export const createBookingSchema = z
     eventDate: dateString.optional().nullable(),
     eventType: z.string().max(100).optional().nullable(),
     packageId: z.string().uuid("packageId must be a valid UUID").optional().nullable(),
+    packageType: woodberryPackageSchema,
+    packagePrice: z.number().min(0),
     // Accept both pax and guests from booking forms.
     pax: z.number().int().min(1, "pax must be at least 1").optional().nullable(),
     guests: z.number().int().min(1).optional().nullable(),
@@ -58,8 +96,13 @@ export const createBookingSchema = z
     useWoodberryCaterer: z.boolean().optional(),
     packageInclusions: z.array(facilityTimeRangeSchema).optional().nullable(),
     roomsCount: z.number().int().min(0).optional().nullable(),
+    selectedRooms: z.array(selectedItemSchema).optional().nullable(),
     facilityTimeRanges: z.array(facilityTimeRangeSchema).optional().nullable(),
     additionals: z.unknown().optional().nullable(),
+    addOns: z.array(selectedItemSchema).optional().nullable(),
+    extensionSelections: z.array(selectedItemSchema).optional().nullable(),
+    corkageSelections: z.array(selectedItemSchema).optional().nullable(),
+    estimateSummary: estimateSummarySchema.optional().nullable(),
     minimumPaymentAmount: z.number().min(0).optional().nullable(),
     remainingBalanceAmount: z.number().min(0).optional().nullable(),
     termsAccepted: z
@@ -89,6 +132,18 @@ export const createBookingSchema = z
       (parseDateOnly(d.eventDate) >= parseDateOnly(d.startDate) &&
         parseDateOnly(d.eventDate) <= parseDateOnly(d.endDate)),
     { message: "eventDate must fall within the selected booking dates", path: ["eventDate"] },
+  )
+  .refine(
+    (d) => {
+      const pax = d.pax ?? d.guests ?? null;
+      if (!pax) return false;
+      const limits = packageLimits[d.packageType];
+      return pax >= limits.min && pax <= limits.max;
+    },
+    {
+      message: "pax must be within the selected package limits",
+      path: ["pax"],
+    },
   )
   .transform((d) => ({
     ...d,

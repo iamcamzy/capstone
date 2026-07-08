@@ -170,6 +170,17 @@ Reschedule a booking. Creates a new booking linked to the original.
 
 ---
 
+## Notifications
+
+### `POST /api/notifications/send-weekly-reminders` Admin or cron secret
+Send reminders for bookings whose event date is seven days away.
+
+The endpoint respects each customer's email/SMS preferences. Successful email sends set `one_week_email_sent_at`; successful SMS sends set `one_week_sms_sent_at`. If one channel fails, only that channel remains null and is retried later. `one_week_notice_sent_at` is set after every enabled channel has been sent.
+
+Pass `NOTIFICATION_CRON_SECRET` as a bearer token, `x-cron-secret`, or `?secret=` when configured; otherwise use an admin session.
+
+---
+
 ## Venues
 
 ### `GET /api/venues` 🌐 Public
