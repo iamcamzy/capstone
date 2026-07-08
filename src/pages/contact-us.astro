@@ -2,172 +2,348 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<!-- 
-COLORS
-
-lion: #aa8f66
-butterscotch: #ed9b40
-jet: #363537 
--->
 <Layout>
-  <!-- Refactored layout to match index.astro design patterns -->
-  <div class="w-full py-16">
-    <div class="max-w-6xl mx-auto px-4">
-      <h1
-        class="text-4xl font-bold mb-12 text-center"
-        style="color: var(--jet-primary);"
-      >
-        GET IN TOUCH
-      </h1>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <!-- Contact Form -->
-        <div class="card-container p-8">
-          <h2
-            class="text-2xl font-bold mb-6"
-            style="color: var(--butterscotch-primary);"
-          >
-            SEND US AN EMAIL
-          </h2>
-
-          <form id="contact-form" class="space-y-6">
-            <div>
-              <label for="email" class="block text-sm font-semibold mb-2">
-                Tell us your email so we can contact you back!
-              </label>
-              <input
-                id="email"
-                type="email"
-                class="w-full px-4 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-butterscotch-500 transition"
-                placeholder="your@email.com"
-                required
-              />
-            </div>
-
-            <div>
-              <label for="reason" class="block text-sm font-semibold mb-2">
-                What's your reason for contacting us?
-              </label>
-              <input
-                id="reason"
-                type="text"
-                class="w-full px-4 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-butterscotch-500 transition"
-                placeholder="e.g., Inquiry, Support, Partnership"
-                required
-              />
-            </div>
-
-            <div>
-              <label for="message" class="block text-sm font-semibold mb-2">
-                Tell us the specifics!
-              </label>
-              <textarea
-                id="message"
-                class="w-full px-4 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-butterscotch-500 transition resize-none"
-                rows="4"
-                placeholder="Your message here..."></textarea>
-            </div>
-
-            <button
-              id="contactFormSubmit"
-              type="submit"
-              class="w-full px-6 py-3 rounded-lg font-semibold text-white transition-all hover:opacity-90 transform hover:scale-105"
-              style="background-color: var(--butterscotch-primary);"
-            >
-              SUBMIT
-            </button>
-          </form>
-        </div>
-
-        <!-- Contact Methods & Map -->
-        <div class="space-y-8">
-          <!-- Contact Methods Card -->
-          <div class="card-container p-8">
-            <h2
-              class="text-2xl font-bold mb-6"
-              style="color: var(--jet-primary);"
-            >
-              CONTACT METHODS
-            </h2>
-            <div id="contact-types" class="space-y-4">
-              <div
-                class="flex justify-between items-center pb-3 border-b border-gray-200"
-              >
-                <span class="font-semibold">Telephone</span>
-                <a href="tel:63999999999" class="hover:opacity-75 transition">
-                  (+63) 99999999
-                </a>
-              </div>
-              <div
-                class="flex justify-between items-center pb-3 border-b border-gray-200"
-              >
-                <span class="font-semibold">Cellphone</span>
-                <a href="tel:6399999999" class="hover:opacity-75 transition">
-                  (+63) 99999999
-                </a>
-              </div>
-              <div
-                class="flex justify-between items-center pb-3 border-b border-gray-200"
-              >
-                <span class="font-semibold">Fax</span>
-                <a href="tel:6399999999" class="hover:opacity-75 transition">
-                  (+63) 99999999
-                </a>
-              </div>
-              <div
-                class="flex justify-between items-center pb-3 border-b border-gray-200"
-              >
-                <span class="font-semibold">Email</span>
-                <a
-                  href="email:support@milkuph.com"
-                  class="hover:opacity-75 transition"
-                >
-                  support@milkuph.com
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <!-- Map Card -->
-          <div class="card-container p-8">
-            <h2
-              class="text-2xl font-bold mb-4"
-              style="color: var(--jet-primary);"
-            >
-              OUR LOCATION
-            </h2>
-            <div class="w-full h-64 rounded-lg overflow-hidden bg-gray-200">
-              <img
-                src="/MapsSample.png"
-                alt="our location map"
-                class="w-full h-full object-cover"
-              />
-            </div>
-          </div>
-        </div>
+  <div class="wb-page-surface contact-page">
+    <section class="contact-hero" aria-labelledby="contact-title">
+      <div class="contact-hero__content">
+        <p class="contact-hero__eyebrow">WOODBERRY RESORTS AND EVENTS PLACE</p>
+        <h1 id="contact-title">Plan your visit with us</h1>
+        <p>
+          Send us your inquiry for resort stays, event reservations, venue
+          viewings, and celebration planning. Our team will get back to you with
+          the next helpful details.
+        </p>
       </div>
-    </div>
-  </div>
+    </section>
 
-  <style></style>
+    <section class="contact-shell" aria-label="Contact Woodberry">
+      <div class="wb-card contact-form-card">
+        <div class="contact-section-heading">
+          <p>Message us</p>
+          <h2>Tell us what you need</h2>
+        </div>
+
+        <form id="contact-form" class="wb-form">
+          <div class="wb-field">
+            <label for="email" class="wb-label">Email address</label>
+            <input
+              id="email"
+              type="email"
+              class="wb-input contact-input"
+              placeholder="your@email.com"
+              autocomplete="email"
+              required
+            />
+          </div>
+
+          <div class="wb-field">
+            <label for="reason" class="wb-label">Reason for contacting us</label>
+            <input
+              id="reason"
+              type="text"
+              class="wb-input contact-input"
+              placeholder="Venue inquiry, resort stay, event reservation"
+              required
+            />
+          </div>
+
+          <div class="wb-field">
+            <label for="message" class="wb-label">Message</label>
+            <textarea
+              id="message"
+              class="wb-textarea contact-input"
+              rows="6"
+              placeholder="Share your preferred date, guest count, event type, or any questions for Woodberry Resorts and Events Place."
+              required></textarea>
+          </div>
+
+          <div
+            id="contactNotice"
+            class="contact-notice hidden"
+            role="status"
+            aria-live="polite"
+          >
+            Thank you for reaching out. Woodberry Resorts and Events Place will
+            get back to you soon.
+          </div>
+
+          <button
+            id="contactFormSubmit"
+            type="submit"
+            class="wb-btn wb-btn--lg contact-submit"
+          >
+            Send message
+          </button>
+        </form>
+      </div>
+
+      <aside class="contact-side" aria-label="Contact details and location">
+        <div class="wb-card contact-methods-card">
+          <div class="contact-section-heading">
+            <p>Contact methods</p>
+            <h2>Reach Woodberry</h2>
+          </div>
+
+          <div id="contact-types" class="contact-methods">
+            <div class="contact-method">
+              <span class="contact-method__label">Phone</span>
+              <span class="contact-method__value">Placeholder: +63 900 000 0000</span>
+            </div>
+            <div class="contact-method">
+              <span class="contact-method__label">Email</span>
+              <span class="contact-method__value">Placeholder: hello@woodberry.example</span>
+            </div>
+            <div class="contact-method">
+              <span class="contact-method__label">Office hours</span>
+              <span class="contact-method__value">Placeholder: Daily, 9:00 AM - 6:00 PM</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="wb-card contact-location-card">
+          <div class="contact-section-heading">
+            <p>Location</p>
+            <h2>Find the venue</h2>
+          </div>
+
+          <p class="contact-location-copy">
+            Placeholder address: Woodberry Resorts and Events Place, City or
+            municipality, Province, Philippines.
+          </p>
+
+          <div class="contact-map" aria-label="Map placeholder">
+            <img
+              src="/MapsSample.png"
+              alt="Placeholder map for Woodberry Resorts and Events Place"
+            />
+          </div>
+        </div>
+      </aside>
+    </section>
+  </div>
 </Layout>
 
 <script>
   const form = document.getElementById('contact-form') as HTMLFormElement | null;
-  if (form) {
-    // Insert notice element right before the submit button
-    const notice = document.createElement('div');
-    notice.id = 'contactNotice';
-    notice.className = 'hidden px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-2 mb-3';
-    const submitBtn = form.querySelector('button[type="submit"]');
-    if (submitBtn) form.insertBefore(notice, submitBtn);
+  const notice = document.getElementById('contactNotice');
 
-    form.addEventListener('submit', function(e) {
-      e.preventDefault();
-      notice.className = 'px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-2 mb-3 bg-green-100 text-green-800';
-      notice.innerHTML = '✅ Thank you for reaching out! We will get back to you soon.';
+  if (form && notice) {
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      notice.classList.remove('hidden');
       form.reset();
-      setTimeout(function() { notice.classList.add('hidden'); }, 5000);
+
+      window.setTimeout(function () {
+        notice.classList.add('hidden');
+      }, 5000);
     });
   }
 </script>
+
+<style>
+  .contact-page {
+    padding: clamp(2rem, 5vw, 4rem) 1rem;
+  }
+
+  .contact-hero {
+    max-width: 72rem;
+    margin: 0 auto clamp(1.5rem, 4vw, 2.5rem);
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius-lg);
+    background:
+      linear-gradient(90deg, rgba(242, 245, 238, 0.96), rgba(242, 245, 238, 0.7)),
+      url('/woodberyPics/pool_and_house.jpg') center / cover;
+    box-shadow: var(--wb-shadow-sm);
+    overflow: hidden;
+  }
+
+  .contact-hero__content {
+    max-width: 42rem;
+    padding: clamp(2rem, 6vw, 4.25rem);
+  }
+
+  .contact-hero__eyebrow,
+  .contact-section-heading p {
+    margin: 0;
+    color: var(--wb-green);
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .contact-hero h1,
+  .contact-section-heading h2 {
+    margin: 0;
+    color: var(--wb-green-dark);
+    font-family: Georgia, 'Times New Roman', serif;
+    letter-spacing: 0;
+  }
+
+  .contact-hero h1 {
+    max-width: 34rem;
+    margin-top: 0.45rem;
+    font-size: clamp(2.35rem, 7vw, 4.75rem);
+    line-height: 0.98;
+  }
+
+  .contact-hero p:last-child {
+    max-width: 37rem;
+    margin: 1rem 0 0;
+    color: var(--wb-muted);
+    font-size: clamp(1rem, 2vw, 1.12rem);
+  }
+
+  .contact-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
+    gap: clamp(1rem, 3vw, 1.5rem);
+    max-width: 72rem;
+    margin: 0 auto;
+  }
+
+  .contact-form-card,
+  .contact-methods-card,
+  .contact-location-card {
+    padding: clamp(1.25rem, 3vw, 2rem);
+  }
+
+  .contact-section-heading {
+    display: grid;
+    gap: 0.3rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .contact-section-heading h2 {
+    font-size: clamp(1.45rem, 3vw, 2rem);
+  }
+
+  .contact-side {
+    display: grid;
+    align-content: start;
+    gap: clamp(1rem, 3vw, 1.5rem);
+  }
+
+  .contact-input {
+    background: var(--wb-surface);
+  }
+
+  .contact-submit {
+    width: 100%;
+    background: var(--wb-green-dark);
+    color: var(--wb-surface);
+    box-shadow: var(--wb-shadow-sm);
+  }
+
+  .contact-submit:hover {
+    background: var(--wb-green);
+    color: #ffffff;
+  }
+
+  .contact-notice {
+    border: 1px solid rgba(74, 124, 63, 0.28);
+    border-radius: var(--wb-radius-sm);
+    background: var(--wb-green-soft);
+    color: var(--wb-green-dark);
+    padding: 0.85rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  .contact-methods {
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  .contact-method {
+    display: grid;
+    gap: 0.25rem;
+    border-bottom: 1px solid var(--wb-border);
+    padding-bottom: 0.8rem;
+  }
+
+  .contact-method:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .contact-method__label {
+    color: var(--wb-green-dark);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .contact-method__value,
+  .contact-location-copy {
+    color: var(--wb-muted);
+    font-size: 0.96rem;
+    line-height: 1.55;
+  }
+
+  .contact-location-copy {
+    margin: 0 0 1rem;
+  }
+
+  .contact-map {
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius-md);
+    background: var(--wb-surface);
+  }
+
+  .contact-map img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .hidden {
+    display: none;
+  }
+
+  html.dark .contact-hero {
+    background:
+      linear-gradient(90deg, rgba(17, 23, 15, 0.96), rgba(17, 23, 15, 0.78)),
+      url('/woodberyPics/pool_and_house.jpg') center / cover;
+  }
+
+  html.dark .contact-submit {
+    background: var(--wb-green-mid);
+    color: #10170e;
+  }
+
+  html.dark .contact-submit:hover {
+    background: #d5efc9;
+    color: #10170e;
+  }
+
+  html.dark .contact-notice {
+    border-color: var(--wb-border);
+    background: var(--wb-green-soft);
+    color: var(--wb-green-mid);
+  }
+
+  @media (max-width: 900px) {
+    .contact-shell {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .contact-page {
+      padding: 1rem;
+    }
+
+    .contact-hero {
+      border-radius: var(--wb-radius-md);
+    }
+
+    .contact-hero__content {
+      padding: 1.5rem;
+    }
+  }
+</style>

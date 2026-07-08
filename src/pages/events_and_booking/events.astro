@@ -11,33 +11,54 @@ const venuesToDisplay = venues || [];
 ---
 
 <Layout>
-  <div
-    id="top-runner"
-    class="w-full py-12"
-    style="background: linear-gradient(135deg, #1a2e10 0%, #2d5a27 68%, #4a7c3f 100%);"
-  >
-    <div class="max-w-6xl mx-auto px-4">
-      <h1 class="text-4xl font-bold mb-4 text-white!">
-        DISCOVER AMAZING VENUES!
-      </h1>
-      <p class="text-lg opacity-90 text-white!">
-        Find the perfect space for your next event from our curated selection
-      </p>
-    </div>
-  </div>
+  <div class="wb-page-surface events-page">
+    <section class="events-hero" aria-labelledby="events-page-title">
+      <div class="events-hero__inner">
+        <p class="events-hero__eyebrow">Woodberry Resort and Events</p>
+        <h1 id="events-page-title" class="events-hero__title">
+          Venues for Every Celebration
+        </h1>
+        <p class="events-hero__intro">
+          Explore warm, nature-inspired spaces for weddings, private gatherings,
+          retreats, and milestone celebrations at Woodberry.
+        </p>
+      </div>
+    </section>
 
-  <div id="main-showcase" class="w-full py-12">
-    <div class="max-w-6xl mx-auto px-4">
-      <p class="text-gray-600 mb-8 text-sm uppercase font-semibold">
-        Showing our available venues
-      </p>
-      <div
-        class="w-full h-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-      >
+    <div class="events-showcase">
+      <div class="events-showcase__inner">
+        <div class="wb-section-header">
+          <div class="wb-section-header__content">
+            <p class="wb-section-header__eyebrow">Available venues</p>
+            <h2 class="wb-section-header__title">
+              Choose the setting that fits your event
+            </h2>
+            <p class="wb-section-header__description">
+              Browse our current venue selection. Booking opens after sign in,
+              while venue details remain available for everyone to review.
+            </p>
+          </div>
+        </div>
+
         {
-          venuesToDisplay.map((venue) => (
-            <EventCard venue={venue} isLoggedIn={isLoggedIn} />
-          ))
+          venuesToDisplay.length > 0 ? (
+            <div class="events-grid">
+              {venuesToDisplay.map((venue) => (
+                <EventCard venue={venue} isLoggedIn={isLoggedIn} />
+              ))}
+            </div>
+          ) : (
+            <div class="wb-empty-state events-empty-state">
+              <div class="wb-empty-state__icon" aria-hidden="true">
+                WB
+              </div>
+              <h2 class="wb-empty-state__title">No venues available yet</h2>
+              <p class="wb-empty-state__text">
+                Our venue list is being refreshed. Please check back soon for
+                Woodberry spaces ready for your next celebration.
+              </p>
+            </div>
+          )
         }
       </div>
     </div>
@@ -45,19 +66,96 @@ const venuesToDisplay = venues || [];
 </Layout>
 
 <style>
-  :global(:root) {
-    --lion-primary: #aa8f66;
-    --butterscotch-primary: #ed9b40;
-    --jet-primary: #363537;
+  .events-page {
+    padding-bottom: clamp(3rem, 7vw, 5rem);
   }
 
-  #main-showcase {
-    background: var(--wb-surface);
+  .events-hero {
+    border-bottom: 1px solid var(--wb-border);
+    background:
+      linear-gradient(135deg, rgba(26, 46, 16, 0.92), rgba(45, 90, 39, 0.9)),
+      radial-gradient(circle at top right, rgba(237, 155, 64, 0.26), transparent 22rem),
+      var(--wb-green-dark);
+    color: #ffffff;
+  }
+
+  .events-hero__inner,
+  .events-showcase__inner {
+    width: min(100% - 2rem, 72rem);
+    margin: 0 auto;
+  }
+
+  .events-hero__inner {
+    display: grid;
+    gap: 0.9rem;
+    padding: clamp(3rem, 8vw, 5.5rem) 0 clamp(2.75rem, 7vw, 4.75rem);
+  }
+
+  .events-hero__eyebrow {
+    margin: 0;
+    color: var(--wb-warm);
+    font-size: 0.76rem;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .events-hero__title {
+    max-width: 48rem;
+    margin: 0;
+    color: #ffffff;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2.35rem, 8vw, 4.75rem);
+    letter-spacing: 0;
+    line-height: 1.02;
+  }
+
+  .events-hero__intro {
+    max-width: 43rem;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.86);
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    line-height: 1.7;
+  }
+
+  .events-showcase {
+    padding-top: clamp(2rem, 5vw, 3.75rem);
+  }
+
+  .events-grid {
+    display: grid;
+    gap: clamp(1rem, 2.5vw, 1.5rem);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  }
+
+  .events-empty-state {
+    margin-top: 0.5rem;
+  }
+
+  :global(html.dark) .events-hero {
+    border-bottom-color: var(--wb-border);
+    background:
+      linear-gradient(135deg, rgba(13, 18, 12, 0.96), rgba(32, 41, 29, 0.95)),
+      radial-gradient(circle at top right, rgba(240, 174, 99, 0.14), transparent 22rem),
+      var(--wb-surface);
+  }
+
+  :global(html.dark) .events-hero__title {
     color: var(--wb-text);
   }
 
-  :global(html.dark) #top-runner {
-    border-bottom: 1px solid var(--wb-border);
-    box-shadow: var(--wb-shadow-md);
+  :global(html.dark) .events-hero__intro {
+    color: var(--wb-muted);
+  }
+
+  :global(html.dark) .events-hero__eyebrow {
+    color: var(--wb-warm);
+  }
+
+  @media (max-width: 640px) {
+    .events-hero__inner,
+    .events-showcase__inner {
+      width: min(100% - 1.5rem, 72rem);
+    }
   }
 </style>
