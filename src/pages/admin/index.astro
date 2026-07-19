@@ -26,6 +26,13 @@ const { data: bookings, error: bookingsError } = await adminClient
   .order('created_at', { ascending: false })
   .limit(200);
 
+const bookingIds = (bookings ?? []).map((booking) => booking.id);
+const { data: bookingPayments, error: bookingPaymentsError } = bookingIds.length > 0
+  ? await adminClient.from('booking_payments').select('*').in('booking_id', bookingIds)
+  : { data: [], error: null };
+const paymentByBookingId: Record<string, any> = {};
+(bookingPayments ?? []).forEach((payment: any) => { paymentByBookingId[payment.booking_id] = payment; });
+
 // Separately fetch venue names for each booking
 const venueIds = [...new Set((bookings ?? []).map(b => b.venue_id).filter(Boolean))];
 const { data: venueMap } = venueIds.length > 0
@@ -70,6 +77,19 @@ const enrichedBookings = (bookings ?? []).map(b => {
   const userInfo = userById[b.user_id] ?? null;
   return {
     ...b,
+    payment: paymentByBookingId[b.id] ?? {
+      booking_id: b.id,
+      total_booking_amount: Number(b.total_price ?? 0),
+      minimum_payment_amount: b.minimum_payment_amount == null
+        ? Number(b.total_price ?? 0) * 0.5
+        : Number(b.minimum_payment_amount),
+      amount_paid: 0,
+      remaining_balance: Number(b.total_price ?? 0),
+      payment_status: 'unpaid',
+      payment_method: null,
+      payment_notes: null,
+      payment_recorded_at: null,
+    },
     status: normalizeBookingStatus(b.status),
     venueName: venueById[b.venue_id] ?? '—',
     packageName: b.package_type ? (woodberryPackageNames[b.package_type] ?? b.package_type) : b.package_id ? (packageById[b.package_id] ?? '—') : null,
@@ -130,8 +150,7 @@ const stats = {
   cancelled:   enrichedBookings.filter(b => b.status === 'cancelled').length,
   rescheduled: enrichedBookings.filter(b => b.status === 'rescheduled').length,
   completed: enrichedBookings.filter(b => b.status === 'completed').length,
-  revenue:     enrichedBookings.filter(b => b.status === 'booked' || b.status === 'completed')
-                               .reduce((s, b) => s + (Number(b.total_price) ?? 0), 0),
+  revenue:     enrichedBookings.reduce((sum, b) => sum + (b.payment?.payment_status === 'refunded' ? 0 : Number(b.payment?.amount_paid ?? 0)), 0),
   avgPax: (() => {
     const w = enrichedBookings.filter(b => b.pax && (b.status === 'booked' || b.status === 'completed'));
     return w.length ? Math.round(w.reduce((s,b) => s + (b.pax ?? 0), 0) / w.length) : 0;
@@ -211,7 +230,7 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
             { label:'Cancelled',      value:stats.cancelled,  color:'#9a4a36', icon:'❌' },
             { label:'Rescheduled',    value:stats.rescheduled,color:'#aa8f66', icon:'🔄' },
             { label:'Completed',      value:stats.completed, color:'#5e5c60', icon:'OK' },
-            { label:'Total Revenue',  value:`₱${stats.revenue.toLocaleString()}`, color:'#2d5a27', icon:'💰' },
+            { label:'Payments Recorded', value:`₱${stats.revenue.toLocaleString()}`, color:'#2d5a27', icon:'💰' },
             { label:'Active Venues',  value:venues?.filter(v=>v.is_active).length??0, color:'#4a7c3f', icon:'🏖️' },
             { label:'Avg Pax (Booked)', value:stats.avgPax||'—', color:'#aa8f66', icon:'👥' },
           ].map(c => (
@@ -304,6 +323,9 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
         {customerMapError && (
           <div class="mb-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">Failed to load customer contact info.</div>
         )}
+        {bookingPaymentsError && (
+          <div class="mb-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">Payment records could not be loaded. Apply the booking payments migration.</div>
+        )}
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div class="overflow-x-auto">
@@ -317,6 +339,7 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Hold Period</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Pax</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Total</th>
+                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Payment</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Contract Signing</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Booked On</th>
@@ -379,6 +402,13 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
                           {b.total_price?`₱${Number(b.total_price).toLocaleString()}`:'—'}
                         </td>
 
+                        <td class="px-4 py-3 whitespace-nowrap">
+                          <span class={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${b.payment.payment_status === 'paid' ? 'bg-green-100 text-green-700' : b.payment.payment_status === 'partial' ? 'bg-amber-100 text-amber-700' : b.payment.payment_status === 'refunded' ? 'bg-slate-100 text-slate-700' : 'bg-red-100 text-red-700'}`}>
+                            {b.payment.payment_status[0].toUpperCase() + b.payment.payment_status.slice(1)}
+                          </span>
+                          <div class="mt-1 text-xs text-gray-500">₱{Number(b.payment.amount_paid).toLocaleString()} paid</div>
+                        </td>
+
                         <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                           {formatContractSigningSchedule(b.contract_signing_date, b.contract_signing_time)}
                         </td>
@@ -399,6 +429,9 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
                         {/* Actions */}
                         <td class="px-4 py-3">
                           <div class="flex gap-1.5 flex-wrap">
+                            <button onclick={`openPaymentModal(${JSON.stringify(JSON.stringify(b))})`}
+                              class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
+                              style="background:#2d5a27;">Payment</button>
                             {canUpdateContractSigningSchedule(b.status)&&(
                               <button onclick={`openContractSigningSchedule(${JSON.stringify(JSON.stringify(b))})`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
@@ -604,6 +637,12 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
       <!-- TAB: REPORTS -->
       <section id="tab-reports" class="tab-section hidden">
 
+        <div class="reports-intro mb-6">
+          <p class="reports-eyebrow">Financial overview</p>
+          <h2>Sales Reports</h2>
+          <p>Review bookings, collections, outstanding balances, and package performance for a selected week or month.</p>
+        </div>
+
         <!-- Period selector -->
         <div class="flex flex-wrap gap-3 items-center mb-6">
           <div class="flex rounded-xl overflow-hidden border-2 border-gray-200">
@@ -613,7 +652,7 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
 
           <!-- Week picker -->
           <div id="rpt-week-picker" class="flex items-center gap-2">
-            <label class="text-sm font-semibold text-gray-500">Week of:</label>
+            <label class="text-sm font-semibold text-gray-500">Week containing:</label>
             <input type="date" id="rpt-week-input" class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none" />
           </div>
 
@@ -623,7 +662,7 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
             <input type="month" id="rpt-month-input" class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none" />
           </div>
 
-          <button onclick="generateReport()" class="px-5 py-2 rounded-xl text-white text-sm font-bold transition hover:opacity-90" style="background:var(--butterscotch-primary);">Generate Report</button>
+          <button id="generate-report-button" onclick="generateReport()" class="px-5 py-2 rounded-xl text-white text-sm font-bold transition hover:opacity-90" style="background:var(--butterscotch-primary);">Generate Report</button>
           <button onclick="printReport()" class="px-5 py-2 rounded-xl text-sm font-bold border-2 transition hover:bg-gray-50" style="border-color:var(--butterscotch-primary);color:var(--butterscotch-primary);">🖨 Print / Save PDF</button>
         </div>
 
@@ -642,13 +681,12 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
           <!-- Metric cards -->
           <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
             {[
-              { id:'rpt-total',       label:'Total Requests', color:'#ed9b40', icon:'📅' },
-              { id:'rpt-contract-signing', label:'Contract Signing', color:'#4a7c3f', icon:'CS' },
-              { id:'rpt-confirmed',   label:'Booked',      color:'#4a7c3f', icon:'✅' },
-              { id:'rpt-rescheduled', label:'Rescheduled',    color:'#aa8f66', icon:'🔄' },
-              { id:'rpt-cancelled',   label:'Cancelled',      color:'#9a4a36', icon:'❌' },
-              { id:'rpt-completed', label:'Completed', color:'#5e5c60', icon:'OK' },
-              { id:'rpt-revenue',     label:'Revenue',        color:'#2d5a27', icon:'💰' },
+              { id:'rpt-total', label:'Total Bookings', color:'#ed9b40', icon:'BK' },
+              { id:'rpt-cancelled', label:'Cancellations', color:'#9a4a36', icon:'CX' },
+              { id:'rpt-gross', label:'Gross Revenue', color:'#2d5a27', icon:'GR' },
+              { id:'rpt-paid', label:'Paid Revenue', color:'#4a7c3f', icon:'PR' },
+              { id:'rpt-unpaid', label:'Unpaid Balance', color:'#9a4a36', icon:'UB' },
+              { id:'rpt-top-package', label:'Top Package', color:'#aa8f66', icon:'TP' },
             ].map(c => (
               <div class="rounded-xl p-4 border border-gray-100 bg-gray-50 flex flex-col items-center text-center">
                 <span class="text-2xl mb-1">{c.icon}</span>
@@ -666,13 +704,13 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
 
           <!-- Breakdown by event type/package -->
           <div class="mb-8">
-            <h3 class="text-sm font-bold uppercase tracking-wide text-gray-400 mb-3">Breakdown by Event Type / Package</h3>
+            <h3 class="text-sm font-bold uppercase tracking-wide text-gray-400 mb-3">Revenue by Package</h3>
             <div id="rpt-breakdown" class="overflow-x-auto">
               <table class="w-full text-sm">
                 <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
                   <th class="px-4 py-2 text-left">Event / Package</th>
                   <th class="px-4 py-2 text-left">Bookings</th>
-                  <th class="px-4 py-2 text-left">Revenue</th>
+                  <th class="px-4 py-2 text-left">Gross Revenue</th>
                 </tr></thead>
                 <tbody id="rpt-breakdown-body"></tbody>
               </table>
@@ -694,6 +732,43 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
                   <th class="px-3 py-2 text-left">Status</th>
                 </tr></thead>
                 <tbody id="rpt-bookings-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="forecast-panel mb-8">
+            <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+              <div>
+                <p class="reports-eyebrow">Estimate</p>
+                <h3 class="text-lg font-bold" style="color:var(--jet-primary);">Next Month Sales Forecast</h3>
+                <p id="rpt-forecast-period" class="text-sm text-gray-500"></p>
+              </div>
+              <span class="forecast-badge">Estimate only</span>
+            </div>
+            <p id="rpt-forecast-unavailable" class="report-period-note hidden"></p>
+            <div id="rpt-forecast-results" class="grid grid-cols-1 sm:grid-cols-3 gap-4 hidden">
+              <div><p>Expected bookings</p><strong id="rpt-forecast-bookings">—</strong></div>
+              <div><p>Expected revenue</p><strong id="rpt-forecast-revenue">—</strong></div>
+              <div><p>Likely top package</p><strong id="rpt-forecast-package">—</strong></div>
+            </div>
+            <p id="rpt-forecast-method" class="forecast-method hidden"></p>
+          </div>
+
+          <div class="mt-8">
+            <h3 class="text-sm font-bold uppercase tracking-wide text-gray-400 mb-3">Cancellation Statistics</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                  <th class="px-4 py-2 text-left">Measure</th>
+                  <th class="px-4 py-2 text-left">Result</th>
+                  <th class="px-4 py-2 text-left">Context</th>
+                </tr></thead>
+                <tbody>
+                  <tr class="border-t border-gray-50"><td class="px-4 py-2 font-medium">Cancelled bookings</td><td id="rpt-cancel-count" class="px-4 py-2 font-bold">—</td><td class="px-4 py-2 text-gray-500">Bookings created in this period</td></tr>
+                  <tr class="border-t border-gray-50"><td class="px-4 py-2 font-medium">Cancellation rate</td><td id="rpt-cancel-rate" class="px-4 py-2 font-bold">—</td><td class="px-4 py-2 text-gray-500">Cancellations as a share of bookings</td></tr>
+                  <tr class="border-t border-gray-50"><td class="px-4 py-2 font-medium">Cancelled booking value</td><td id="rpt-cancel-value" class="px-4 py-2 font-bold">—</td><td class="px-4 py-2 text-gray-500">Gross value attached to cancellations</td></tr>
+                  <tr class="border-t border-gray-50"><td class="px-4 py-2 font-medium">Retained payments</td><td id="rpt-cancel-retained" class="px-4 py-2 font-bold">—</td><td class="px-4 py-2 text-gray-500">Payments not marked as refunded</td></tr>
+                </tbody>
               </table>
             </div>
           </div>
@@ -814,6 +889,18 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
       </div>
 
       <div>
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Payment Tracking</p>
+        <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <div><span class="text-gray-400">Payment Status</span><p id="bd-payment-status" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Amount Paid</span><p id="bd-amount-paid" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Remaining Balance</span><p id="bd-payment-balance" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Method</span><p id="bd-payment-method" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Recorded Date</span><p id="bd-payment-date" class="font-semibold mt-0.5"></p></div>
+          <div class="col-span-2"><span class="text-gray-400">Notes</span><p id="bd-payment-notes" class="font-semibold mt-0.5 whitespace-pre-wrap"></p></div>
+        </div>
+      </div>
+
+      <div>
         <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Package Details</p>
         <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
           <div class="col-span-2"><span class="text-gray-400">Inclusions</span><p id="bd-inclusions" class="font-semibold mt-0.5"></p></div>
@@ -847,6 +934,31 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
 
     <!-- Action bar -->
     <div id="bd-actions" class="sticky bottom-0 bg-white px-7 py-4 border-t border-gray-100 flex flex-wrap gap-3 z-10"></div>
+  </div>
+</div>
+
+<!-- MANUAL PAYMENT MODAL -->
+<div id="paymentModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center" style="background:rgba(0,0,0,0.55);">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[92vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-5">
+      <div><h3 class="text-xl font-black" style="color:var(--jet-primary);">Record Payment</h3><p id="paymentGuest" class="text-sm text-gray-500 mt-1"></p></div>
+      <button onclick="closePaymentModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    </div>
+    <input id="paymentBookingId" type="hidden" />
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div><label class="block text-sm font-semibold mb-1">Total Booking Amount *</label><input id="paymentTotal" type="number" min="0" step="0.01" class="w-full p-2.5 rounded-xl border border-gray-200" /></div>
+      <div><label class="block text-sm font-semibold mb-1">Required 50% Minimum</label><input id="paymentMinimum" type="text" readonly class="w-full p-2.5 rounded-xl border border-gray-200 bg-gray-50" /></div>
+      <div><label class="block text-sm font-semibold mb-1">Amount Paid *</label><input id="paymentAmountPaid" type="number" min="0" step="0.01" class="w-full p-2.5 rounded-xl border border-gray-200" /></div>
+      <div><label class="block text-sm font-semibold mb-1">Remaining Balance</label><input id="paymentBalance" type="text" readonly class="w-full p-2.5 rounded-xl border border-gray-200 bg-gray-50" /></div>
+      <div><label class="block text-sm font-semibold mb-1">Payment Status *</label><select id="paymentStatus" class="w-full p-2.5 rounded-xl border border-gray-200"><option value="unpaid">Unpaid</option><option value="partial">Partial</option><option value="paid">Paid</option><option value="refunded">Refunded</option></select></div>
+      <div><label class="block text-sm font-semibold mb-1">Payment Method</label><input id="paymentMethod" type="text" maxlength="100" placeholder="Cash, bank transfer, etc." class="w-full p-2.5 rounded-xl border border-gray-200" /></div>
+      <div class="sm:col-span-2"><label class="block text-sm font-semibold mb-1">Payment Recorded Date</label><input id="paymentRecordedAt" type="datetime-local" class="w-full p-2.5 rounded-xl border border-gray-200" /></div>
+      <div class="sm:col-span-2"><label class="block text-sm font-semibold mb-1">Payment Notes</label><textarea id="paymentNotes" rows="3" maxlength="2000" class="w-full p-2.5 rounded-xl border border-gray-200 resize-y"></textarea></div>
+    </div>
+    <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+      <button onclick="closePaymentModal()" class="px-5 py-2.5 rounded-xl border-2 font-semibold">Cancel</button>
+      <button id="savePaymentButton" onclick="submitPayment()" class="px-5 py-2.5 rounded-xl text-white font-semibold" style="background:#4a7c3f;">Save Payment</button>
+    </div>
   </div>
 </div>
 
@@ -1780,13 +1892,18 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
     }
 
     #tab-bookings > div:first-child,
-    #tab-reports > div:first-child {
+    #tab-reports > div:nth-child(2) {
       align-items: stretch;
       flex-direction: column;
     }
 
     #tab-bookings > div:first-child > div,
-    #tab-reports > div:first-child > div {
+    #tab-reports > div:nth-child(2) > div {
+      width: 100%;
+    }
+
+    #tab-reports > div:nth-child(2) > button,
+    #tab-reports > div:nth-child(2) input {
       width: 100%;
     }
 
@@ -1812,6 +1929,60 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
     #packageModal .flex.gap-3 {
       flex-direction: column;
     }
+  }
+
+  .reports-intro {
+    padding: 1.5rem 1.65rem;
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius-lg);
+    background: linear-gradient(120deg, rgba(247,249,244,.96), rgba(232,242,227,.86));
+    box-shadow: var(--wb-shadow-sm);
+  }
+
+  .reports-intro h2 { font-size: clamp(1.6rem, 3vw, 2.25rem); }
+  .reports-intro > p:last-child { max-width: 48rem; color: #61705b; }
+  .reports-eyebrow { margin-bottom: .35rem; color: var(--wb-warm); font-size: .72rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+
+  #tab-reports > div:nth-child(2) {
+    padding: 1rem;
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius-md);
+    background: rgba(255,255,255,.82);
+    box-shadow: var(--wb-shadow-sm);
+  }
+
+  #tab-reports input { min-height: 2.5rem; border-color: var(--wb-border) !important; background: #fff; }
+  #generate-report-button { background: var(--wb-green) !important; }
+  #generate-report-button:disabled { cursor: wait; opacity: .65; }
+  #report-output { padding: clamp(1rem, 3vw, 2rem) !important; }
+  #report-output > .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #report-output > .grid > div { align-items: flex-start; min-height: 8rem; padding: 1.1rem; text-align: left; }
+  #report-output > .grid > div p:last-child { overflow-wrap: anywhere; font-size: clamp(1.15rem, 2vw, 1.65rem); }
+  #report-output table { min-width: 44rem; }
+  #report-output th { color: #61705b; }
+  #report-output td { vertical-align: top; }
+  .report-paid-line { display: block; margin-top: .2rem; color: #61705b; font-size: .7rem; font-weight: 500; white-space: nowrap; }
+  .report-period-note { padding: .8rem 1rem; border-left: 3px solid var(--wb-warm); border-radius: .5rem; background: #f7f2ea; color: #61705b; }
+  .forecast-panel { padding: 1.25rem; border: 1px solid var(--wb-border); border-radius: var(--wb-radius-lg); background: var(--wb-surface-soft); }
+  .forecast-badge { padding: .35rem .7rem; border-radius: 999px; background: #e8f2e3; color: var(--wb-green-dark); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+  #rpt-forecast-results > div { padding: 1rem; border: 1px solid var(--wb-border); border-radius: .75rem; background: #fff; }
+  #rpt-forecast-results p { margin-bottom: .3rem; color: #61705b; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+  #rpt-forecast-results strong { color: var(--wb-green-dark); font-size: 1.2rem; overflow-wrap: anywhere; }
+  .forecast-method { margin-top: .8rem; color: #61705b; font-size: .78rem; }
+
+  @media print {
+    @page { size: landscape; margin: 10mm; }
+    body { background: #fff !important; }
+    #admin-root * { visibility: hidden; }
+    #report-output, #report-output * { visibility: visible; }
+    #report-output { position: absolute; inset: 0; width: 100%; padding: 0 !important; border: 0 !important; box-shadow: none !important; color: #1a2e10 !important; }
+    #report-output > .grid { grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; }
+    #report-output > .grid > div { min-height: 0; break-inside: avoid; border: 1px solid #dde8d4 !important; background: #f7f9f4 !important; }
+    #report-output > .grid > div > span:first-child { display: none; }
+    #report-output table { min-width: 0; font-size: 9px; }
+    #report-output th, #report-output td { padding: 5px 6px !important; }
+    #report-output h3 { break-after: avoid; margin-top: 16px; }
+    #report-output table, #report-output tr { break-inside: avoid; }
   }
 
   @media (max-width: 520px) {
@@ -2456,6 +2627,64 @@ function formatInclusions(value: any): string {
   return '—';
 }
 
+function updatePaymentCalculations() {
+  const total = Number((document.getElementById('paymentTotal') as HTMLInputElement).value || 0);
+  const paid = Number((document.getElementById('paymentAmountPaid') as HTMLInputElement).value || 0);
+  (document.getElementById('paymentMinimum') as HTMLInputElement).value = formatMoney(total * 0.5);
+  (document.getElementById('paymentBalance') as HTMLInputElement).value = formatMoney(Math.max(total - paid, 0));
+}
+
+function openPaymentModal(jsonStr: string) {
+  const booking = JSON.parse(jsonStr);
+  const payment = booking.payment ?? {};
+  (document.getElementById('paymentBookingId') as HTMLInputElement).value = booking.id;
+  setText('paymentGuest', booking.full_name ?? 'Booking payment');
+  (document.getElementById('paymentTotal') as HTMLInputElement).value = String(payment.total_booking_amount ?? booking.total_price ?? 0);
+  (document.getElementById('paymentAmountPaid') as HTMLInputElement).value = String(payment.amount_paid ?? 0);
+  (document.getElementById('paymentStatus') as HTMLSelectElement).value = payment.payment_status ?? 'unpaid';
+  (document.getElementById('paymentMethod') as HTMLInputElement).value = payment.payment_method ?? '';
+  (document.getElementById('paymentNotes') as HTMLTextAreaElement).value = payment.payment_notes ?? '';
+  (document.getElementById('paymentRecordedAt') as HTMLInputElement).value = payment.payment_recorded_at
+    ? new Date(payment.payment_recorded_at).toISOString().slice(0, 16)
+    : new Date().toISOString().slice(0, 16);
+  updatePaymentCalculations();
+  document.getElementById('paymentModal')?.classList.remove('hidden');
+}
+
+function closePaymentModal() {
+  document.getElementById('paymentModal')?.classList.add('hidden');
+}
+
+async function submitPayment() {
+  const button = document.getElementById('savePaymentButton') as HTMLButtonElement;
+  const recordedValue = (document.getElementById('paymentRecordedAt') as HTMLInputElement).value;
+  const payload = {
+    bookingId: (document.getElementById('paymentBookingId') as HTMLInputElement).value,
+    totalBookingAmount: Number((document.getElementById('paymentTotal') as HTMLInputElement).value),
+    amountPaid: Number((document.getElementById('paymentAmountPaid') as HTMLInputElement).value),
+    paymentStatus: (document.getElementById('paymentStatus') as HTMLSelectElement).value,
+    paymentMethod: (document.getElementById('paymentMethod') as HTMLInputElement).value.trim() || null,
+    paymentNotes: (document.getElementById('paymentNotes') as HTMLTextAreaElement).value.trim() || null,
+    paymentRecordedAt: recordedValue ? new Date(recordedValue).toISOString() : null,
+  };
+  button.disabled = true;
+  const response = await fetch('/api/admin/update-booking-payment', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  });
+  const result = await response.json();
+  button.disabled = false;
+  if (!response.ok) { toast(result.error ?? 'Could not save payment', false); return; }
+  toast('Payment information saved');
+  closePaymentModal();
+  window.location.reload();
+}
+
+document.getElementById('paymentTotal')?.addEventListener('input', updatePaymentCalculations);
+document.getElementById('paymentAmountPaid')?.addEventListener('input', updatePaymentCalculations);
+document.getElementById('paymentModal')?.addEventListener('click', function(event) {
+  if (event.target === document.getElementById('paymentModal')) closePaymentModal();
+});
+
 function openBookingDetail(jsonStr: string) {
   const b = JSON.parse(jsonStr);
 
@@ -2493,6 +2722,12 @@ function openBookingDetail(jsonStr: string) {
   setText('bd-price', formatMoney(b.total_price));
   setText('bd-minimum', formatMoney(b.minimum_payment_amount ?? b.estimate_summary?.minimumPayment));
   setText('bd-balance', formatMoney(b.remaining_balance_amount ?? b.estimate_summary?.remainingBalance));
+  setText('bd-payment-status', (b.payment?.payment_status ?? 'unpaid').replace(/^./, (letter: string) => letter.toUpperCase()));
+  setText('bd-amount-paid', formatMoney(b.payment?.amount_paid));
+  setText('bd-payment-balance', formatMoney(b.payment?.remaining_balance ?? b.total_price));
+  setText('bd-payment-method', b.payment?.payment_method ?? '—');
+  setText('bd-payment-date', fmtTs(b.payment?.payment_recorded_at ?? null));
+  setText('bd-payment-notes', b.payment?.payment_notes ?? '—');
   setText('bd-inclusions', formatInclusions(b.package_inclusions));
   setText('bd-rooms', formatBookingItems(b.selected_rooms ?? b.additionals?.rooms));
   setText('bd-addons', formatBookingItems(b.add_ons ?? b.additionals?.addOns));
@@ -2519,6 +2754,7 @@ function openBookingDetail(jsonStr: string) {
 
   const actions = document.getElementById('bd-actions')!;
   actions.innerHTML = '';
+  addActionBtn(actions, 'Record Payment', '#2d5a27', function() { closeBookingDetail(); openPaymentModal(JSON.stringify(b)); });
   if (canUpdateContractSigningScheduleForAdmin(b.status)) {
     addActionBtn(actions, 'Set Signing Schedule', '#2d5a27', function() { closeBookingDetail(); openContractSigningSchedule(JSON.stringify(b)); });
   }
@@ -2588,7 +2824,7 @@ function getMonthRange(monthStr: string): [Date, Date] {
   return [start, end];
 }
 
-function generateReport() {
+function generateLegacyReport() {
   const allBookings: any[] = (window as any).__allBookings ?? [];
   let rangeStart: Date;
   let rangeEnd: Date;
@@ -2625,8 +2861,9 @@ function generateReport() {
   const cancelled   = inRange.filter(function(b) { return b.status === 'cancelled'; }).length;
   const rescheduled = inRange.filter(function(b) { return b.status === 'rescheduled'; }).length;
   const completed = inRange.filter(function(b) { return b.status === 'completed'; }).length;
-  const revenue     = inRange.filter(function(b) { return b.status === 'booked' || b.status === 'completed'; })
-                             .reduce(function(s, b) { return s + Number(b.total_price ?? 0); }, 0);
+  const revenue = inRange.reduce(function(sum, booking) {
+    return sum + (booking.payment?.payment_status === 'refunded' ? 0 : Number(booking.payment?.amount_paid ?? 0));
+  }, 0);
 
   setText('rpt-title',       rptTitle);
   setText('rpt-period',      periodLabel);
@@ -2670,7 +2907,7 @@ function generateReport() {
     const key = b.packageName ?? b.event_type ?? 'Unspecified';
     if (!byType[key]) byType[key] = { count: 0, revenue: 0 };
     byType[key].count++;
-    if (b.status === 'booked' || b.status === 'completed') byType[key].revenue += Number(b.total_price ?? 0);
+    if (b.payment?.payment_status !== 'refunded') byType[key].revenue += Number(b.payment?.amount_paid ?? 0);
   });
   const brkBody = document.getElementById('rpt-breakdown-body')!;
   const brkEntries = Object.entries(byType).sort(function(a, b) { return (b[1] as any).count - (a[1] as any).count; });
@@ -2708,22 +2945,96 @@ function generateReport() {
   document.getElementById('report-empty')!.classList.add('hidden');
 }
 
+async function generateReport() {
+  const anchor = _reportMode === 'weekly'
+    ? (document.getElementById('rpt-week-input') as HTMLInputElement).value
+    : (document.getElementById('rpt-month-input') as HTMLInputElement).value;
+  if (!anchor) { toast(`Pick a ${_reportMode === 'weekly' ? 'week' : 'month'} first`, false); return; }
+
+  const button = document.getElementById('generate-report-button') as HTMLButtonElement | null;
+  if (button) { button.disabled = true; button.textContent = 'Generating…'; }
+  try {
+    const response = await fetch(`/api/admin/sales-report?period=${encodeURIComponent(_reportMode)}&anchor=${encodeURIComponent(anchor)}`);
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error ?? 'Could not generate the sales report');
+
+    const report = payload.report;
+    const forecast = payload.forecast;
+    const reportBookings: any[] = payload.bookings ?? [];
+    const money = (value: unknown) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value ?? 0));
+    const safe = (value: unknown) => String(value ?? '—').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char] ?? char));
+    const date = (value: string | null) => value ? new Date(value).toLocaleDateString('en-PH', { month:'short', day:'numeric', year:'numeric' }) : '—';
+    const start = new Date(report.period.start);
+    const end = new Date(report.period.endExclusive); end.setUTCDate(end.getUTCDate() - 1);
+    const periodLabel = _reportMode === 'weekly'
+      ? `${date(start.toISOString())} – ${date(end.toISOString())}`
+      : start.toLocaleDateString('en-PH', { month:'long', year:'numeric', timeZone:'UTC' });
+
+    setText('rpt-title', _reportMode === 'weekly' ? 'Weekly Sales Report' : 'Monthly Sales Report');
+    setText('rpt-period', periodLabel);
+    setText('rpt-generated', new Date().toLocaleString('en-PH', { dateStyle:'medium', timeStyle:'short' } as any));
+    setText('rpt-total', String(report.totalBookings));
+    setText('rpt-cancelled', String(report.cancelledBookings));
+    setText('rpt-gross', money(report.grossRevenue));
+    setText('rpt-paid', money(report.paidRevenue));
+    setText('rpt-unpaid', money(report.unpaidBalance));
+    setText('rpt-top-package', report.mostSelectedPackages?.[0]?.packageName ?? '—');
+    setText('rpt-cancel-count', String(report.cancellationCount));
+    setText('rpt-cancel-rate', `${Number(report.cancellationRate).toLocaleString()}%`);
+    setText('rpt-cancel-value', money(report.cancelledBookingValue));
+    setText('rpt-cancel-retained', money(report.retainedCancellationRevenue));
+
+    const forecastDate = new Date(`${forecast.targetMonth}-01T00:00:00Z`);
+    setText('rpt-forecast-period', forecastDate.toLocaleDateString('en-PH', { month:'long', year:'numeric', timeZone:'UTC' }));
+    const forecastUnavailable = document.getElementById('rpt-forecast-unavailable')!;
+    const forecastResults = document.getElementById('rpt-forecast-results')!;
+    const forecastMethod = document.getElementById('rpt-forecast-method')!;
+    if (!forecast.available) {
+      setText('rpt-forecast-unavailable', forecast.message);
+      forecastUnavailable.classList.remove('hidden');
+      forecastResults.classList.add('hidden');
+      forecastMethod.classList.add('hidden');
+    } else {
+      setText('rpt-forecast-bookings', String(forecast.expectedBookings));
+      setText('rpt-forecast-revenue', money(forecast.expectedRevenue));
+      setText('rpt-forecast-package', forecast.likelyTopPackage);
+      setText('rpt-forecast-method', `Based on ${forecast.monthsUsed.join(', ')} using a ${forecast.method}. This is a simple historical estimate, not a guarantee or reliable AI prediction.`);
+      forecastUnavailable.classList.add('hidden');
+      forecastResults.classList.remove('hidden');
+      forecastMethod.classList.remove('hidden');
+    }
+
+    const breakdown = document.getElementById('rpt-breakdown-body')!;
+    breakdown.innerHTML = report.revenueByPackage.length
+      ? report.revenueByPackage.map((item: any) => `<tr class="border-t border-gray-50"><td class="px-4 py-2 font-medium">${safe(item.packageName)}</td><td class="px-4 py-2 text-gray-600">${item.bookingCount}</td><td class="px-4 py-2 font-semibold">${money(item.revenue)}</td></tr>`).join('')
+      : '<tr><td colspan="3" class="px-4 py-6 text-center text-gray-400">No package revenue in this period.</td></tr>';
+
+    const body = document.getElementById('rpt-bookings-body')!;
+    body.innerHTML = reportBookings.length
+      ? reportBookings.map((booking: any) => {
+          const payment = booking.payment;
+          const total = payment?.total_booking_amount ?? booking.total_price ?? 0;
+          const paid = payment?.payment_status === 'refunded' ? 0 : payment?.amount_paid ?? 0;
+          const statusClass = BOOKING_STATUS_CLASSES[booking.status] ?? 'bg-gray-100 text-gray-600';
+          return `<tr class="border-t border-gray-50"><td class="px-3 py-2 font-medium">${safe(booking.full_name)}</td><td class="px-3 py-2 text-gray-600">${safe(booking.venueName)}</td><td class="px-3 py-2 text-gray-600">${safe(booking.packageName)}</td><td class="px-3 py-2 text-gray-600">${date(booking.event_date)}</td><td class="px-3 py-2 text-gray-600">${safe(booking.pax)}</td><td class="px-3 py-2 font-semibold">${money(total)}<small class="report-paid-line">Paid ${money(paid)}</small></td><td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${statusClass}">${safe(statusLabel(booking.status))}</span></td></tr>`;
+        }).join('')
+      : '<tr><td colspan="7" class="px-3 py-8 text-center text-gray-400">No bookings were created in this period.</td></tr>';
+
+    const distribution = document.getElementById('rpt-distribution')!;
+    distribution.innerHTML = '<p class="report-period-note">Figures include bookings created during the selected period. Gross revenue recognizes booked and completed reservations plus retained cancellation payments.</p>';
+    document.getElementById('report-output')!.classList.remove('hidden');
+    document.getElementById('report-empty')!.classList.add('hidden');
+  } catch (reportError) {
+    toast(reportError instanceof Error ? reportError.message : 'Could not generate the report', false);
+  } finally {
+    if (button) { button.disabled = false; button.textContent = 'Generate Report'; }
+  }
+}
+
 function printReport() {
   const output = document.getElementById('report-output');
   if (!output || output.classList.contains('hidden')) { toast('Generate a report first', false); return; }
-  const w = window.open('', '_blank', 'width=900,height=700')!;
-  w.document.write('<html><head><title>Booking Report</title><style>'
-    + 'body{font-family:system-ui,sans-serif;padding:2rem;color:#1c1c1c;}'
-    + 'table{border-collapse:collapse;width:100%;}'
-    + 'th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #f0f0f0;}'
-    + 'th{background:#f9f9f9;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#888;}'
-    + '@media print{button{display:none;}}'
-    + '</style></head><body>');
-  w.document.write(output.innerHTML);
-  w.document.write('</body></html>');
-  w.document.close();
-  w.focus();
-  w.print();
+  window.print();
 }
 
 // Seed date pickers on load
@@ -2759,6 +3070,9 @@ switchReport('weekly');
 (window as any).demoteUser        = demoteUser;
 (window as any).openBookingDetail = openBookingDetail;
 (window as any).closeBookingDetail = closeBookingDetail;
+(window as any).openPaymentModal = openPaymentModal;
+(window as any).closePaymentModal = closePaymentModal;
+(window as any).submitPayment = submitPayment;
 (window as any).switchReport      = switchReport;
 (window as any).generateReport    = generateReport;
 (window as any).printReport       = printReport;

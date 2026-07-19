@@ -213,6 +213,54 @@ export type Database = {
         };
         Relationships: [];
       };
+      booking_payments: {
+        Row: {
+          id: string;
+          booking_id: string;
+          total_booking_amount: number;
+          minimum_payment_amount: number;
+          amount_paid: number;
+          remaining_balance: number;
+          payment_status: "unpaid" | "partial" | "paid" | "refunded";
+          payment_method: string | null;
+          payment_notes: string | null;
+          payment_recorded_at: string | null;
+          recorded_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          booking_id: string;
+          total_booking_amount?: number;
+          minimum_payment_amount?: number;
+          amount_paid?: number;
+          remaining_balance?: number;
+          payment_status?: "unpaid" | "partial" | "paid" | "refunded";
+          payment_method?: string | null;
+          payment_notes?: string | null;
+          payment_recorded_at?: string | null;
+          recorded_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          booking_id?: string;
+          total_booking_amount?: number;
+          minimum_payment_amount?: number;
+          amount_paid?: number;
+          remaining_balance?: number;
+          payment_status?: "unpaid" | "partial" | "paid" | "refunded";
+          payment_method?: string | null;
+          payment_notes?: string | null;
+          payment_recorded_at?: string | null;
+          recorded_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       event_types: {
         Row: { id: string; name: string; description: string | null; is_active: boolean; created_at: string; };
         Insert: { id?: string; name: string; description?: string | null; is_active?: boolean; created_at?: string; };
