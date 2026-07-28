@@ -31,6 +31,9 @@ type NotificationBooking = {
   smsNotificationsEnabled: boolean;
   oneWeekEmailSentAt: string | null;
   oneWeekSmsSentAt: string | null;
+  reservationExpiresAt: string;
+  expirationReminderSentAt: string | null;
+  expirationCancelNoticeSentAt: string | null;
 };
 
 export type NotificationResult = {
@@ -78,7 +81,12 @@ const STATUS_MESSAGES: Record<NotifiableBookingStatus, string> = {
   completed: "Thank you for choosing us. Your event has been marked completed.",
 };
 
-type BookingNotificationKind = NotifiableBookingStatus | "reminder" | "contract_signing_schedule";
+type BookingNotificationKind =
+  | NotifiableBookingStatus
+  | "reminder"
+  | "contract_signing_schedule"
+  | "expiration_reminder"
+  | "expiration_cancel_notice";
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "No event date provided";
@@ -101,6 +109,21 @@ function formatTime(value: string | null | undefined): string {
   return new Date(2000, 0, 1, hour, minute).toLocaleTimeString("en-PH", {
     hour: "numeric",
     minute: "2-digit",
+  });
+}
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "the stated reservation deadline";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "the stated reservation deadline";
+  return parsed.toLocaleString("en-PH", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Manila",
+    timeZoneName: "short",
   });
 }
 
@@ -130,22 +153,37 @@ function buildEmailContent(
   status: BookingNotificationKind,
 ): { subject: string; textContent: string; htmlContent: string } {
   const isScheduleNotification = status === "contract_signing_schedule";
+  const isExpirationReminder = status === "expiration_reminder";
+  const isExpirationCancelNotice = status === "expiration_cancel_notice";
   const contractSigningSchedule = formatContractSigningSchedule(booking);
+  const expirationDeadline = formatDateTime(booking.reservationExpiresAt);
   const label =
     status === "reminder"
       ? "1-Week Reminder"
+      : isExpirationReminder
+        ? "Reservation Expiration Reminder"
+        : isExpirationCancelNotice
+          ? "Reservation Cancelled"
       : isScheduleNotification
         ? "Contract Signing Schedule"
         : BOOKING_STATUS_LABELS[status];
   const statusLine =
     status === "reminder"
       ? "Your event is scheduled one week from now."
+      : isExpirationReminder
+        ? `Your unpaid reservation will expire on ${expirationDeadline}.`
+        : isExpirationCancelNotice
+          ? `Your unpaid reservation expired on ${expirationDeadline} and has been automatically cancelled.`
       : isScheduleNotification
         ? `Your contract signing is scheduled for ${contractSigningSchedule}.`
         : `Your booking status has been updated to: ${label}.`;
   const statusMessage =
     status === "reminder"
       ? "Your event is scheduled one week from now. Please coordinate any remaining details with Woodberry Resorts and Events Place."
+      : isExpirationReminder
+        ? "Please arrange the required payment before the deadline to keep your reservation."
+        : isExpirationCancelNotice
+          ? "If you still wish to proceed or need assistance, please contact Woodberry or an administrator."
       : isScheduleNotification
         ? `Please visit Woodberry Resorts and Events Place for contract signing on ${contractSigningSchedule}.`
       : STATUS_MESSAGES[status];
@@ -161,6 +199,9 @@ function buildEmailContent(
     ...(isScheduleNotification ? [`Contract Signing: ${contractSigningSchedule}`] : []),
     `Package: ${booking.packageName}`,
     `Reference ID: ${booking.id}`,
+    ...(isExpirationReminder || isExpirationCancelNotice
+      ? [`Expiration Deadline: ${expirationDeadline}`]
+      : []),
     "",
     statusMessage,
     "",
@@ -188,7 +229,7 @@ async function fetchNotificationBooking(
   const { data: booking, error: bookingError } = await client
     .from("bookings")
     .select(
-      "id, user_id, status, full_name, phone, event_date, start_date, end_date, contract_signing_date, contract_signing_time, package_id, venue_id, one_week_email_sent_at, one_week_sms_sent_at",
+      "id, user_id, status, full_name, phone, event_date, start_date, end_date, contract_signing_date, contract_signing_time, package_id, venue_id, one_week_email_sent_at, one_week_sms_sent_at, reservation_expires_at, expiration_reminder_sent_at, expiration_cancel_notice_sent_at",
     )
     .eq("id", bookingId)
     .single();
@@ -230,6 +271,9 @@ async function fetchNotificationBooking(
     smsNotificationsEnabled: customer?.sms_notifications_enabled ?? true,
     oneWeekEmailSentAt: booking.one_week_email_sent_at,
     oneWeekSmsSentAt: booking.one_week_sms_sent_at,
+    reservationExpiresAt: booking.reservation_expires_at,
+    expirationReminderSentAt: booking.expiration_reminder_sent_at,
+    expirationCancelNoticeSentAt: booking.expiration_cancel_notice_sent_at,
   };
 }
 
@@ -375,6 +419,24 @@ export async function notifyContractSigningSchedule(
 
 export function notificationSucceeded(result: NotificationResult): boolean {
   return delivered(result.email) || delivered(result.sms);
+}
+
+export async function sendExpirationReminder(
+  bookingId: string,
+  client: DbClient = db,
+): Promise<NotificationResult> {
+  const booking = await fetchNotificationBooking(bookingId, client);
+  if (!booking || booking.expirationReminderSentAt) return {};
+  return sendBookingNotification(booking, "expiration_reminder");
+}
+
+export async function sendExpirationCancellationNotice(
+  bookingId: string,
+  client: DbClient = db,
+): Promise<NotificationResult> {
+  const booking = await fetchNotificationBooking(bookingId, client);
+  if (!booking || booking.expirationCancelNoticeSentAt) return {};
+  return sendBookingNotification(booking, "expiration_cancel_notice");
 }
 
 export function notificationChannelSucceeded(

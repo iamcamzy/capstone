@@ -26,6 +26,7 @@ const ALLOWED_STATUS_UPDATES: BookingStatus[] = [
 const updateStatusSchema = z.object({
   bookingId: z.string().uuid("bookingId must be a valid UUID"),
   status: z.string().min(1, "status is required").optional(),
+  manualOverride: z.boolean().optional().default(false),
   contractSigningDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "contractSigningDate must use YYYY-MM-DD")
@@ -71,6 +72,24 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const status = parsed.data.status ? normalizeBookingStatus(parsed.data.status) : null;
 
   try {
+    if (status === "booked") {
+      const { data: currentBooking, error: currentBookingError } = await db
+        .from("bookings")
+        .select("id, status, reservation_expired_at, cancellation_source")
+        .eq("id", parsed.data.bookingId)
+        .single();
+      if (currentBookingError || !currentBooking) return error("Booking not found", 404);
+      const expirationCancelled =
+        normalizeBookingStatus(currentBooking.status) === "cancelled" &&
+        Boolean(currentBooking.reservation_expired_at || currentBooking.cancellation_source === "system");
+      if (expirationCancelled && !parsed.data.manualOverride) {
+        return error(
+          "This reservation was cancelled after expiration and requires an explicit manual override.",
+          409,
+        );
+      }
+    }
+
     const hasSchedule =
       parsed.data.contractSigningDate !== undefined &&
       parsed.data.contractSigningTime !== undefined;
@@ -83,7 +102,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           },
           { client: db },
         )
-      : await updateBookingStatusAndNotify(parsed.data.bookingId, status!, { client: db });
+      : await updateBookingStatusAndNotify(parsed.data.bookingId, status!, {
+          client: db,
+          ...(status === "booked" && parsed.data.manualOverride
+            ? {
+                update: {
+                  reservation_expired_at: null,
+                  cancellation_reason: null,
+                  cancellation_source: "admin_manual_override",
+                  cancelled_at: null,
+                },
+              }
+            : {}),
+        });
 
     return ok({
       message:

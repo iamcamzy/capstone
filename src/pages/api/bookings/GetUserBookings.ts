@@ -24,6 +24,7 @@ export const GET: APIRoute = async ({ cookies, url }) => {
     .select(`
       id, start_date, end_date, event_date, event_type,
       pax, status, total_price, special_requests, created_at,
+      reservation_created_at, reservation_expires_at, reservation_expired_at,
       venues ( id, name, image_url, price_per_night )
     `)
     .eq("user_id", user.id)

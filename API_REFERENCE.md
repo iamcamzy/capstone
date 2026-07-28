@@ -93,7 +93,7 @@ Only `venueId`, `startDate`, `endDate` are required. All others optional.
 
 | Status | Body |
 |--------|------|
-| 201 | `{ "bookingId": "uuid", "totalPrice": 55000, "message": "..." }` |
+| 201 | `{ "bookingId": "uuid", "totalPrice": 55000, "reservationExpiresAt": "2026-07-27T12:00:00.000Z", "message": "..." }` |
 | 400 | `{ "error": "validation message" }` |
 | 401 | `{ "error": "Unauthorized" }` |
 | 409 | `{ "error": "Venue is already booked for those dates" }` |
@@ -178,6 +178,61 @@ Send reminders for bookings whose event date is seven days away.
 The endpoint respects each customer's email/SMS preferences. Successful email sends set `one_week_email_sent_at`; successful SMS sends set `one_week_sms_sent_at`. If one channel fails, only that channel remains null and is retried later. `one_week_notice_sent_at` is set after every enabled channel has been sent.
 
 Pass `NOTIFICATION_CRON_SECRET` as a bearer token, `x-cron-secret`, or `?secret=` when configured; otherwise use an admin session.
+
+---
+
+## Reservation Validity
+
+Every new unpaid booking receives a 48-hour reservation hold. On creation, `reservation_created_at` is set to the current time and `reservation_expires_at` is set to 48 hours later. `POST /api/bookings/CreateBookings` returns the latter as `reservationExpiresAt`, and customer booking views display it as the payment deadline.
+
+The reservation timestamp fields on `bookings` are:
+
+| Field | Meaning |
+|---|---|
+| `reservation_created_at` | Start of the reservation hold |
+| `reservation_expires_at` | End of the 48-hour unpaid hold |
+| `expiration_reminder_sent_at` | Successful expiration-reminder delivery time; prevents repeat reminders |
+| `reservation_expired_at` | Time the reservation was automatically expired |
+| `expiration_cancel_notice_sent_at` | Successful automatic-cancellation notice delivery time |
+
+### `POST /api/reservations/expire` Admin or cron secret
+
+Process reservation reminders and expirations. Schedule this endpoint at least daily; a more frequent schedule cancels reservations closer to their exact deadline.
+
+Before expiration, the endpoint sends one reminder to eligible unpaid `contract_signing` reservations whose deadline is within the next 24 hours. It records `expiration_reminder_sent_at` only after successful notification delivery, so successful reminders are not resent and failed notifications can be retried.
+
+At or after `reservation_expires_at`, an unpaid `contract_signing` booking is changed to `cancelled`. The endpoint sets `cancelled_at` and `reservation_expired_at`, records a system cancellation reason/source, and sends an automatic-cancellation notice. Availability queries exclude `cancelled` bookings, releasing those dates. Paid and partially paid bookings are not expired.
+
+Configure the server-only `RESERVATION_CRON_SECRET` and provide it through one of:
+
+```http
+Authorization: Bearer YOUR_SECRET
+x-cron-secret: YOUR_SECRET
+```
+
+The endpoint also accepts `?secret=YOUR_SECRET`. If `RESERVATION_CRON_SECRET` is unset, it uses `NOTIFICATION_CRON_SECRET`; if neither exists, an authenticated admin session is required.
+
+Example response:
+
+```json
+{
+  "count": 1,
+  "expiredReservations": 1,
+  "bookingIds": ["uuid"],
+  "remindersSent": ["uuid"],
+  "cancellationNoticesSent": ["uuid"],
+  "notificationFailures": []
+}
+```
+
+### Reservation validity testing checklist
+
+- [ ] A new unpaid booking gets `reservation_expires_at = now + 48 hours`.
+- [ ] An unpaid booking shows its deadline to the customer.
+- [ ] The expiration reminder sends only once.
+- [ ] An expired unpaid booking becomes `cancelled`.
+- [ ] A cancelled expired booking releases its dates for availability.
+- [ ] Paid and partially paid bookings do not expire.
 
 ---
 

@@ -22,7 +22,7 @@ if (!profile) return Astro.redirect('/dashboard');
 
 const { data: bookings, error: bookingsError } = await adminClient
   .from('bookings')
-  .select('id, full_name, phone, address, pax, event_date, start_date, end_date, contract_signing_date, contract_signing_time, event_type, status, total_price, created_at, updated_at, confirmed_at, cancelled_at, rescheduled_at, one_week_notice_sent_at, special_requests, venue_id, user_id, package_id, package_type, package_price, package_inclusions, rooms_count, selected_rooms, add_ons, extension_selections, corkage_selections, additionals, caterer, use_woodberry_caterer, estimate_summary, minimum_payment_amount, remaining_balance_amount')
+  .select('id, full_name, phone, address, pax, event_date, start_date, end_date, contract_signing_date, contract_signing_time, event_type, status, total_price, created_at, updated_at, confirmed_at, cancelled_at, rescheduled_at, one_week_notice_sent_at, special_requests, venue_id, user_id, package_id, package_type, package_price, package_inclusions, rooms_count, selected_rooms, add_ons, extension_selections, corkage_selections, additionals, caterer, use_woodberry_caterer, estimate_summary, minimum_payment_amount, remaining_balance_amount, reservation_created_at, reservation_expires_at, reservation_expired_at, cancellation_reason, cancellation_source')
   .order('created_at', { ascending: false })
   .limit(200);
 
@@ -172,6 +172,25 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
     hour: 'numeric',
     minute: '2-digit',
   });
+};
+
+const reservationState = (booking: any) => {
+  const paymentStatus = booking.payment?.payment_status ?? 'unpaid';
+  const expiresAt = booking.reservation_expires_at ? new Date(booking.reservation_expires_at).getTime() : null;
+  const remainingMs = expiresAt === null ? null : expiresAt - Date.now();
+  const expirationCancelled = booking.status === 'cancelled'
+    && (booking.reservation_expired_at || booking.cancellation_source === 'system');
+
+  if (paymentStatus === 'paid' || booking.status === 'booked' || booking.status === 'completed') {
+    return { label: 'Paid / secured', className: 'reservation-secured', warning: false };
+  }
+  if (expirationCancelled || (remainingMs !== null && remainingMs <= 0)) {
+    return { label: 'Expired / cancelled', className: 'reservation-expired', warning: false };
+  }
+  if (paymentStatus === 'unpaid' && remainingMs !== null && remainingMs <= 24 * 60 * 60 * 1000) {
+    return { label: 'Expiring soon', className: 'reservation-warning', warning: true };
+  }
+  return { label: 'Active unpaid reservation', className: 'reservation-active', warning: false };
 };
 ---
 
@@ -339,6 +358,7 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Hold Period</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Pax</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Total</th>
+                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Reservation</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Payment</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Contract Signing</th>
                   <th class="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
@@ -348,6 +368,7 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
               </thead>
               <tbody id="bookingsTableBody">
                 {enrichedBookings.map((b) => {
+                    const reservation = reservationState(b);
                     const statusColors = {
                       booked:'bg-green-100 text-green-700',
                       contract_signing:'bg-blue-100 text-blue-700',
@@ -400,6 +421,21 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
                         {/* Total */}
                         <td class="px-4 py-3 font-bold" style="color:var(--butterscotch-primary);">
                           {b.total_price?`₱${Number(b.total_price).toLocaleString()}`:'—'}
+                        </td>
+
+                        <td class={`px-4 py-3 min-w-[190px] ${reservation.warning ? 'reservation-warning-cell' : ''}`}>
+                          <span class={`reservation-badge ${reservation.className}`}>{reservation.label}</span>
+                          <div class="mt-1.5 text-xs text-gray-500">
+                            Expires {b.reservation_expires_at
+                              ? new Date(b.reservation_expires_at).toLocaleString('en-PH',{dateStyle:'medium',timeStyle:'short'})
+                              : '—'}
+                          </div>
+                          <div
+                            class={`reservation-countdown mt-1 text-xs font-bold ${reservation.warning ? 'text-amber-700' : 'text-gray-500'}`}
+                            data-reservation-expires={b.reservation_expires_at ?? ''}
+                            data-reservation-secured={reservation.className === 'reservation-secured' ? 'true' : 'false'}
+                            data-reservation-cancelled={reservation.className === 'reservation-expired' ? 'true' : 'false'}
+                          ></div>
                         </td>
 
                         <td class="px-4 py-3 whitespace-nowrap">
@@ -851,6 +887,20 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
       </div>
 
       <!-- Guest info -->
+      <div id="bd-reservation-panel" class="reservation-detail-panel">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <p class="text-xs font-bold uppercase tracking-widest text-gray-500">Reservation Validity</p>
+          <span id="bd-reservation-badge" class="reservation-badge"></span>
+        </div>
+        <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <div><span class="text-gray-400">Reservation Created</span><p id="bd-reservation-created" class="font-semibold mt-0.5"></p></div>
+          <div><span class="text-gray-400">Reservation Expires</span><p id="bd-reservation-expires" class="font-semibold mt-0.5"></p></div>
+          <div class="col-span-2"><span class="text-gray-400">Time Remaining</span><p id="bd-reservation-remaining" class="font-bold mt-0.5"></p></div>
+          <div id="bd-cancellation-reason-wrap" class="col-span-2 hidden"><span class="text-gray-400">Cancellation Reason</span><p id="bd-cancellation-reason" class="font-semibold mt-0.5 text-red-600"></p></div>
+        </div>
+      </div>
+
+      <!-- Guest info -->
       <div>
         <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Guest Information</p>
         <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
@@ -943,6 +993,13 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
     <div class="flex justify-between items-center mb-5">
       <div><h3 class="text-xl font-black" style="color:var(--jet-primary);">Record Payment</h3><p id="paymentGuest" class="text-sm text-gray-500 mt-1"></p></div>
       <button onclick="closePaymentModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    </div>
+    <div id="paymentReservationNotice" class="reservation-detail-panel mb-4 text-sm">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <span id="paymentReservationBadge" class="reservation-badge"></span>
+        <strong id="paymentReservationRemaining"></strong>
+      </div>
+      <p id="paymentReservationExpiration" class="mt-2 text-xs text-gray-500"></p>
     </div>
     <input id="paymentBookingId" type="hidden" />
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1939,6 +1996,52 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
     box-shadow: var(--wb-shadow-sm);
   }
 
+  :global(html.dark) .reservation-detail-panel {
+    background:#20291d;
+    border-color:#43543b;
+  }
+  :global(html.dark) .reservation-active,
+  :global(html.dark) .reservation-secured {
+    background:#263b22;
+    color:#cfe4c7;
+    border-color:#496743;
+  }
+  :global(html.dark) .reservation-warning {
+    background:#45351d;
+    color:#f2d094;
+    border-color:#775b2b;
+  }
+  :global(html.dark) .reservation-expired {
+    background:#3a211c;
+    color:#efb0a2;
+    border-color:#684037;
+  }
+  :global(html.dark) .reservation-warning-cell {
+    background:linear-gradient(135deg, rgba(69,53,29,.72), rgba(32,41,29,0));
+  }
+
+  .reservation-badge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    border-radius: 9999px;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+  .reservation-active { background:#e8f2e3; color:#2d5a27; border:1px solid #cddfc4; }
+  .reservation-secured { background:#dcefd6; color:#1a2e10; border:1px solid #b9d7ae; }
+  .reservation-warning { background:#fff2d8; color:#8a4d08; border:1px solid #edc77e; }
+  .reservation-expired { background:#fbe7df; color:#8f2f20; border:1px solid #e8b9aa; }
+  .reservation-warning-cell { background:linear-gradient(135deg, rgba(255,242,216,.72), rgba(255,255,255,0)); }
+  .reservation-detail-panel {
+    padding:1rem;
+    border:1px solid var(--wb-border, #dde8d4);
+    border-radius:1rem;
+    background:#f7f9f4;
+  }
+
   .reports-intro h2 { font-size: clamp(1.6rem, 3vw, 2.25rem); }
   .reports-intro > p:last-child { max-width: 48rem; color: #61705b; }
   .reports-eyebrow { margin-bottom: .35rem; color: var(--wb-warm); font-size: .72rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
@@ -2221,6 +2324,34 @@ function formatContractSigningScheduleForAdmin(date: string | null, time: string
     timeStyle: 'short',
   } as any);
 }
+
+function reservationRemainingText(expiresAt: string | null, secured = false, cancelled = false): string {
+  if (secured) return 'Reservation secured';
+  if (cancelled) return 'Expired';
+  if (!expiresAt) return 'Expiration not set';
+  const remaining = new Date(expiresAt).getTime() - Date.now();
+  if (!Number.isFinite(remaining) || remaining <= 0) return 'Expired';
+  const totalMinutes = Math.floor(remaining / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  return days > 0
+    ? `${days}d ${hours}h ${minutes}m remaining`
+    : `${hours}h ${minutes}m remaining`;
+}
+
+function refreshReservationCountdowns() {
+  document.querySelectorAll<HTMLElement>('.reservation-countdown').forEach((element) => {
+    element.textContent = reservationRemainingText(
+      element.dataset.reservationExpires || null,
+      element.dataset.reservationSecured === 'true',
+      element.dataset.reservationCancelled === 'true',
+    );
+  });
+}
+
+refreshReservationCountdowns();
+window.setInterval(refreshReservationCountdowns, 60000);
 
 function canUpdateContractSigningScheduleForAdmin(status: string): boolean {
   return status === 'contract_signing' || status === 'rescheduled';
@@ -2607,6 +2738,30 @@ function addActionBtn(container: HTMLElement, label: string, color: string, fn: 
   container.appendChild(btn);
 }
 
+async function manuallySecureExpiredBooking(id: string) {
+  const confirmed = await showConfirm({
+    title: 'Manual reservation override',
+    message: 'This reservation was cancelled after expiration. Re-book it only after manually verifying availability and payment arrangements. This action will clear the expiration cancellation.',
+    okLabel: 'Manually secure booking',
+    okColor: '#9a4a36',
+    icon: '!',
+  });
+  if (!confirmed) return;
+
+  const response = await fetch('/api/admin/update-booking-status', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bookingId: id, status: 'booked', manualOverride: true }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (response.ok) {
+    toast(payload.warning ? `Booking secured, but notification warning: ${payload.warning}` : 'Booking manually secured');
+    location.reload();
+  } else {
+    toast(payload.error ?? payload.message ?? 'Could not manually secure booking', false);
+  }
+}
+
 function formatMoney(value: unknown): string {
   const amount = Number(value ?? 0);
   return amount ? '₱' + amount.toLocaleString() : '—';
@@ -2637,6 +2792,26 @@ function updatePaymentCalculations() {
 function openPaymentModal(jsonStr: string) {
   const booking = JSON.parse(jsonStr);
   const payment = booking.payment ?? {};
+  const expirationCancelled = booking.status === 'cancelled'
+    && !!(booking.reservation_expired_at || booking.cancellation_source === 'system');
+  const expiresInMs = booking.reservation_expires_at
+    ? new Date(booking.reservation_expires_at).getTime() - Date.now()
+    : null;
+  const secured = payment.payment_status === 'paid' || booking.status === 'booked' || booking.status === 'completed';
+  const expired = expirationCancelled || (expiresInMs !== null && expiresInMs <= 0);
+  const expiringSoon = !secured && !expired && payment.payment_status === 'unpaid'
+    && expiresInMs !== null && expiresInMs <= 24 * 60 * 60 * 1000;
+  const badge = document.getElementById('paymentReservationBadge')!;
+  badge.textContent = secured ? 'Paid / secured' : expired ? 'Expired / cancelled' : expiringSoon ? 'Expiring soon' : 'Active unpaid reservation';
+  badge.className = `reservation-badge ${secured ? 'reservation-secured' : expired ? 'reservation-expired' : expiringSoon ? 'reservation-warning' : 'reservation-active'}`;
+  setText('paymentReservationRemaining', reservationRemainingText(booking.reservation_expires_at ?? null, secured, expired));
+  setText(
+    'paymentReservationExpiration',
+    booking.reservation_expires_at
+      ? `Reservation expires ${new Date(booking.reservation_expires_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' } as any)}`
+      : 'Reservation expiration is not set',
+  );
+  document.getElementById('paymentReservationNotice')?.classList.toggle('reservation-warning-cell', expiringSoon);
   (document.getElementById('paymentBookingId') as HTMLInputElement).value = booking.id;
   setText('paymentGuest', booking.full_name ?? 'Booking payment');
   (document.getElementById('paymentTotal') as HTMLInputElement).value = String(payment.total_booking_amount ?? booking.total_price ?? 0);
@@ -2728,6 +2903,39 @@ function openBookingDetail(jsonStr: string) {
   setText('bd-payment-method', b.payment?.payment_method ?? '—');
   setText('bd-payment-date', fmtTs(b.payment?.payment_recorded_at ?? null));
   setText('bd-payment-notes', b.payment?.payment_notes ?? '—');
+  const paymentStatus = b.payment?.payment_status ?? 'unpaid';
+  const expirationCancelled = b.status === 'cancelled'
+    && !!(b.reservation_expired_at || b.cancellation_source === 'system');
+  const expiresInMs = b.reservation_expires_at
+    ? new Date(b.reservation_expires_at).getTime() - Date.now()
+    : null;
+  const secured = paymentStatus === 'paid' || b.status === 'booked' || b.status === 'completed';
+  const expired = expirationCancelled || (expiresInMs !== null && expiresInMs <= 0);
+  const expiringSoon = !secured && !expired && paymentStatus === 'unpaid'
+    && expiresInMs !== null && expiresInMs <= 24 * 60 * 60 * 1000;
+  const reservationLabel = secured
+    ? 'Paid / secured'
+    : expired
+      ? 'Expired / cancelled'
+      : expiringSoon
+        ? 'Expiring soon'
+        : 'Active unpaid reservation';
+  const reservationClass = secured
+    ? 'reservation-secured'
+    : expired
+      ? 'reservation-expired'
+      : expiringSoon
+        ? 'reservation-warning'
+        : 'reservation-active';
+  const reservationBadge = document.getElementById('bd-reservation-badge')!;
+  reservationBadge.textContent = reservationLabel;
+  reservationBadge.className = `reservation-badge ${reservationClass}`;
+  document.getElementById('bd-reservation-panel')?.classList.toggle('reservation-warning-cell', expiringSoon);
+  setText('bd-reservation-created', fmtTs(b.reservation_created_at ?? null));
+  setText('bd-reservation-expires', fmtTs(b.reservation_expires_at ?? null));
+  setText('bd-reservation-remaining', reservationRemainingText(b.reservation_expires_at ?? null, secured, expired));
+  toggleEl('bd-cancellation-reason-wrap', expirationCancelled);
+  if (expirationCancelled) setText('bd-cancellation-reason', b.cancellation_reason ?? 'Cancelled automatically because the unpaid reservation expired.');
   setText('bd-inclusions', formatInclusions(b.package_inclusions));
   setText('bd-rooms', formatBookingItems(b.selected_rooms ?? b.additionals?.rooms));
   setText('bd-addons', formatBookingItems(b.add_ons ?? b.additionals?.addOns));
@@ -3028,6 +3236,12 @@ async function generateReport() {
     toast(reportError instanceof Error ? reportError.message : 'Could not generate the report', false);
   } finally {
     if (button) { button.disabled = false; button.textContent = 'Generate Report'; }
+  }
+  if (expirationCancelled) {
+    addActionBtn(actions, 'Manual override: secure booking', '#9a4a36', function() {
+      closeBookingDetail();
+      manuallySecureExpiredBooking(b.id);
+    });
   }
 }
 

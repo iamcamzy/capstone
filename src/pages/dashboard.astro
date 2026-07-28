@@ -21,14 +21,21 @@ const isAdmin = !!adminRow;
 
 const { data: bookings } = await db
   .from('bookings')
-  .select('id, full_name, phone, pax, start_date, end_date, event_type, status, total_price, venue_id, event_date, special_requests, created_at, updated_at, package_type, package_price, package_inclusions, selected_rooms, add_ons, extension_selections, corkage_selections, additionals, estimate_summary, minimum_payment_amount, remaining_balance_amount')
+  .select('id, full_name, phone, pax, start_date, end_date, event_type, status, total_price, venue_id, event_date, special_requests, created_at, updated_at, package_type, package_price, package_inclusions, selected_rooms, add_ons, extension_selections, corkage_selections, additionals, estimate_summary, minimum_payment_amount, remaining_balance_amount, reservation_created_at, reservation_expires_at, reservation_expired_at')
   .eq('user_id', user.id)
   .order('created_at', { ascending: false })
   .limit(20);
 
+const rawBookingIds = (bookings ?? []).map(booking => booking.id);
+const { data: bookingPayments } = rawBookingIds.length > 0
+  ? await db.from('booking_payments').select('booking_id, payment_status, amount_paid').in('booking_id', rawBookingIds)
+  : { data: [] };
+const paymentMap = Object.fromEntries((bookingPayments ?? []).map(payment => [payment.booking_id, payment]));
+
 const normalizedBookings = (bookings ?? []).map((booking) => ({
   ...booking,
   status: normalizeBookingStatus(booking.status),
+  payment: paymentMap[booking.id] ?? null,
 }));
 
 const venueIds = [...new Set(normalizedBookings.map(b => b.venue_id))];
@@ -205,6 +212,11 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
                         <p class="text-xs mt-1 flex items-center gap-1" style="color:#9ca3af;">
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                           Event: {fmtDate(b.event_date)}
+                        </p>
+                      )}
+                      {b.payment?.payment_status === 'unpaid' && b.reservation_expires_at && !b.reservation_expired_at && (
+                        <p class="text-xs mt-2 font-semibold" style="color:#2d5a27;">
+                          This unpaid reservation is valid until {new Date(b.reservation_expires_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}.
                         </p>
                       )}
                     </div>
@@ -446,6 +458,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
           <div><p class="text-xs text-gray-400 font-semibold">Balance</p><p id="ubd-balance" class="font-semibold mt-1">—</p></div>
           <div><p class="text-xs text-gray-400 font-semibold">Submitted</p><p id="ubd-created" class="font-semibold mt-1">—</p></div>
         </div>
+        <p id="ubd-reservation-expiration" class="hidden mt-4 rounded-xl px-4 py-3 text-sm font-semibold" style="background:#e8f2e3;color:#2d5a27;border:1px solid #dde8d4;"></p>
       </div>
 
       <div>
@@ -540,6 +553,17 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
     userBookingSetText('ubd-extensions', userBookingItems(b.extension_selections ?? b.additionals?.extensions));
     userBookingSetText('ubd-corkage', userBookingItems(b.corkage_selections ?? b.additionals?.corkage));
     userBookingSetText('ubd-created', userBookingFmtTs(b.created_at));
+
+    const reservationExpiration = document.getElementById('ubd-reservation-expiration');
+    if (b.payment?.payment_status === 'unpaid' && b.reservation_expires_at && !b.reservation_expired_at) {
+      userBookingSetText(
+        'ubd-reservation-expiration',
+        'This unpaid reservation is valid until ' + userBookingFmtTs(b.reservation_expires_at) + '.',
+      );
+      reservationExpiration?.classList.remove('hidden');
+    } else {
+      reservationExpiration?.classList.add('hidden');
+    }
 
     const reqWrap = document.getElementById('ubd-requests-wrap');
     if (b.special_requests) {

@@ -137,6 +137,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   const db = supabaseAdmin ?? supabase;
   const now = new Date().toISOString();
+  const reservationExpiresAt = new Date(
+    new Date(now).getTime() + 48 * 60 * 60 * 1000,
+  ).toISOString();
 
   // Keep the latest booking contact info on the customer profile.
   // The notification service reads the customer profile, so the latest booking
@@ -243,6 +246,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       special_requests: specialRequests ?? null,
       total_price: computedTotal,
       status: "contract_signing",
+      reservation_created_at: now,
+      reservation_expires_at: reservationExpiresAt,
+      reservation_expired_at: null,
       created_at: now,
       updated_at: now,
       address: parsed.data.address ?? null,
@@ -270,7 +276,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       remaining_balance_amount: computedRemainingBalance,
       terms_accepted_at: parsed.data.termsAccepted ? now : null,
     })
-    .select("id")
+    .select("id, reservation_expires_at")
     .single();
 
   if (insertError) {
@@ -281,6 +287,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   return created({
     bookingId: newBooking.id,
     totalPrice: computedTotal,
+    reservationExpiresAt: newBooking.reservation_expires_at,
     message: "Booking submitted successfully. Our staff will coordinate contract signing details.",
   });
 };
