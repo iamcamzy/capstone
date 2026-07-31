@@ -88,88 +88,54 @@ const navItems = [
           </svg>
         </a>
 
-        <details class="account-menu">
-          <summary>
-            <span class="account-menu__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="8" r="3.5"></circle>
-                <path d="M5 20c.6-4 3-6 7-6s6.4 2 7 6"></path>
-              </svg>
-            </span>
-            <span>{user ? 'My Account' : 'Account'}</span>
-            <svg class="account-menu__chevron" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m7 10 5 5 5-5"></path>
+        <div class="header-account-actions">
+          {user ? (
+            <>
+              <a
+                href={isAdmin ? '/admin' : '/dashboard'}
+                class="header-action-link"
+              >
+                {isAdmin ? 'Admin Dashboard' : 'Dashboard'}
+              </a>
+              <form method="POST" action="/api/auth/signout">
+                <button type="submit" class="header-action-link header-action-link--logout">
+                  Logout
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <a href="/signin" class="header-action-link">Log In</a>
+              <a href="/signup" class="header-action-link header-action-link--signup">
+                Sign Up
+              </a>
+            </>
+          )}
+        </div>
+
+        <div class="header-utilities">
+          <button
+            id="preview"
+            class="header-utility-button"
+            type="button"
+            aria-label="Check availability"
+          >
+            <svg id="previewIconCal" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="17" rx="2"></rect>
+              <path d="M3 10h18M8 2v4M16 2v4"></path>
             </svg>
-          </summary>
-
-          <div class="account-menu__panel">
-            {user ? (
-              <>
-                <div class="account-menu__identity">
-                  <span>Signed in as</span>
-                  <strong>{user.email}</strong>
-                </div>
-
-                <a href="/dashboard" class="account-menu__link">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"></path>
-                  </svg>
-                  {isAdmin ? 'Customer Dashboard' : 'Dashboard'}
-                </a>
-
-                {isAdmin && (
-                  <a href="/admin" class="account-menu__link">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <circle cx="12" cy="12" r="3"></circle>
-                      <path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a8 8 0 0 0-1.7-1L14.5 3h-5l-.4 3.1a8 8 0 0 0-1.7 1L5 6.1 3 9.5 5.1 11a7 7 0 0 0 0 2L3 14.5l2 3.4 2.4-1a8 8 0 0 0 1.7 1l.4 3.1h5l.4-3.1a8 8 0 0 0 1.7-1l2.4 1 2-3.4-2.1-1.5a7 7 0 0 0 .1-1Z"></path>
-                    </svg>
-                    Admin Dashboard
-                  </a>
-                )}
-
-                <form method="POST" action="/api/auth/signout">
-                  <button type="submit" class="account-menu__link account-menu__signout">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10"></path>
-                    </svg>
-                    Sign Out
-                  </button>
-                </form>
-              </>
-            ) : (
-              <div class="account-menu__auth">
-                <p>Sign in to request a booking and keep track of your plans.</p>
-                <a href="/signin" class="account-menu__login">Log In</a>
-                <a href="/signup" class="account-menu__signup">Create Account</a>
-              </div>
-            )}
-
-            <div class="account-menu__utility">
-              <button id="preview" class="account-menu__utility-button" type="button">
-                <svg
-                  id="previewIconCal"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <rect x="3" y="4" width="18" height="17" rx="2"></rect>
-                  <path d="M3 10h18M8 2v4M16 2v4"></path>
-                </svg>
-                <svg
-                  id="previewIconX"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                  style="display: none;"
-                >
-                  <path d="m6 6 12 12M18 6 6 18"></path>
-                </svg>
-                <span id="previewText">Check Availability</span>
-              </button>
-              <div class="account-menu__theme">
-                <Theme />
-              </div>
-            </div>
-          </div>
-        </details>
+            <svg
+              id="previewIconX"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              style="display: none;"
+            >
+              <path d="m6 6 12 12M18 6 6 18"></path>
+            </svg>
+            <span id="previewText">Availability</span>
+          </button>
+          <div class="header-theme"><Theme /></div>
+        </div>
       </div>
     </div>
   </div>
@@ -204,9 +170,6 @@ const navItems = [
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         setOpen(false);
-        header.querySelectorAll('details[open]').forEach((details) => {
-          details.removeAttribute('open');
-        });
       }
     });
 
@@ -343,7 +306,7 @@ const navItems = [
   }
 
   .book-now-link svg,
-  .account-menu svg,
+  .header-utility-button svg,
   .mobile-nav-toggle svg {
     width: 1rem;
     fill: none;
@@ -353,197 +316,62 @@ const navItems = [
     stroke-width: 2;
   }
 
-  .account-menu {
-    position: relative;
+  .header-account-actions,
+  .header-utilities {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
   }
 
-  .account-menu > summary {
+  .header-account-actions form {
     display: flex;
-    min-height: 2.75rem;
+    margin: 0;
+  }
+
+  .header-action-link,
+  .header-utility-button {
+    display: inline-flex;
+    min-height: 2.5rem;
     align-items: center;
-    gap: 0.45rem;
+    justify-content: center;
     border: 1px solid var(--wb-border);
     border-radius: 999px;
-    color: var(--wb-green-dark);
-    cursor: pointer;
-    font-size: 0.78rem;
-    font-weight: 800;
-    padding: 0.55rem 0.75rem;
-    list-style: none;
-    white-space: nowrap;
-  }
-
-  .account-menu > summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .account-menu > summary:hover {
-    border-color: var(--wb-green);
-    background: var(--wb-green-soft);
-  }
-
-  .account-menu__icon {
-    display: grid;
-    width: 1.55rem;
-    height: 1.55rem;
-    place-items: center;
-    border-radius: 999px;
-    background: var(--wb-green-soft);
-    color: var(--wb-green);
-  }
-
-  .account-menu__icon svg {
-    width: 0.9rem;
-  }
-
-  .account-menu__chevron {
-    width: 0.75rem !important;
-    transition: transform 0.2s ease;
-  }
-
-  .account-menu[open] .account-menu__chevron {
-    transform: rotate(180deg);
-  }
-
-  .account-menu__panel {
-    position: absolute;
-    top: calc(100% + 0.7rem);
-    right: 0;
-    width: min(21rem, calc(100vw - 2rem));
-    overflow: hidden;
-    border: 1px solid var(--wb-border);
-    border-radius: var(--wb-radius-lg);
-    background: var(--wb-surface-raised);
-    box-shadow: var(--wb-shadow-lg);
-    color: var(--wb-text);
-  }
-
-  .account-menu__identity {
-    display: grid;
-    gap: 0.1rem;
-    border-bottom: 1px solid var(--wb-border);
-    background: var(--wb-surface-soft);
-    padding: 1rem;
-  }
-
-  .account-menu__identity span {
-    color: var(--wb-muted);
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .account-menu__identity strong {
-    overflow: hidden;
-    color: var(--wb-green-dark);
-    font-size: 0.82rem;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .account-menu__link {
-    display: flex;
-    width: 100%;
-    min-height: 2.9rem;
-    align-items: center;
-    gap: 0.7rem;
-    border: 0;
-    border-bottom: 1px solid var(--wb-border);
     background: transparent;
-    color: var(--wb-text);
+    color: var(--wb-green-dark);
     cursor: pointer;
     font: inherit;
-    font-size: 0.82rem;
-    font-weight: 700;
-    padding: 0.7rem 1rem;
-    text-align: left;
+    font-size: 0.74rem;
+    font-weight: 800;
+    padding: 0.55rem 0.75rem;
     text-decoration: none;
     text-transform: none;
+    white-space: nowrap;
   }
 
-  .account-menu__link:hover {
+  .header-action-link:hover,
+  .header-utility-button:hover {
+    border-color: var(--wb-green);
     background: var(--wb-green-soft);
     color: var(--wb-green-mid);
   }
 
-  .account-menu__link svg {
-    width: 1.05rem;
-    color: var(--wb-green);
+  .header-action-link--signup {
+    background: var(--wb-green-soft);
+    color: var(--wb-green-mid);
   }
 
-  .account-menu__signout {
-    border-bottom: 0;
+  .header-action-link--logout {
     color: #8f2f20;
   }
 
-  .account-menu__auth {
-    display: grid;
-    gap: 0.65rem;
-    padding: 1rem;
+  .header-utility-button {
+    gap: 0.4rem;
+    padding-inline: 0.65rem;
   }
 
-  .account-menu__auth p {
-    margin: 0 0 0.25rem;
-    color: var(--wb-muted);
-    font-size: 0.8rem;
-    line-height: 1.5;
-  }
-
-  .account-menu__login,
-  .account-menu__signup {
+  .header-theme {
     display: flex;
-    min-height: 2.65rem;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--wb-radius-sm);
-    font-size: 0.8rem;
-    font-weight: 800;
-    text-decoration: none;
-  }
-
-  .account-menu__login {
-    background: var(--wb-green-mid);
-    color: #ffffff;
-  }
-
-  .account-menu__signup {
-    border: 1px solid var(--wb-border);
-    color: var(--wb-green-mid);
-  }
-
-  .account-menu__utility {
-    display: grid;
-    gap: 0.8rem;
-    border-top: 1px solid var(--wb-border);
-    background: var(--wb-surface-soft);
-    padding: 0.85rem 1rem;
-  }
-
-  .account-menu__utility-button {
-    display: flex;
-    min-height: 2.5rem;
-    align-items: center;
-    gap: 0.65rem;
-    border: 0;
-    border-radius: var(--wb-radius-sm);
-    background: transparent;
-    color: var(--wb-green-mid);
-    cursor: pointer;
-    font-size: 0.78rem;
-    font-weight: 800;
-    padding: 0.45rem 0.25rem;
-    text-align: left;
-    text-transform: none;
-  }
-
-  .account-menu__utility-button:hover {
-    background: var(--wb-green-soft);
-  }
-
-  .account-menu__theme {
-    border-top: 1px solid var(--wb-border);
-    padding-top: 0.8rem;
+    padding-left: 0.15rem;
   }
 
   .mobile-nav-toggle {
@@ -568,7 +396,8 @@ const navItems = [
   }
 
   :global(html.dark) .site-nav__link,
-  :global(html.dark) .account-menu > summary {
+  :global(html.dark) .header-action-link,
+  :global(html.dark) .header-utility-button {
     color: var(--wb-text);
   }
 
@@ -591,8 +420,13 @@ const navItems = [
       padding-inline: 0.5rem;
     }
 
-    .account-menu > summary > span:not(.account-menu__icon) {
+    .header-utility-button span,
+    .header-theme {
       display: none;
+    }
+
+    .header-action-link {
+      padding-inline: 0.6rem;
     }
   }
 
@@ -670,21 +504,38 @@ const navItems = [
       font-size: 0.88rem;
     }
 
-    .account-menu > summary {
-      min-height: 3rem;
-      justify-content: center;
-      border-radius: var(--wb-radius-sm);
+    .header-account-actions,
+    .header-utilities {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
     }
 
-    .account-menu > summary > span:not(.account-menu__icon) {
-      display: inline;
+    .header-account-actions form {
+      display: block;
     }
 
-    .account-menu__panel {
-      position: static;
+    .header-action-link,
+    .header-action-link--logout,
+    .header-utility-button {
       width: 100%;
-      margin-top: 0.5rem;
-      box-shadow: var(--wb-shadow-sm);
+      min-height: 3rem;
+      border-radius: var(--wb-radius-sm);
+      font-size: 0.88rem;
+    }
+
+    .header-utility-button span,
+    .header-theme {
+      display: flex;
+    }
+
+    .header-theme {
+      min-height: 3rem;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--wb-border);
+      border-radius: var(--wb-radius-sm);
+      padding: 0.5rem;
     }
 
     :global(html.dark) .site-header__panel {
