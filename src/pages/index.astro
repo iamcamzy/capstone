@@ -1,347 +1,1353 @@
 ---
-import '../styles/global.css';
 import Layout from '../layouts/Layout.astro';
-import { getUser } from '../lib/auth';
-import { supabase, supabaseAdmin } from '../lib/supabase';
 
-const user = await getUser(Astro.cookies);
+const features = [
+  {
+    label: 'Private Resort Venue',
+    icon: 'home',
+  },
+  {
+    label: 'Pool Access',
+    icon: 'waves',
+  },
+  {
+    label: 'Event Pavilion',
+    icon: 'pavilion',
+  },
+  {
+    label: 'Staycation Packages',
+    icon: 'bed',
+  },
+  {
+    label: 'Sound System / Videoke',
+    icon: 'music',
+  },
+];
 
-let isAdmin = false;
-if (user) {
-  const client = supabaseAdmin ?? supabase;
-  const { data } = await client
-    .from('admins')
-    .select('id')
-    .eq('id', user.id)
-    .single();
-  isAdmin = !!data;
-}
+const packages = [
+  {
+    title: 'Lunch Time Package',
+    price: '₱12,000',
+    description:
+      'A bright daytime celebration with the resort setting ready for your group.',
+    tag: 'Day event',
+  },
+  {
+    title: 'Dinner Time Package',
+    price: '₱13,000',
+    description:
+      'Gather under the evening lights for birthdays, reunions, and special dinners.',
+    tag: 'Evening event',
+  },
+  {
+    title: 'Barkada Staycation',
+    price: '₱14,500',
+    description:
+      'Make time for the whole crew with a fun and easy private resort escape.',
+    tag: 'For friends',
+  },
+  {
+    title: 'Pamilya Staycation',
+    price: '₱20,500',
+    description:
+      'Share a comfortable family getaway with space to swim, relax, and reconnect.',
+    tag: 'For families',
+  },
+  {
+    title: 'Room Rates',
+    price: 'Starts at ₱999',
+    description:
+      'Add a comfortable room to your visit or plan a simple overnight stay.',
+    tag: 'Overnight stay',
+  },
+];
+
+const reasons = [
+  {
+    title: 'Pool and pavilion access',
+    description: 'Enjoy spaces for both relaxing and celebrating in one venue.',
+  },
+  {
+    title: 'A private place for your event',
+    description: 'Gather with the people who matter in a more personal setting.',
+  },
+  {
+    title: 'Flexible staycation options',
+    description: 'Choose a quick escape with friends or quality time with family.',
+  },
+  {
+    title: 'Parking and security support',
+    description: 'Welcome your guests with practical on-site support for the occasion.',
+  },
+  {
+    title: 'Caterer-friendly preparation time',
+    description: 'Give your chosen caterer time to prepare the celebration with care.',
+  },
+  {
+    title: 'Made for families and groups',
+    description: 'A warm setting for birthdays, reunions, weddings, and shared milestones.',
+  },
+];
+
+const bookingSteps = [
+  {
+    number: '01',
+    title: 'Choose a package',
+    description: 'Find the event or staycation option that suits your plans.',
+  },
+  {
+    number: '02',
+    title: 'Submit your booking request',
+    description: 'Share your preferred date and the details of your gathering.',
+  },
+  {
+    number: '03',
+    title: 'Wait for your contract-signing schedule',
+    description: 'Our team will coordinate the next step with you.',
+  },
+];
+
+const galleryImages = [
+  {
+    src: '/woodberyPics/pool_1.jpg',
+    alt: 'Woodberry swimming pool',
+    className: 'gallery-tile gallery-tile--large',
+  },
+  {
+    src: '/woodberyPics/banquet_1.jpg',
+    alt: 'Woodberry pavilion prepared for an event',
+    className: 'gallery-tile',
+  },
+  {
+    src: '/woodberyPics/stage_2.jpg',
+    alt: 'Decorated event stage at Woodberry',
+    className: 'gallery-tile',
+  },
+  {
+    src: '/woodberyPics/tables_1.jpg',
+    alt: 'Celebration table setup at Woodberry',
+    className: 'gallery-tile gallery-tile--wide',
+  },
+];
 ---
 
 <Layout>
-  <div class="wb-page">
+  <div class="home-page">
+    <section class="home-hero" aria-labelledby="home-hero-title">
+      <div class="home-hero__image" aria-hidden="true">
+        <img
+          src="/woodberyPics/pool_and_house.jpg"
+          alt=""
+          width="905"
+          height="1280"
+          fetchpriority="high"
+        />
+      </div>
 
-    <!-- HERO -->
-    <section class="wb-hero">
-      <div class="wb-hero__content">
-        <p class="wb-hero__eyebrow">WELCOME TO WOODBERRY</p>
-        <h1 class="wb-hero__heading">Memorable Stays.<br/>Seamless Events.</h1>
-        <p class="wb-hero__sub">Your perfect venue for every occasion — from intimate gatherings to grand celebrations, nestled in nature.</p>
-        <div class="wb-hero__actions">
-          <a href="/gallery" class="wb-btn wb-btn--primary">
-            Explore Resort <span>→</span>
-          </a>
-          {isAdmin ? (
-            <a href="/admin" class="wb-btn wb-btn--outline">
-              Admin Dashboard <span>⚙️</span>
+      <div class="home-hero__shade" aria-hidden="true"></div>
+
+      <div class="home-hero__inner">
+        <div class="home-hero__content">
+          <p class="home-hero__eyebrow">
+            Woodberry Resorts and Events Place
+          </p>
+
+          <h1 id="home-hero-title">
+            Celebrate Your Special Moments at Woodberry
+          </h1>
+
+          <p class="home-hero__lead">
+            Your private resort and events venue for birthdays, reunions,
+            weddings, family gatherings, and easygoing staycations—all in one
+            warm and inviting place.
+          </p>
+
+          <div class="home-hero__actions" aria-label="Explore Woodberry">
+            <a
+              href="/events_and_booking/events"
+              class="hero-button hero-button--primary"
+            >
+              Book an Event
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6"></path>
+              </svg>
             </a>
-          ) : (
-            <a href="/events_and_booking/events" class="wb-btn wb-btn--outline">
-              Book Now <span>🗓</span>
+            <a href="#packages" class="hero-button hero-button--glass">
+              View Packages
             </a>
-          )}
+            <a href="/gallery" class="hero-button hero-button--text">
+              View Gallery
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6"></path>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="home-hero__features" aria-label="Venue features">
+          <p class="home-hero__features-title">Everything for your gathering</p>
+          <ul>
+            {
+              features.map((feature) => (
+                <li>
+                  <span class="feature-icon" aria-hidden="true">
+                    {feature.icon === 'home' && (
+                      <svg viewBox="0 0 24 24">
+                        <path d="M3 11.5 12 4l9 7.5"></path>
+                        <path d="M5.5 10v10h13V10M9.5 20v-6h5v6"></path>
+                      </svg>
+                    )}
+                    {feature.icon === 'waves' && (
+                      <svg viewBox="0 0 24 24">
+                        <path d="M2 9c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"></path>
+                        <path d="M2 15c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"></path>
+                      </svg>
+                    )}
+                    {feature.icon === 'pavilion' && (
+                      <svg viewBox="0 0 24 24">
+                        <path d="M3 10h18M5 10v10M19 10v10M9 10v10M15 10v10"></path>
+                        <path d="m2 10 10-6 10 6M3 20h18"></path>
+                      </svg>
+                    )}
+                    {feature.icon === 'bed' && (
+                      <svg viewBox="0 0 24 24">
+                        <path d="M3 19v-9M21 19v-6a3 3 0 0 0-3-3H9v6h12"></path>
+                        <path d="M3 16h18M9 10a3 3 0 1 0-6 0v6"></path>
+                      </svg>
+                    )}
+                    {feature.icon === 'music' && (
+                      <svg viewBox="0 0 24 24">
+                        <path d="M9 18V5l11-2v13"></path>
+                        <ellipse cx="6" cy="18" rx="3" ry="2"></ellipse>
+                        <ellipse cx="17" cy="16" rx="3" ry="2"></ellipse>
+                      </svg>
+                    )}
+                  </span>
+                  <span>{feature.label}</span>
+                </li>
+              ))
+            }
+          </ul>
         </div>
       </div>
 
-      <div class="wb-hero__leaf-left" aria-hidden="true">
-        <svg viewBox="0 0 180 320" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M20 300 Q-40 150 80 20 Q160 100 120 200 Q80 260 20 300Z" fill="#c8dbb8" opacity="0.5"/>
-          <path d="M50 310 Q10 200 90 80" stroke="#a8c890" stroke-width="2" fill="none" opacity="0.6"/>
+      <a class="home-hero__scroll" href="#packages" aria-label="Explore packages">
+        <span>Discover more</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m6 9 6 6 6-6"></path>
         </svg>
+      </a>
+    </section>
+
+    <section id="packages" class="packages-preview" aria-labelledby="packages-title">
+      <div class="packages-preview__intro">
+        <div>
+          <p class="section-eyebrow">Featured packages</p>
+          <h2 id="packages-title">A package for every kind of gathering</h2>
+        </div>
+        <p>
+          Plan a daytime celebration, an evening event, or a relaxed overnight
+          escape with clear starting options for your group.
+        </p>
       </div>
 
-      <div class="wb-hero__image-wrap">
-        <!-- Hidden SVG that defines the wavy clip shape -->
-        <svg width="0" height="0" style="position:absolute;">
-          <defs>
-            <clipPath id="wavyClip" clipPathUnits="objectBoundingBox">
-              <!-- wavy S-curve on the left, straight on right/top/bottom -->
-              <path d="M 0.13,0 C 0.0,0.15 0.22,0.3 0.08,0.5 C -0.04,0.68 0.1,0.85 0.13,1 L 1,1 L 1,0 Z"/>
-            </clipPath>
-          </defs>
-        </svg>
-        <img src="/woodberyPics/pool_and_house.jpg" alt="Woodberry resort" class="wb-hero__img" />
-        <div class="wb-hero__leaf-top" aria-hidden="true">
-          <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M200 0 Q80 20 60 100 Q80 160 160 200 Q200 140 200 0Z" fill="#5a8a3a" opacity="0.85"/>
-            <path d="M200 0 Q120 60 100 160" stroke="#3d6b28" stroke-width="2" fill="none"/>
+      <div class="packages-grid">
+        {
+          packages.map((item) => (
+            <article class="package-card">
+              <p class="package-card__tag">{item.tag}</p>
+              <div class="package-card__content">
+                <h3>{item.title}</h3>
+                <p class="package-card__price">{item.price}</p>
+                <p>{item.description}</p>
+              </div>
+              <a href="/events_and_booking/events" aria-label={`View ${item.title}`}>
+                View package
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 12h14M13 6l6 6-6 6"></path>
+                </svg>
+              </a>
+            </article>
+          ))
+        }
+      </div>
+
+      <div class="packages-preview__actions">
+        <a href="/events_and_booking/events" class="packages-link">
+          Explore venues and packages
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6"></path>
           </svg>
-        </div>
+        </a>
       </div>
     </section>
 
-    <!-- FEATURE CARDS -->
-    <section class="wb-features">
-      <div class="wb-features__grid">
-
-        <div class="wb-feature-card">
-          <div class="wb-feature-card__icon">
-            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-              <rect x="4" y="16" width="32" height="20" rx="2" stroke="#4a7c3f" stroke-width="2"/>
-              <path d="M4 20 L20 8 L36 20" stroke="#4a7c3f" stroke-width="2" stroke-linejoin="round"/>
-              <rect x="14" y="26" width="6" height="10" rx="1" fill="#4a7c3f"/>
-              <rect x="22" y="22" width="8" height="6" rx="1" stroke="#4a7c3f" stroke-width="1.5"/>
-            </svg>
-          </div>
-          <div class="wb-feature-card__body">
-            <h3>Stunning Venue</h3>
-            <p>A beautiful resort setting for any occasion.</p>
-          </div>
-        </div>
-
-        <div class="wb-feature-card">
-          <div class="wb-feature-card__icon">
-            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-              <rect x="4" y="8" width="32" height="28" rx="2" stroke="#4a7c3f" stroke-width="2"/>
-              <line x1="4" y1="16" x2="36" y2="16" stroke="#4a7c3f" stroke-width="2"/>
-              <line x1="14" y1="4" x2="14" y2="12" stroke="#4a7c3f" stroke-width="2" stroke-linecap="round"/>
-              <line x1="26" y1="4" x2="26" y2="12" stroke="#4a7c3f" stroke-width="2" stroke-linecap="round"/>
-              <rect x="10" y="21" width="5" height="5" rx="1" fill="#4a7c3f"/>
-              <rect x="18" y="21" width="5" height="5" rx="1" fill="#4a7c3f"/>
-              <rect x="26" y="21" width="5" height="5" rx="1" fill="#4a7c3f"/>
-            </svg>
-          </div>
-          <div class="wb-feature-card__body">
-            <h3>Easy Booking</h3>
-            <p>Reserve your date in just a few clicks.</p>
-          </div>
-        </div>
-
-        <div class="wb-feature-card">
-          <div class="wb-feature-card__icon">
-            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-              <circle cx="20" cy="14" r="6" stroke="#4a7c3f" stroke-width="2"/>
-              <path d="M8 36 Q8 28 20 26 Q32 28 32 36" stroke="#4a7c3f" stroke-width="2" fill="none" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div class="wb-feature-card__body">
-            <h3>Any Occasion</h3>
-            <p>Weddings, reunions, parties & more.</p>
-          </div>
-        </div>
-
-        <div class="wb-feature-card">
-          <div class="wb-feature-card__icon">
-            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-              <path d="M12 2 Q4 8 4 18 Q4 28 12 32 Q20 36 28 32 Q36 28 36 18 Q36 8 28 2 Q20 -2 12 2Z" stroke="#4a7c3f" stroke-width="2" fill="none"/>
-              <path d="M12 18 Q20 10 28 18" stroke="#4a7c3f" stroke-width="2" fill="none" stroke-linecap="round"/>
-              <line x1="20" y1="32" x2="20" y2="18" stroke="#4a7c3f" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div class="wb-feature-card__body">
-            <h3>Nature & Comfort</h3>
-            <p>Lush greenery and modern amenities.</p>
-          </div>
-        </div>
-
+    <section class="why-section" aria-labelledby="why-title">
+      <div class="section-heading section-heading--center">
+        <p class="section-eyebrow">Why choose Woodberry</p>
+        <h2 id="why-title">One welcoming place, thoughtfully prepared</h2>
+        <p>
+          Bring everyone together with the resort spaces and practical support
+          that help your celebration feel easier.
+        </p>
       </div>
 
-      <!-- Tagline -->
-      <!-- <div class="wb-tagline">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
-          <path d="M12 2 Q4 8 4 16 Q4 22 12 22 Q20 22 20 16 Q20 8 12 2Z" fill="#4a7c3f" opacity="0.7"/>
-          <line x1="12" y1="22" x2="12" y2="10" stroke="#4a7c3f" stroke-width="1.5" stroke-linecap="round"/>
+      <div class="reasons-grid">
+        {
+          reasons.map((reason) => (
+            <article class="reason-card">
+              <span class="reason-card__check" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="m6 12 4 4 8-9"></path>
+                </svg>
+              </span>
+              <div>
+                <h3>{reason.title}</h3>
+                <p>{reason.description}</p>
+              </div>
+            </article>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="booking-process" aria-labelledby="booking-process-title">
+      <div class="booking-process__inner">
+        <div class="booking-process__intro">
+          <p class="section-eyebrow">Simple booking process</p>
+          <h2 id="booking-process-title">From your plans to a reserved date</h2>
+          <p>
+            Start with the experience you want, send your preferred details,
+            and let our team guide you toward contract signing.
+          </p>
+          <div class="reservation-note">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M12 7v5l3 2"></path>
+            </svg>
+            <p>
+              <strong>Please remember:</strong> unpaid reservations are valid
+              for 48 hours.
+            </p>
+          </div>
+        </div>
+
+        <ol class="booking-steps">
+          {
+            bookingSteps.map((step) => (
+              <li>
+                <span class="booking-step__number">{step.number}</span>
+                <div>
+                  <h3>{step.title}</h3>
+                  <p>{step.description}</p>
+                </div>
+              </li>
+            ))
+          }
+        </ol>
+      </div>
+    </section>
+
+    <section class="gallery-preview" aria-labelledby="gallery-preview-title">
+      <div class="gallery-preview__heading">
+        <div>
+          <p class="section-eyebrow">A glimpse of Woodberry</p>
+          <h2 id="gallery-preview-title">Picture your celebration here</h2>
+        </div>
+        <a href="/gallery" class="outline-link">
+          View full gallery
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6"></path>
+          </svg>
+        </a>
+      </div>
+
+      <div class="gallery-preview__grid">
+        {
+          galleryImages.map((image) => (
+            <figure class={image.className}>
+              <img
+                src={image.src}
+                alt={image.alt}
+                width="640"
+                height="480"
+                loading="lazy"
+              />
+            </figure>
+          ))
+        }
+      </div>
+
+      <a href="/gallery" class="outline-link outline-link--mobile">
+        View full gallery
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 12h14M13 6l6 6-6 6"></path>
         </svg>
-        <p>Nature. Comfort. Memories.</p>
-      </div> -->
+      </a>
     </section>
 
+    <section class="contact-cta" aria-labelledby="contact-cta-title">
+      <div class="contact-cta__image" aria-hidden="true">
+        <img src="/woodberyPics/entrance_1.jpg" alt="" loading="lazy" />
+      </div>
+      <div class="contact-cta__shade" aria-hidden="true"></div>
+      <div class="contact-cta__content">
+        <p class="section-eyebrow">Your gathering starts here</p>
+        <h2 id="contact-cta-title">Ready to make your Woodberry memories?</h2>
+        <p>
+          Tell us about your preferred date, package, and group. We would be
+          happy to help you plan your event or resort stay.
+        </p>
+        <div class="contact-cta__actions">
+          <a href="/events_and_booking/events" class="hero-button hero-button--primary">
+            Book your date
+          </a>
+          <a href="/contact-us" class="hero-button hero-button--glass">
+            Send an inquiry
+          </a>
+        </div>
+      </div>
+    </section>
   </div>
 </Layout>
 
 <style>
-  /* The whole page = exactly one screen height */
-  .wb-page {
+  .home-page {
+    background: var(--wb-surface);
+    color: var(--wb-text);
+  }
+
+  .home-hero {
+    position: relative;
     display: flex;
-    flex-direction: column;
-    height: calc(100vh - 70px); /* subtract header */
-    overflow: hidden;
-    background: #f2f5ee;
-  }
-
-  /* Hero grows to fill whatever space is left above the cards */
-  .wb-hero {
-    position: relative;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    min-height: max(43rem, calc(100svh - 70px));
     align-items: center;
-    flex: 1;
-    min-height: 0;
-    padding: 0 3% 0 6%;
+    isolation: isolate;
     overflow: hidden;
+    padding: clamp(4rem, 9vw, 7.5rem) clamp(1rem, 6vw, 5.5rem);
+    color: #ffffff;
   }
 
-  /* Push content left so image has full right half */
-  .wb-hero__content {
-    position: relative;
-    z-index: 2;
-    grid-column: 1;
-  }
-
-  .wb-hero__content {
-    position: relative;
-    z-index: 2;
-  }
-
-  .wb-hero__eyebrow {
-    color: #4a7c3f;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    margin-bottom: 0.5rem;
-  }
-
-  .wb-hero__heading {
-    font-family: Georgia, 'Times New Roman', serif;
-    font-size: clamp(1.6rem, 2.8vw, 2.8rem);
-    font-weight: 800;
-    line-height: 1.1;
-    color: #1a2e10;
-    margin-bottom: 0.6rem;
-  }
-
-  .wb-hero__sub {
-    font-size: 0.875rem;
-    color: #4a5a42;
-    line-height: 1.55;
-    margin-bottom: 1.2rem;
-    max-width: 380px;
-  }
-
-  .wb-hero__actions {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-  }
-
-  .wb-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.6rem 1.3rem;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.875rem;
-    text-decoration: none;
-    transition: all 0.2s ease;
-  }
-  .wb-btn--primary { background: #1a1a1a; color: white; }
-  .wb-btn--primary:hover { background: #333; transform: translateY(-1px); }
-  .wb-btn--outline { background: transparent; color: #2d4a1e; border: 2px solid #4a7c3f; }
-  .wb-btn--outline:hover { background: #e8f0e3; }
-
-  /* Hero image — wavy left cut */
-  .wb-hero__image-wrap {
+  .home-hero__image,
+  .home-hero__shade {
     position: absolute;
-    top: 0;
-    right: 0;
-    width: 58%;
-    height: 100%;
-    overflow: hidden;
-    clip-path: url(#wavyClip);
+    inset: 0;
   }
-  .wb-hero__img {
+
+  .home-hero__image {
+    z-index: -3;
+    background: var(--wb-green-dark);
+  }
+
+  .home-hero__image img {
+    display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center;
-    display: block;
+    object-position: center 58%;
+    transform: scale(1.01);
   }
 
-  .wb-hero__leaf-left {
+  .home-hero__shade {
+    z-index: -2;
+    background:
+      linear-gradient(
+        90deg,
+        rgba(9, 22, 7, 0.94) 0%,
+        rgba(13, 30, 10, 0.82) 37%,
+        rgba(15, 31, 12, 0.38) 68%,
+        rgba(15, 31, 12, 0.2) 100%
+      ),
+      linear-gradient(0deg, rgba(7, 17, 5, 0.56) 0%, transparent 42%);
+  }
+
+  .home-hero::before {
     position: absolute;
-    left: -20px;
-    bottom: 10px;
-    width: 90px;
-    opacity: 0.6;
-    pointer-events: none;
-    z-index: 1;
-  }
-  .wb-hero__leaf-top {
-    position: absolute;
-    top: -10px;
-    right: -10px;
-    width: 110px;
-    height: 110px;
-    pointer-events: none;
+    z-index: -1;
+    top: -10rem;
+    left: -8rem;
+    width: 30rem;
+    height: 30rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    content: '';
   }
 
-  /* Feature cards — fixed height strip at the bottom */
-  .wb-features {
-    flex-shrink: 0;
-    background: #f7f9f4;
-    border-top: 1px solid #dde8d4;
-    padding: 0.55rem 5% 0.4rem;
-  }
-
-  .wb-features__grid {
+  .home-hero__inner {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.55rem;
-    max-width: 1200px;
-    margin: 0 auto 0.4rem;
+    width: min(100%, 76rem);
+    align-items: end;
+    gap: clamp(2rem, 7vw, 6rem);
+    grid-template-columns: minmax(0, 1.45fr) minmax(17rem, 0.55fr);
+    margin: 0 auto;
   }
 
-  .wb-feature-card {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    padding: 0.5rem 0.7rem;
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-    transition: box-shadow 0.2s;
-  }
-  .wb-feature-card:hover { box-shadow: 0 4px 16px rgba(74,124,63,0.12); }
-
-  .wb-feature-card__icon {
-    flex-shrink: 0;
-    width: 34px;
-    height: 34px;
-    background: #e8f2e3;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .home-hero__content {
+    max-width: 48rem;
   }
 
-  .wb-feature-card__body h3 {
-    font-size: 0.78rem;
+  .home-hero__eyebrow,
+  .section-eyebrow {
+    margin: 0 0 1rem;
+    color: #f2bb78;
+    font-size: clamp(0.7rem, 1.3vw, 0.8rem);
+    font-weight: 800;
+    letter-spacing: 0.19em;
+    text-transform: uppercase;
+  }
+
+  .home-hero h1 {
+    max-width: 47rem;
+    margin: 0;
+    color: #ffffff;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(2.6rem, 6.8vw, 5.8rem);
     font-weight: 700;
-    color: #1a2e10;
-    margin: 0 0 0.1rem;
-  }
-  .wb-feature-card__body p {
-    font-size: 0.7rem;
-    color: #5a6b52;
-    line-height: 1.4;
-    margin: 0;
+    letter-spacing: -0.045em;
+    line-height: 0.98;
+    text-wrap: balance;
   }
 
-  /* Tagline */
-  .wb-tagline {
+  .home-hero__lead {
+    max-width: 42rem;
+    margin: clamp(1.25rem, 3vw, 1.75rem) 0 0;
+    color: rgba(255, 255, 255, 0.86);
+    font-size: clamp(1rem, 1.8vw, 1.18rem);
+    line-height: 1.7;
+  }
+
+  .home-hero__actions {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    padding-bottom: 0.1rem;
-  }
-  .wb-tagline p {
-    font-family: Georgia, serif;
-    font-size: 0.8rem;
-    color: #2d4a1e;
-    font-style: italic;
-    margin: 0;
+    gap: 0.75rem;
+    margin-top: clamp(1.75rem, 4vw, 2.4rem);
+    flex-wrap: wrap;
   }
 
-  /* Responsive */
-  @media (max-width: 768px) {
-    .wb-page { height: auto; overflow: auto; }
-    .wb-hero { grid-template-columns: 1fr; padding: 2rem 5%; flex: none; min-height: 60vh; }
-    .wb-hero__image-wrap { display: none; }
-    .wb-features__grid { grid-template-columns: repeat(2, 1fr); }
+  .hero-button {
+    display: inline-flex;
+    min-height: 3rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 0.78rem 1.25rem;
+    color: #ffffff;
+    font-size: 0.84rem;
+    font-weight: 800;
+    letter-spacing: 0.035em;
+    text-decoration: none;
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      transform 0.2s ease;
   }
-  @media (max-width: 480px) {
-    .wb-features__grid { grid-template-columns: 1fr; }
+
+  .hero-button:hover {
+    transform: translateY(-2px);
+  }
+
+  .hero-button svg,
+  .packages-link svg {
+    width: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+  }
+
+  .hero-button--primary {
+    background: var(--wb-warm);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+    color: #251605;
+  }
+
+  .hero-button--primary:hover {
+    background: #f1b066;
+  }
+
+  .hero-button--glass {
+    border-color: rgba(255, 255, 255, 0.48);
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(12px);
+  }
+
+  .hero-button--glass:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.72);
+  }
+
+  .hero-button--text {
+    padding-inline: 0.65rem;
+  }
+
+  .hero-button--text:hover {
+    color: #f2bb78;
+  }
+
+  .home-hero__features {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--wb-radius-lg);
+    background: rgba(12, 27, 9, 0.6);
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.2);
+    padding: 1.4rem;
+    backdrop-filter: blur(14px);
+  }
+
+  .home-hero__features-title {
+    margin: 0 0 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .home-hero__features ul {
+    display: grid;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .home-hero__features li {
+    display: flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
+
+  .home-hero__features li:first-child {
+    border-top: 0;
+  }
+
+  .feature-icon {
+    display: grid;
+    width: 1.85rem;
+    height: 1.85rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(237, 155, 64, 0.18);
+    color: #f2bb78;
+  }
+
+  .feature-icon svg {
+    width: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.7;
+  }
+
+  .home-hero__scroll {
+    position: absolute;
+    bottom: 1.4rem;
+    left: 50%;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-decoration: none;
+    text-transform: uppercase;
+    transform: translateX(-50%);
+  }
+
+  .home-hero__scroll svg {
+    width: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+  }
+
+  .packages-preview {
+    padding: clamp(4rem, 8vw, 7rem) clamp(1rem, 6vw, 5.5rem);
+    background:
+      radial-gradient(circle at top right, rgba(232, 242, 227, 0.9), transparent 34rem),
+      var(--wb-surface);
+    scroll-margin-top: 70px;
+  }
+
+  .packages-preview__intro,
+  .packages-grid,
+  .packages-preview__actions {
+    width: min(100%, 76rem);
+    margin-inline: auto;
+  }
+
+  .packages-preview__intro {
+    display: grid;
+    align-items: end;
+    gap: 2rem;
+    grid-template-columns: minmax(0, 1.2fr) minmax(16rem, 0.8fr);
+    margin-bottom: clamp(2rem, 5vw, 3rem);
+  }
+
+  .section-eyebrow {
+    margin-bottom: 0.55rem;
+    color: var(--wb-green);
+  }
+
+  .packages-preview h2 {
+    max-width: 42rem;
+    margin: 0;
+    color: var(--wb-green-dark);
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(2rem, 4.8vw, 3.65rem);
+    letter-spacing: -0.035em;
+    line-height: 1.05;
+    text-wrap: balance;
+  }
+
+  .packages-preview__intro > p {
+    margin: 0;
+    color: var(--wb-muted);
+    line-height: 1.7;
+  }
+
+  .packages-grid {
+    display: grid;
+    gap: clamp(0.85rem, 2vw, 1.25rem);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .package-card {
+    display: flex;
+    min-height: 19rem;
+    flex-direction: column;
+    grid-column: span 2;
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius-lg);
+    background: var(--wb-surface-raised);
+    box-shadow: var(--wb-shadow-sm);
+    padding: clamp(1.25rem, 3vw, 1.6rem);
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      transform 0.2s ease;
+  }
+
+  .package-card:nth-child(4) {
+    grid-column: 2 / span 2;
+  }
+
+  .package-card:hover {
+    border-color: rgba(74, 124, 63, 0.42);
+    box-shadow: var(--wb-shadow-md);
+    transform: translateY(-3px);
+  }
+
+  .package-card__tag {
+    width: fit-content;
+    margin: 0 0 1.35rem;
+    border-radius: 999px;
+    background: var(--wb-green-soft);
+    color: var(--wb-green-mid);
+    padding: 0.35rem 0.7rem;
+    font-size: 0.67rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .package-card__content {
+    flex: 1;
+  }
+
+  .package-card h3 {
+    margin: 0;
+    color: var(--wb-green-dark);
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+    letter-spacing: -0.02em;
+  }
+
+  .package-card p {
+    margin: 0.7rem 0 0;
+    color: var(--wb-muted);
+    font-size: 0.91rem;
+    line-height: 1.55;
+  }
+
+  .package-card .package-card__price {
+    margin-top: 0.45rem;
+    color: var(--wb-warm);
+    font-size: clamp(1.4rem, 3vw, 1.9rem);
+    font-weight: 900;
+    line-height: 1.15;
+  }
+
+  .package-card > a,
+  .outline-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.35rem;
+    color: var(--wb-green-mid);
+    font-size: 0.8rem;
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  .package-card > a svg,
+  .outline-link svg {
+    width: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+    transition: transform 0.2s ease;
+  }
+
+  .package-card > a:hover svg,
+  .outline-link:hover svg {
+    transform: translateX(3px);
+  }
+
+  .packages-preview__actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 2rem;
+  }
+
+  .packages-link {
+    display: inline-flex;
+    min-height: 3rem;
+    align-items: center;
+    gap: 0.6rem;
+    border-bottom: 1px solid var(--wb-green);
+    color: var(--wb-green-dark);
+    font-size: 0.88rem;
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  .packages-link:hover {
+    color: var(--wb-green);
+  }
+
+  .why-section,
+  .gallery-preview {
+    padding: clamp(4rem, 8vw, 7rem) clamp(1rem, 6vw, 5.5rem);
+  }
+
+  .why-section {
+    border-block: 1px solid var(--wb-border);
+    background: var(--wb-surface-soft);
+  }
+
+  .section-heading,
+  .reasons-grid,
+  .booking-process__inner,
+  .gallery-preview__heading,
+  .gallery-preview__grid {
+    width: min(100%, 76rem);
+    margin-inline: auto;
+  }
+
+  .section-heading--center {
+    max-width: 46rem;
+    text-align: center;
+  }
+
+  .section-heading h2,
+  .booking-process h2,
+  .gallery-preview h2,
+  .contact-cta h2 {
+    margin: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(2rem, 4.8vw, 3.65rem);
+    letter-spacing: -0.035em;
+    line-height: 1.05;
+    text-wrap: balance;
+  }
+
+  .section-heading h2,
+  .gallery-preview h2 {
+    color: var(--wb-green-dark);
+  }
+
+  .section-heading > p:last-child {
+    margin: 1rem 0 0;
+    color: var(--wb-muted);
+    line-height: 1.7;
+  }
+
+  .reasons-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: clamp(2rem, 5vw, 3.25rem);
+  }
+
+  .reason-card {
+    display: flex;
+    gap: 1rem;
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius-md);
+    background: var(--wb-surface-raised);
+    box-shadow: var(--wb-shadow-sm);
+    padding: 1.25rem;
+  }
+
+  .reason-card__check {
+    display: grid;
+    width: 2.3rem;
+    height: 2.3rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--wb-green-soft);
+    color: var(--wb-green);
+  }
+
+  .reason-card__check svg {
+    width: 1.15rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2.4;
+  }
+
+  .reason-card h3 {
+    margin: 0;
+    color: var(--wb-green-dark);
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1.12rem;
+    letter-spacing: -0.01em;
+  }
+
+  .reason-card p {
+    margin: 0.4rem 0 0;
+    color: var(--wb-muted);
+    font-size: 0.88rem;
+    line-height: 1.55;
+  }
+
+  .booking-process {
+    padding: clamp(4rem, 8vw, 7rem) clamp(1rem, 6vw, 5.5rem);
+    background: var(--wb-green-dark);
+    color: #ffffff;
+  }
+
+  .booking-process__inner {
+    display: grid;
+    align-items: start;
+    gap: clamp(2.5rem, 7vw, 6rem);
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  }
+
+  .booking-process h2,
+  .contact-cta h2 {
+    color: #ffffff;
+  }
+
+  .booking-process__intro > p:not(.section-eyebrow) {
+    margin: 1rem 0 0;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.7;
+  }
+
+  .reservation-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    border: 1px solid rgba(237, 155, 64, 0.35);
+    border-radius: var(--wb-radius-md);
+    background: rgba(237, 155, 64, 0.1);
+    padding: 1rem;
+  }
+
+  .reservation-note svg {
+    width: 1.35rem;
+    flex: 0 0 auto;
+    fill: none;
+    stroke: #f2bb78;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+  }
+
+  .reservation-note p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+
+  .booking-steps {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .booking-steps li {
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: 3rem 1fr;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    padding: 1.5rem 0;
+  }
+
+  .booking-steps li:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .booking-step__number {
+    color: #f2bb78;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+
+  .booking-steps h3 {
+    margin: 0;
+    color: #ffffff;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(1.2rem, 2.5vw, 1.55rem);
+  }
+
+  .booking-steps p {
+    margin: 0.35rem 0 0;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.92rem;
+  }
+
+  .gallery-preview {
+    background: var(--wb-surface);
+  }
+
+  .gallery-preview__heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .outline-link {
+    flex: 0 0 auto;
+    border: 1px solid var(--wb-border);
+    border-radius: 999px;
+    margin: 0;
+    padding: 0.75rem 1rem;
+  }
+
+  .outline-link:hover {
+    border-color: var(--wb-green);
+    background: var(--wb-green-soft);
+  }
+
+  .outline-link--mobile {
+    display: none;
+  }
+
+  .gallery-preview__grid {
+    display: grid;
+    height: min(45rem, 58vw);
+    min-height: 31rem;
+    gap: 0.85rem;
+    grid-template-columns: 1.15fr 0.85fr 0.85fr;
+    grid-template-rows: 1fr 1fr;
+  }
+
+  .gallery-tile {
+    min-width: 0;
+    overflow: hidden;
+    border-radius: var(--wb-radius-md);
+    background: var(--wb-green-soft);
+    box-shadow: var(--wb-shadow-sm);
+  }
+
+  .gallery-tile--large {
+    grid-row: span 2;
+  }
+
+  .gallery-tile--wide {
+    grid-column: span 2;
+  }
+
+  .gallery-tile img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.45s ease;
+  }
+
+  .gallery-tile:hover img {
+    transform: scale(1.04);
+  }
+
+  .contact-cta {
+    position: relative;
+    min-height: 32rem;
+    display: grid;
+    place-items: center;
+    isolation: isolate;
+    overflow: hidden;
+    padding: clamp(4rem, 9vw, 7rem) 1rem;
+    text-align: center;
+  }
+
+  .contact-cta__image,
+  .contact-cta__shade {
+    position: absolute;
+    z-index: -2;
+    inset: 0;
+  }
+
+  .contact-cta__image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .contact-cta__shade {
+    z-index: -1;
+    background: rgba(9, 22, 7, 0.83);
+  }
+
+  .contact-cta__content {
+    width: min(100%, 48rem);
+  }
+
+  .contact-cta__content > p:not(.section-eyebrow) {
+    max-width: 39rem;
+    margin: 1rem auto 0;
+    color: rgba(255, 255, 255, 0.75);
+    line-height: 1.7;
+  }
+
+  .contact-cta__actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 1.75rem;
+    flex-wrap: wrap;
+  }
+
+  :global(html.dark) .packages-preview {
+    background:
+      radial-gradient(circle at top right, rgba(37, 56, 35, 0.75), transparent 34rem),
+      var(--wb-surface);
+  }
+
+  :global(html.dark) .packages-preview h2,
+  :global(html.dark) .packages-link,
+  :global(html.dark) .gallery-preview h2,
+  :global(html.dark) .outline-link {
+    color: var(--wb-text);
+  }
+
+  :global(html.dark) .why-section {
+    background: var(--wb-surface-soft);
+  }
+
+  :global(html.dark) .booking-process {
+    background: #0b1209;
+  }
+
+  @media (max-width: 960px) {
+    .home-hero {
+      align-items: flex-end;
+      padding-bottom: 5rem;
+    }
+
+    .home-hero__inner {
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+
+    .home-hero__content {
+      max-width: 44rem;
+    }
+
+    .home-hero__features {
+      width: 100%;
+      max-width: 44rem;
+    }
+
+    .home-hero__features ul {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: 1rem;
+    }
+
+    .home-hero__features li:nth-child(2) {
+      border-top: 0;
+    }
+
+    .packages-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .package-card,
+    .package-card:nth-child(4) {
+      grid-column: auto;
+    }
+
+    .package-card:last-child {
+      grid-column: 1 / -1;
+      min-height: auto;
+    }
+
+    .reasons-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .booking-process__inner {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .home-hero {
+      min-height: auto;
+      padding-top: 4.5rem;
+    }
+
+    .home-hero__image img {
+      object-position: 57% center;
+    }
+
+    .home-hero__shade {
+      background:
+        linear-gradient(180deg, rgba(8, 20, 6, 0.6), rgba(8, 20, 6, 0.88)),
+        linear-gradient(90deg, rgba(8, 20, 6, 0.7), transparent);
+    }
+
+    .home-hero__scroll {
+      display: none;
+    }
+
+    .packages-preview__intro,
+    .packages-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .packages-preview__intro {
+      gap: 1rem;
+    }
+
+    .package-card,
+    .package-card:last-child {
+      min-height: auto;
+      grid-column: auto;
+    }
+
+    .gallery-preview__grid {
+      height: auto;
+      min-height: 0;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(2, 15rem);
+    }
+
+    .gallery-tile--large {
+      grid-row: auto;
+    }
+
+    .gallery-tile--wide {
+      grid-column: auto;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .home-hero {
+      padding: 3.25rem 1rem 2rem;
+    }
+
+    .home-hero h1 {
+      font-size: clamp(2.35rem, 13vw, 3.35rem);
+    }
+
+    .home-hero__lead {
+      font-size: 0.98rem;
+    }
+
+    .home-hero__actions {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .hero-button {
+      width: 100%;
+    }
+
+    .hero-button--text {
+      min-height: 2.5rem;
+    }
+
+    .home-hero__features {
+      padding: 1.1rem;
+    }
+
+    .home-hero__features ul {
+      grid-template-columns: 1fr;
+    }
+
+    .home-hero__features li:nth-child(2) {
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .packages-preview {
+      padding-inline: 1rem;
+    }
+
+    .reasons-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .gallery-preview__heading {
+      display: block;
+    }
+
+    .gallery-preview__heading .outline-link {
+      display: none;
+    }
+
+    .gallery-preview__grid {
+      grid-template-columns: 1fr;
+      grid-template-rows: repeat(4, 15rem);
+    }
+
+    .outline-link--mobile {
+      display: inline-flex;
+      margin-top: 1.25rem;
+    }
+
+    .contact-cta__actions {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .booking-steps li {
+      gap: 0.75rem;
+      grid-template-columns: 2.4rem 1fr;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-button,
+    .package-card,
+    .gallery-tile img {
+      transition: none;
+    }
   }
 </style>
