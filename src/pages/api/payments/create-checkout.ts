@@ -11,6 +11,16 @@ const db = supabaseAdmin ?? supabase;
 const schema = z.object({ bookingId: z.string().uuid() });
 
 export const POST: APIRoute = async ({ request, cookies, url }) => {
+  // Vercel/Astro can expose the internal function origin as localhost. Prefer an
+  // explicitly configured public URL, then Vercel's forwarded host headers.
+  const configuredSiteUrl = (import.meta.env.PUBLIC_SITE_URL || import.meta.env.SITE_URL || "").trim();
+  const forwardedHost = request.headers.get("x-forwarded-host") || request.headers.get("host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") || (forwardedHost?.includes("localhost") ? "http" : "https");
+  const publicOrigin = configuredSiteUrl
+    ? configuredSiteUrl.replace(/\/$/, "")
+    : forwardedHost
+      ? `${forwardedProto}://${forwardedHost}`
+      : url.origin;
   const user = await getUser(cookies);
   if (!user) return error("Unauthorized", 401);
   if (!user.email_confirmed_at) return error("Verify your email before paying", 403);
@@ -50,8 +60,8 @@ export const POST: APIRoute = async ({ request, cookies, url }) => {
       body: JSON.stringify({ data: { attributes: {
         line_items: [{ name: "50% Booking Down Payment", description: reference, amount: pesoToCentavos(amount), currency: "PHP", quantity: 1 }],
         payment_method_types: ["card", "gcash", "paymaya", "grab_pay", "qrph"],
-        success_url: `${url.origin}/payment/success?bookingId=${booking.id}`,
-        cancel_url: `${url.origin}/payment/cancelled?bookingId=${booking.id}`,
+        success_url: `${publicOrigin}/payment/success?bookingId=${booking.id}`,
+        cancel_url: `${publicOrigin}/payment/cancelled?bookingId=${booking.id}`,
         description: `Down payment for ${booking.full_name ?? "booking"}`,
         reference_number: reference,
         send_email_receipt: true,
