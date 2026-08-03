@@ -10,6 +10,7 @@ interface ImportMetaEnv {
   readonly BREVO_SENDER_EMAIL?: string;
   readonly NOTIFICATION_CRON_SECRET?: string;
   readonly RESERVATION_CRON_SECRET?: string;
+  readonly PAYMONGO_SECRET_KEY?: string;
   readonly SMS_ENABLED?: string;
   readonly SMS_PROVIDER?: string;
   readonly TERMUX_SMS_SERVER_URL?: string;

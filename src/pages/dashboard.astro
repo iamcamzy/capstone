@@ -478,13 +478,16 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
       </div>
     </div>
 
-    <div class="px-7 pb-7 flex justify-end">
+    <div class="px-7 pb-7 flex justify-end gap-3 flex-wrap">
+      <button id="ubd-pay-button" onclick="payCurrentBooking()" class="hidden px-5 py-2 rounded-xl text-white font-bold text-sm disabled:opacity-60 disabled:cursor-not-allowed" style="background:#4a7c3f;">Pay 50% Down Payment</button>
       <button onclick="closeUserBookingDetail()" class="px-5 py-2 rounded-xl border-2 font-bold text-sm" style="border-color:#cbd5e1;color:#64748b;">Close</button>
     </div>
   </div>
 </div>
 
 <script>
+  let currentUserBookingId: string | null = null;
+
   const USER_BOOKING_STATUS_CONFIG: Record<string, any> = {
     contract_signing: { label: 'Contract Signing', bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
     booked: { label: 'Booked', bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0' },
@@ -525,6 +528,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
 
   function openUserBookingDetail(jsonStr: string) {
     const b = JSON.parse(jsonStr);
+    currentUserBookingId = b.id ?? null;
     const cfg = USER_BOOKING_STATUS_CONFIG[b.status] ?? USER_BOOKING_STATUS_CONFIG.contract_signing;
     const badge = document.getElementById('ubd-status') as HTMLElement;
     if (badge) {
@@ -565,6 +569,16 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
       reservationExpiration?.classList.add('hidden');
     }
 
+    const payButton = document.getElementById('ubd-pay-button') as HTMLButtonElement | null;
+    if (payButton) {
+      const paymentStatus = b.payment?.payment_status ?? 'unpaid';
+      const reservationValid = !b.reservation_expired_at && (!b.reservation_expires_at || new Date(b.reservation_expires_at).getTime() > Date.now());
+      const canPay = !['cancelled', 'completed'].includes(b.status) && !['paid', 'partial'].includes(paymentStatus) && reservationValid;
+      payButton.classList.toggle('hidden', !canPay);
+      payButton.disabled = false;
+      payButton.textContent = paymentStatus === 'pending' ? 'Continue PayMongo Payment' : 'Pay 50% Down Payment';
+    }
+
     const reqWrap = document.getElementById('ubd-requests-wrap');
     if (b.special_requests) {
       userBookingSetText('ubd-requests', b.special_requests);
@@ -576,7 +590,33 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
     document.getElementById('userBookingDetailModal')?.classList.remove('hidden');
   }
 
+  async function payCurrentBooking() {
+    if (!currentUserBookingId) return;
+    const button = document.getElementById('ubd-pay-button') as HTMLButtonElement | null;
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Opening PayMongo...';
+    }
+    try {
+      const response = await fetch('/api/payments/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId: currentUserBookingId }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.checkoutUrl) throw new Error(result.error || result.message || 'Could not start payment');
+      window.location.href = result.checkoutUrl;
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Could not start payment');
+      if (button) {
+        button.disabled = false;
+        button.textContent = 'Pay 50% Down Payment';
+      }
+    }
+  }
+
   function closeUserBookingDetail() {
+    currentUserBookingId = null;
     document.getElementById('userBookingDetailModal')?.classList.add('hidden');
   }
 
@@ -585,6 +625,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
   });
 
   (window as any).openUserBookingDetail = openUserBookingDetail;
+  (window as any).payCurrentBooking = payCurrentBooking;
   (window as any).closeUserBookingDetail = closeUserBookingDetail;
 </script>
 

@@ -1,0 +1,14 @@
+---
+import Layout from "../../layouts/Layout.astro";
+---
+<Layout title="Payment Status">
+  <main class="min-h-[70vh] grid place-items-center px-4"><section class="max-w-xl w-full rounded-2xl border bg-white p-8 text-center shadow-sm">
+    <h1 class="text-3xl font-bold">Checking your payment</h1><p id="message" class="mt-3 text-gray-600">Please keep this page open while we verify PayMongo.</p>
+    <a href="/dashboard" class="inline-block mt-6 rounded-xl px-5 py-3 text-white font-semibold" style="background:#4a7c3f">Open dashboard</a>
+  </section></main>
+  <script>
+    const id = new URLSearchParams(location.search).get('bookingId');
+    const el = document.getElementById('message');
+    async function check(){ if(!id) return; const r=await fetch('/api/payments/status?bookingId='+encodeURIComponent(id)); const j=await r.json(); const s=j?.payment?.status; if(s==='paid'){el.textContent='Payment verified. Your booking is now booked.';return;} if(s==='failed'){el.textContent='Payment failed. You may retry from your dashboard.';return;} setTimeout(check,2500); } check();
+  </script>
+</Layout>
