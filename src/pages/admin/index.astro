@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { requireAuth } from '../../lib/auth';
+import { getUserRole } from '../../lib/adminGuard';
 import { supabase, supabaseAdmin } from '../../lib/supabase';
 import { BOOKING_STATUS_LABELS, normalizeBookingStatus } from '../../lib/bookingStatus';
 
@@ -11,14 +12,15 @@ if (!user) return Astro.redirect('/signin');
 
 // Use service role client so RLS never blocks the role check
 const adminClient = supabaseAdmin ?? supabase;
-const { data: profile } = await adminClient
-  .from('admins')
-  .select('first_name, last_name')
-  .eq('id', user.id)
-  .single();
+const roleInfo = await getUserRole(Astro.cookies);
 
-// Not in admins table = not an admin
-if (!profile) return Astro.redirect('/dashboard');
+if (!roleInfo || (roleInfo.role !== 'admin' && roleInfo.role !== 'staff')) {
+  return Astro.redirect('/dashboard');
+}
+const isAdmin = roleInfo.role === 'admin';
+const isStaff = roleInfo.role === 'staff';
+const profile = roleInfo.profile;
+const initialAdminTab = isAdmin ? 'dashboard' : 'bookings';
 
 const { data: bookings, error: bookingsError } = await adminClient
   .from('bookings')
@@ -104,13 +106,19 @@ const statusLabels = BOOKING_STATUS_LABELS;
 const canUpdateContractSigningSchedule = (status: string) =>
   status === 'contract_signing' || status === 'rescheduled';
 
-const { data: venues } = await adminClient.from('venues').select('*').order('name');
-const { data: packages } = await adminClient.from('packages').select('*').order('price');
-const { data: rawReviews } = await adminClient
-  .from('reviews')
-  .select('id, rating, comment, created_at, user_id, booking_id')
-  .order('created_at', { ascending: false })
-  .limit(100);
+const { data: venues } = isAdmin
+  ? await adminClient.from('venues').select('*').order('name')
+  : { data: [] };
+const { data: packages } = isAdmin
+  ? await adminClient.from('packages').select('*').order('price')
+  : { data: [] };
+const { data: rawReviews } = isAdmin
+  ? await adminClient
+      .from('reviews')
+      .select('id, rating, comment, created_at, user_id, booking_id')
+      .order('created_at', { ascending: false })
+      .limit(100)
+  : { data: [] };
 
 const reviewUserIds = [...new Set((rawReviews ?? []).map((r: any) => r.user_id).filter(Boolean))];
 const { data: reviewUsers } = reviewUserIds.length > 0
@@ -133,15 +141,26 @@ const reviews = (rawReviews ?? []).map((r: any) => ({
   reviewVenueName: reviewBookingById[r.booking_id]?.venue_id ? (venueById[reviewBookingById[r.booking_id].venue_id] ?? '—') : '—',
 }));
 
-const { data: allCustomers } = await adminClient
-  .from('customers')
-  .select('id, email, first_name, last_name, created_at')
-  .order('created_at', { ascending: false });
+const { data: allCustomers } = isAdmin
+  ? await adminClient
+      .from('customers')
+      .select('id, email, first_name, last_name, created_at')
+      .order('created_at', { ascending: false })
+  : { data: [] };
 
-const { data: allAdmins } = await adminClient
-  .from('admins')
-  .select('id, email, first_name, last_name, created_at')
-  .order('created_at', { ascending: false });
+const { data: allAdmins } = isAdmin
+  ? await adminClient
+      .from('admins')
+      .select('id, email, first_name, last_name, created_at')
+      .order('created_at', { ascending: false })
+  : { data: [] };
+const { data: allEmployees } = isAdmin
+  ? await adminClient
+      .from('employees')
+      .select('id, email, first_name, last_name, position, is_active, created_at')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+  : { data: [] };
 
 const stats = {
   total:       enrichedBookings.length,
@@ -157,9 +176,25 @@ const stats = {
   })(),
 };
 
-const adminName = profile.first_name
+const adminName = profile?.first_name
   ? `${profile.first_name} ${profile.last_name ?? ''}`.trim()
   : user.email;
+const panelLabel = isAdmin ? 'Admin Panel' : 'Staff Panel';
+const roleBadge = isAdmin ? 'ADMIN' : 'STAFF';
+const adminNavItems = isAdmin
+  ? [
+      { id:'dashboard', icon:'📊', label:'Dashboard'  },
+      { id:'bookings',  icon:'📅', label:'Bookings'   },
+      { id:'venues',    icon:'🏖️', label:'Venues'     },
+      { id:'packages',  icon:'📦', label:'Packages'   },
+      { id:'reviews',   icon:'⭐', label:'Reviews'    },
+      { id:'users',     icon:'👥', label:'Users'      },
+      { id:'reports',   icon:'📈', label:'Reports'    },
+      { id:'calendar',  icon:'🗓️', label:'Availability'},
+    ]
+  : [
+      { id:'bookings',  icon:'📅', label:'Bookings'   },
+    ];
 
 const formatContractSigningSchedule = (date?: string | null, time?: string | null) => {
   if (!date || !time) return 'Not set';
@@ -200,12 +235,12 @@ const reservationState = (booking: any) => {
   <!-- SIDEBAR -->
   <aside id="sidebar" class="admin-sidebar fixed top-0 left-0 h-full w-64 z-50 flex flex-col shadow-xl">
     <div class="admin-sidebar__profile px-6 py-5 border-b border-white/10">
-      <p class="text-xs font-semibold uppercase tracking-widest mb-1" style="color:rgba(255,255,255,0.55);">Admin Panel</p>
+      <p class="text-xs font-semibold uppercase tracking-widest mb-1" style="color:rgba(255,255,255,0.55);">{panelLabel}</p>
       <p class="font-bold text-lg truncate" style="color:var(--butterscotch-primary);">{adminName}</p>
       <p class="text-xs truncate" style="color:rgba(255,255,255,0.65);">{user.email}</p>
     </div>
     <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-      {[
+      {adminNavItems.map(nav => (/*
         { id:'dashboard', icon:'📊', label:'Dashboard'  },
         { id:'bookings',  icon:'📅', label:'Bookings'   },
         { id:'venues',    icon:'🏖️', label:'Venues'     },
@@ -214,7 +249,7 @@ const reservationState = (booking: any) => {
         { id:'users',     icon:'👥', label:'Users'      },
         { id:'reports',   icon:'📈', label:'Reports'    },
         { id:'calendar',  icon:'🗓️', label:'Availability'},
-      ].map(nav => (
+        */
         <button data-tab={nav.id} class="nav-btn w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium transition-all hover:bg-white/10">
           <span class="nav-btn__icon">{nav.icon}</span><span>{nav.label}</span>
         </button>
@@ -233,14 +268,14 @@ const reservationState = (booking: any) => {
     <header class="admin-header sticky top-0 z-40 flex items-center justify-between px-8 py-4 shadow-sm">
       <h1 id="page-title" class="text-2xl font-bold" style="color:var(--jet-primary);">Dashboard</h1>
       <div class="flex items-center gap-3 text-sm">
-        <span class="px-3 py-1 rounded-full font-semibold text-white text-xs" style="background:var(--butterscotch-primary);">ADMIN</span>
+        <span class="px-3 py-1 rounded-full font-semibold text-white text-xs" style="background:var(--butterscotch-primary);">{roleBadge}</span>
       </div>
     </header>
 
     <div class="admin-content p-8">
 
       <!-- TAB: DASHBOARD -->
-      <section id="tab-dashboard" class="tab-section">
+      <section id="tab-dashboard" class={`tab-section ${isAdmin ? '' : 'hidden'}`}>
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
           {[
             { label:'Total Bookings', value:stats.total,      color:'#ed9b40', icon:'📅' },
@@ -298,7 +333,7 @@ const reservationState = (booking: any) => {
       </section>
 
       <!-- TAB: BOOKINGS -->
-      <section id="tab-bookings" class="tab-section hidden">
+      <section id="tab-bookings" class={`tab-section ${isStaff ? '' : 'hidden'}`}>
 
         <!-- Filters + Search bar -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4 mb-5 flex flex-wrap gap-3 items-center justify-between">
@@ -478,7 +513,7 @@ const reservationState = (booking: any) => {
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80 hover:-translate-y-0.5"
                                 style="background:#4a7c3f;">✓ Book</button>
                             )}
-                            {(b.status==='contract_signing'||b.status==='booked')&&(
+                            {b.status==='booked'&&(
                               <button onclick={`openReschedule('${b.id}')`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
                                 style="background:#aa8f66;">↻</button>
@@ -488,7 +523,7 @@ const reservationState = (booking: any) => {
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
                                 style="background:#9a4a36;">✕</button>
                             )}
-                            {(b.status==='booked'||b.status==='rescheduled')&&(
+                            {b.status==='booked'&&(
                               <button onclick={`setBookingCompleted('${b.id}')`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
                                 style="background:#5e5c60;">Complete</button>
@@ -634,6 +669,43 @@ const reservationState = (booking: any) => {
           </div>
         </div>
 
+        <!-- Staff -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+          <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+            <h2 class="font-bold text-lg" style="color:var(--jet-primary);">Staff</h2>
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">{allEmployees?.length ?? 0}</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                <th class="px-5 py-3 text-left">Name</th>
+                <th class="px-5 py-3 text-left">Email</th>
+                <th class="px-5 py-3 text-left">Position</th>
+                <th class="px-5 py-3 text-left">Joined</th>
+                <th class="px-5 py-3 text-left">Actions</th>
+              </tr></thead>
+              <tbody>
+                {allEmployees?.map(e => (
+                  <tr class="border-t border-gray-50 hover:bg-gray-50">
+                    <td class="px-5 py-3 font-medium">{e.first_name??''} {e.last_name??''}</td>
+                    <td class="px-5 py-3 text-gray-600">{e.email??'—'}</td>
+                    <td class="px-5 py-3 text-gray-600">{e.position??'Staff'}</td>
+                    <td class="px-5 py-3 text-gray-400 text-xs">{new Date(e.created_at).toLocaleDateString('en-PH')}</td>
+                    <td class="px-5 py-3">
+                      <button onclick={`demoteStaff('${e.id}')`}
+                        class="px-3 py-1 rounded text-xs font-bold border-2 transition hover:bg-gray-50"
+                        style="border-color:#9a4a36;color:#9a4a36;">
+                        Demote to Customer
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {(!allEmployees||allEmployees.length===0)&&<tr><td colspan="5" class="px-5 py-8 text-center text-gray-400">No staff found.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Customers -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
@@ -655,11 +727,18 @@ const reservationState = (booking: any) => {
                     <td class="px-5 py-3 text-gray-600">{c.email??'—'}</td>
                     <td class="px-5 py-3 text-gray-400 text-xs">{new Date(c.created_at).toLocaleDateString('en-PH')}</td>
                     <td class="px-5 py-3">
-                      <button onclick={`promoteUser('${c.id}')`}
-                        class="px-3 py-1 rounded text-xs font-bold border-2 transition hover:bg-gray-50"
-                        style="border-color:var(--butterscotch-primary);color:var(--butterscotch-primary);">
-                        Promote to Admin
-                      </button>
+                      <div class="flex flex-wrap gap-2">
+                        <button onclick={`promoteStaff('${c.id}')`}
+                          class="px-3 py-1 rounded text-xs font-bold border-2 transition hover:bg-gray-50"
+                          style="border-color:#4a7c3f;color:#4a7c3f;">
+                          Promote to Staff
+                        </button>
+                        <button onclick={`promoteUser('${c.id}')`}
+                          class="px-3 py-1 rounded text-xs font-bold border-2 transition hover:bg-gray-50"
+                          style="border-color:var(--butterscotch-primary);color:var(--butterscotch-primary);">
+                          Promote to Admin
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -836,10 +915,47 @@ const reservationState = (booking: any) => {
           </div>
         </div>
 
+        <div class="blocked-date-manager mb-6">
+          <form id="blockedDateForm" class="blocked-date-form">
+            <div>
+              <label for="blockedVenue">Venue</label>
+              <select id="blockedVenue" required>
+                <option value="">Select venue</option>
+                {(venues ?? []).map((venue: any) => (
+                  <option value={venue.id}>{venue.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label for="blockedStartDate">Start date</label>
+              <input id="blockedStartDate" type="date" required />
+            </div>
+            <div>
+              <label for="blockedEndDate">End date</label>
+              <input id="blockedEndDate" type="date" required />
+            </div>
+            <div class="blocked-date-form__reason">
+              <label for="blockedReason">Reason</label>
+              <textarea id="blockedReason" rows="2" maxlength="500" required placeholder="Maintenance, private event, venue closure..."></textarea>
+            </div>
+            <button type="submit">Block Dates</button>
+          </form>
+          <div class="blocked-date-list-wrap">
+            <div class="blocked-date-list-wrap__header">
+              <h3>Active blocked dates</h3>
+              <button id="refreshBlockedDates" type="button">Refresh</button>
+            </div>
+            <div id="blockedDateList" class="blocked-date-list">
+              <p class="blocked-date-empty">Loading blocked dates...</p>
+            </div>
+          </div>
+        </div>
+
         <div class="flex gap-4 flex-wrap mb-5">
           {[
             { bg:'#dcfce7', ring:'#4a7c3f', label:'Available' },
-            { bg:'#fbe7df', ring:'#9a4a36', label:'Unavailable / booked' },
+            { bg:'#fbe7df', ring:'#9a4a36', label:'Reserved / booked' },
+            { bg:'#f7f2ea', ring:'#aa8f66', label:'Admin blocked' },
           ].map(l => (
             <div class="flex items-center gap-2">
               <div class="w-5 h-5 rounded-md" style={`background:${l.bg};outline:1.5px solid ${l.ring};`}></div>
@@ -1027,6 +1143,10 @@ const reservationState = (booking: any) => {
       <div id="confirmDialogIcon" class="w-14 h-14 rounded-full flex items-center justify-center text-2xl mb-3"></div>
       <h3 id="confirmDialogTitle" class="text-lg font-black" style="color:var(--jet-primary);"></h3>
       <p id="confirmDialogMessage" class="text-sm text-gray-500 mt-1"></p>
+      <div id="confirmDialogReasonWrap" class="hidden w-full mt-4 text-left">
+        <label id="confirmDialogReasonLabel" for="confirmDialogReason" class="block text-xs font-black uppercase tracking-wide text-gray-500 mb-1">Reason</label>
+        <textarea id="confirmDialogReason" rows="3" maxlength="500" class="w-full rounded-xl border border-gray-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" placeholder="Enter reason"></textarea>
+      </div>
     </div>
     <!-- Buttons -->
     <div class="px-6 pb-6 flex gap-3">
@@ -1579,6 +1699,135 @@ const reservationState = (booking: any) => {
     padding: 0.85rem;
   }
 
+  .blocked-date-manager {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.9fr);
+  }
+
+  .blocked-date-form,
+  .blocked-date-list-wrap {
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius-md);
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: var(--wb-shadow-sm);
+    padding: 1rem;
+  }
+
+  .blocked-date-form {
+    display: grid;
+    align-items: end;
+    gap: 0.8rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .blocked-date-form label {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: var(--wb-green-dark);
+    font-size: 0.75rem;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  .blocked-date-form input,
+  .blocked-date-form select,
+  .blocked-date-form textarea {
+    width: 100%;
+  }
+
+  .blocked-date-form__reason {
+    grid-column: 1 / -2;
+  }
+
+  .blocked-date-form button,
+  .blocked-date-list-wrap__header button,
+  .blocked-date-card button {
+    border: 0;
+    border-radius: var(--wb-radius-sm);
+    cursor: pointer;
+    font-weight: 900;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+  }
+
+  .blocked-date-form button {
+    min-height: 2.8rem;
+    background: var(--wb-warm);
+    color: #fff;
+    padding: 0.75rem 1rem;
+  }
+
+  .blocked-date-form button:hover,
+  .blocked-date-list-wrap__header button:hover,
+  .blocked-date-card button:hover {
+    transform: translateY(-1px);
+  }
+
+  .blocked-date-list-wrap__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.8rem;
+  }
+
+  .blocked-date-list-wrap__header h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .blocked-date-list-wrap__header button {
+    border: 1px solid var(--wb-border);
+    background: var(--wb-surface-soft);
+    color: var(--wb-green-mid);
+    font-size: 0.78rem;
+    padding: 0.45rem 0.7rem;
+  }
+
+  .blocked-date-list {
+    display: grid;
+    max-height: 20rem;
+    gap: 0.65rem;
+    overflow-y: auto;
+  }
+
+  .blocked-date-card {
+    border: 1px solid rgba(170, 143, 102, 0.32);
+    border-radius: var(--wb-radius-sm);
+    background: #f7f2ea;
+    padding: 0.75rem;
+  }
+
+  .blocked-date-card strong {
+    display: block;
+    color: #463926;
+    font-size: 0.9rem;
+  }
+
+  .blocked-date-card p {
+    margin: 0.25rem 0 0;
+    color: #6f5430 !important;
+    font-size: 0.8rem;
+    line-height: 1.4;
+  }
+
+  .blocked-date-card button {
+    margin-top: 0.65rem;
+    background: #9a4a36;
+    color: #fff;
+    font-size: 0.76rem;
+    padding: 0.45rem 0.7rem;
+  }
+
+  .blocked-date-empty {
+    margin: 0;
+    border: 1px dashed var(--wb-border);
+    border-radius: var(--wb-radius-sm);
+    color: var(--wb-muted);
+    padding: 0.9rem;
+    text-align: center;
+  }
+
   #adm-cal-grid > div {
     border-color: var(--wb-border) !important;
   }
@@ -2124,6 +2373,15 @@ const reservationState = (booking: any) => {
       min-width: 42rem;
     }
 
+    .blocked-date-manager,
+    .blocked-date-form {
+      grid-template-columns: 1fr;
+    }
+
+    .blocked-date-form__reason {
+      grid-column: auto;
+    }
+
     #tab-calendar > div.bg-white,
     #tab-calendar > div:nth-of-type(3) {
       overflow-x: auto;
@@ -2132,8 +2390,10 @@ const reservationState = (booking: any) => {
 </style>
 
 <!-- Pass server data to client scripts safely, without breaking TypeScript -->
-<script is:inline define:vars={{ enrichedBookings }}>
+<script is:inline define:vars={{ enrichedBookings, venues, initialAdminTab }}>
   window.__allBookings = enrichedBookings;
+  window.__venues = venues;
+  window.__initialAdminTab = initialAdminTab;
 </script>
 
 <script>
@@ -2185,7 +2445,7 @@ function switchTab(id: string) {
 document.querySelectorAll<HTMLElement>('.nav-btn[data-tab]').forEach(function(btn) {
   btn.addEventListener('click', function() { switchTab(btn.dataset.tab!); });
 });
-switchTab('dashboard');
+switchTab((window as any).__initialAdminTab ?? 'dashboard');
 
 // ── BOOKING FILTER & SEARCH ───────────────────────────────────────────────────
 let activeBookingFilter = 'all';
@@ -2262,6 +2522,8 @@ type ConfirmOptions = {
   okLabel?: string;
   okColor?: string;
   icon?: string;
+  reasonLabel?: string;
+  reasonPlaceholder?: string;
 };
 
 function showConfirm(opts: ConfirmOptions): Promise<boolean> {
@@ -2272,6 +2534,9 @@ function showConfirm(opts: ConfirmOptions): Promise<boolean> {
     const message = document.getElementById('confirmDialogMessage')!;
     const okBtn   = document.getElementById('confirmDialogOk')!;
     const cancelBtn = document.getElementById('confirmDialogCancel')!;
+    const reasonWrap = document.getElementById('confirmDialogReasonWrap')!;
+    const reasonLabel = document.getElementById('confirmDialogReasonLabel')!;
+    const reasonInput = document.getElementById('confirmDialogReason') as HTMLTextAreaElement;
 
     icon.textContent    = opts.icon ?? '❓';
     icon.style.background = (opts.okColor ?? '#ed9b40') + '20';
@@ -2279,6 +2544,10 @@ function showConfirm(opts: ConfirmOptions): Promise<boolean> {
     message.textContent = opts.message;
     okBtn.textContent   = opts.okLabel ?? 'Confirm';
     okBtn.style.background = opts.okColor ?? '#ed9b40';
+    reasonWrap.classList.add('hidden');
+    reasonLabel.textContent = opts.reasonLabel ?? 'Reason';
+    reasonInput.placeholder = opts.reasonPlaceholder ?? 'Enter reason';
+    reasonInput.value = '';
 
     dialog.classList.remove('hidden');
 
@@ -2300,6 +2569,57 @@ function showConfirm(opts: ConfirmOptions): Promise<boolean> {
 }
 
 // ── BOOKING ACTIONS ───────────────────────────────────────────────────────────
+function showReasonConfirm(opts: ConfirmOptions): Promise<string | null> {
+  return new Promise(function(resolve) {
+    const dialog  = document.getElementById('confirmDialog')!;
+    const icon    = document.getElementById('confirmDialogIcon')!;
+    const title   = document.getElementById('confirmDialogTitle')!;
+    const message = document.getElementById('confirmDialogMessage')!;
+    const okBtn   = document.getElementById('confirmDialogOk')!;
+    const cancelBtn = document.getElementById('confirmDialogCancel')!;
+    const reasonWrap = document.getElementById('confirmDialogReasonWrap')!;
+    const reasonLabel = document.getElementById('confirmDialogReasonLabel')!;
+    const reasonInput = document.getElementById('confirmDialogReason') as HTMLTextAreaElement;
+
+    icon.textContent    = opts.icon ?? '!';
+    icon.style.background = (opts.okColor ?? '#ed9b40') + '20';
+    title.textContent   = opts.title;
+    message.textContent = opts.message;
+    okBtn.textContent   = opts.okLabel ?? 'Confirm';
+    okBtn.style.background = opts.okColor ?? '#ed9b40';
+    reasonLabel.textContent = opts.reasonLabel ?? 'Reason';
+    reasonInput.placeholder = opts.reasonPlaceholder ?? 'Enter reason';
+    reasonInput.value = '';
+    reasonWrap.classList.remove('hidden');
+
+    dialog.classList.remove('hidden');
+    setTimeout(function() { reasonInput.focus(); }, 0);
+
+    function cleanup(result: string | null) {
+      dialog.classList.add('hidden');
+      reasonWrap.classList.add('hidden');
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      dialog.removeEventListener('click', onBackdrop);
+      resolve(result);
+    }
+    function onOk() {
+      const reason = reasonInput.value.trim();
+      if (!reason) {
+        toast('Please enter a reason.', false);
+        return;
+      }
+      cleanup(reason);
+    }
+    function onCancel()  { cleanup(null); }
+    function onBackdrop(e: Event) { if (e.target === dialog) cleanup(null); }
+
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    dialog.addEventListener('click', onBackdrop);
+  });
+}
+
 async function updateBookingStatus(id: string, status: string, label: string) {
   const r = await fetch('/api/admin/update-booking-status', {
     method: 'POST',
@@ -2443,15 +2763,17 @@ async function confirmBooking(id: string) {
 }
 
 async function cancelBooking(id: string) {
-  const ok = await showConfirm({
+  const cancellationReason = await showReasonConfirm({
     title: 'Cancel Booking',
-    message: 'Are you sure you want to cancel this booking? This cannot be undone.',
+    message: 'Enter the cancellation reason before cancelling this booking. This cannot be undone.',
     okLabel: 'Yes, Cancel',
     okColor: '#9a4a36',
+    reasonLabel: 'Cancellation reason',
+    reasonPlaceholder: 'Client request, duplicate booking, payment issue...',
     icon: '❌',
   });
-  if (!ok) return;
-  const r = await fetch('/api/bookings/CancelBookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: id }) });
+  if (!cancellationReason) return;
+  const r = await fetch('/api/bookings/CancelBookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: id, cancellationReason }) });
   const payload = await r.json().catch(() => ({}));
   if (r.ok) {
     toast(payload.warning ? `Cancelled, but email warning: ${payload.warning}` : 'Booking cancelled');
@@ -2468,18 +2790,16 @@ function parseAdminDateOnly(value: string): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function addOneCalendarMonthForAdmin(date: Date): Date {
-  const oneMonthLater = new Date(date.getFullYear(), date.getMonth() + 1, date.getDate());
-  if (oneMonthLater.getDate() !== date.getDate()) {
-    oneMonthLater.setDate(0);
-  }
-  return oneMonthLater;
+function addDaysForAdmin(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
 }
 
 function getAdminMinimumBookingDate(): Date {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return addOneCalendarMonthForAdmin(today);
+  return addDaysForAdmin(today, 7);
 }
 
 const adminMinimumBookingDate = getAdminMinimumBookingDate();
@@ -2502,7 +2822,7 @@ function updateRescheduleOverrideWarning() {
   const requiresOverride = getRescheduleOverrideState();
   warning.classList.toggle('hidden', !requiresOverride);
   if (requiresOverride) {
-    warning.textContent = `One or more selected dates are earlier than the normal one-month rule (${adminMinimumBookingDateLabel}). Admin confirmation is required.`;
+    warning.textContent = `One or more selected dates are earlier than the normal one-week rule (${adminMinimumBookingDateLabel}). Admin confirmation is required.`;
   }
 }
 
@@ -2543,16 +2863,20 @@ async function submitReschedule() {
     return;
   }
 
-  const adminOverrideOneMonth = getRescheduleOverrideState();
-  if (adminOverrideOneMonth) {
-    const confirmed = await showConfirm({
+  const adminOverrideOneWeek = getRescheduleOverrideState();
+  let overrideReason = '';
+  if (adminOverrideOneWeek) {
+    const reason = await showReasonConfirm({
       title: 'Confirm Date Override',
-      message: `This reschedule is earlier than the normal one-month rule (${adminMinimumBookingDateLabel}). Submit it as an admin override?`,
+      message: `This reschedule is earlier than the normal one-week rule (${adminMinimumBookingDateLabel}). Enter the override reason before submitting.`,
       okLabel: 'Submit Override',
       okColor: '#aa8f66',
       icon: '!',
+      reasonLabel: 'Override reason',
+      reasonPlaceholder: 'Admin-approved urgent booking, special management approval...',
     });
-    if (!confirmed) return;
+    if (!reason) return;
+    overrideReason = reason;
   }
   const r = await fetch('/api/admin/reschedule', {
     method: 'POST',
@@ -2562,7 +2886,8 @@ async function submitReschedule() {
       newStartDate: start,
       newEndDate: end,
       newEventDate: ev || null,
-      adminOverrideOneMonth,
+      adminOverrideOneWeek,
+      overrideReason,
     }),
   });
   const payload = await r.json().catch(() => ({}));
@@ -2717,6 +3042,32 @@ async function demoteUser(id: string) {
 });
 
 // ── BOOKING DETAILS MODAL (Fig 19) ───────────────────────────────────────────
+async function promoteStaff(id: string) {
+  const ok = await showConfirm({
+    title: 'Promote to Staff',
+    message: 'This user will be able to manage bookings, schedules, reschedules, status updates, and booking payments.',
+    okLabel: 'Yes, Promote',
+    okColor: '#4a7c3f',
+    icon: 'ST',
+  });
+  if (!ok) return;
+  const r = await fetch('/api/admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: id, action: 'promote_staff' }) });
+  if (r.ok) { toast('Promoted to staff'); location.reload(); } else { toast('Failed to promote staff', false); }
+}
+
+async function demoteStaff(id: string) {
+  const ok = await showConfirm({
+    title: 'Demote Staff',
+    message: 'This staff member will lose staff dashboard access and return to a customer account.',
+    okLabel: 'Yes, Demote',
+    okColor: '#9a4a36',
+    icon: 'ST',
+  });
+  if (!ok) return;
+  const r = await fetch('/api/admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: id, action: 'demote_staff' }) });
+  if (r.ok) { toast('Staff demoted to customer'); location.reload(); } else { toast('Failed to demote staff', false); }
+}
+
 function setText(id: string, val: string) {
   const el = document.getElementById(id);
   if (el) el.textContent = val;
@@ -2739,19 +3090,21 @@ function addActionBtn(container: HTMLElement, label: string, color: string, fn: 
 }
 
 async function manuallySecureExpiredBooking(id: string) {
-  const confirmed = await showConfirm({
+  const overrideReason = await showReasonConfirm({
     title: 'Manual reservation override',
-    message: 'This reservation was cancelled after expiration. Re-book it only after manually verifying availability and payment arrangements. This action will clear the expiration cancellation.',
+    message: 'This reservation was cancelled after expiration. Enter the override reason after verifying availability and payment arrangements.',
     okLabel: 'Manually secure booking',
     okColor: '#9a4a36',
     icon: '!',
+    reasonLabel: 'Override reason',
+    reasonPlaceholder: 'Payment verified manually, management approval, client settled balance...',
   });
-  if (!confirmed) return;
+  if (!overrideReason) return;
 
   const response = await fetch('/api/admin/update-booking-status', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ bookingId: id, status: 'booked', manualOverride: true }),
+    body: JSON.stringify({ bookingId: id, status: 'booked', manualOverride: true, overrideReason }),
   });
   const payload = await response.json().catch(() => ({}));
   if (response.ok) {
@@ -2969,14 +3322,20 @@ function openBookingDetail(jsonStr: string) {
   if (b.status === 'contract_signing' || b.status === 'rescheduled') {
     addActionBtn(actions, '✓ Book', '#4a7c3f', function() { closeBookingDetail(); confirmBooking(b.id); });
   }
-  if (b.status === 'contract_signing' || b.status === 'booked') {
+  if (b.status === 'booked') {
     addActionBtn(actions, '↻ Reschedule', '#aa8f66', function() { closeBookingDetail(); openReschedule(b.id); });
   }
   if (b.status === 'contract_signing' || b.status === 'booked' || b.status === 'rescheduled') {
     addActionBtn(actions, '✕ Cancel', '#9a4a36', function() { closeBookingDetail(); cancelBooking(b.id); });
   }
-  if (b.status === 'booked' || b.status === 'rescheduled') {
+  if (b.status === 'booked') {
     addActionBtn(actions, 'Complete', '#5e5c60', function() { closeBookingDetail(); setBookingCompleted(b.id); });
+  }
+  if (expirationCancelled) {
+    addActionBtn(actions, 'Manual override: secure booking', '#9a4a36', function() {
+      closeBookingDetail();
+      manuallySecureExpiredBooking(b.id);
+    });
   }
   addActionBtn(actions, 'Close', '#5e5c60', closeBookingDetail, true);
   document.getElementById('bookingDetailModal')?.classList.remove('hidden');
@@ -3237,12 +3596,6 @@ async function generateReport() {
   } finally {
     if (button) { button.disabled = false; button.textContent = 'Generate Report'; }
   }
-  if (expirationCancelled) {
-    addActionBtn(actions, 'Manual override: secure booking', '#9a4a36', function() {
-      closeBookingDetail();
-      manuallySecureExpiredBooking(b.id);
-    });
-  }
 }
 
 function printReport() {
@@ -3282,6 +3635,8 @@ switchReport('weekly');
 (window as any).togglePackage     = togglePackage;
 (window as any).promoteUser       = promoteUser;
 (window as any).demoteUser        = demoteUser;
+(window as any).promoteStaff      = promoteStaff;
+(window as any).demoteStaff       = demoteStaff;
 (window as any).openBookingDetail = openBookingDetail;
 (window as any).closeBookingDetail = closeBookingDetail;
 (window as any).openPaymentModal = openPaymentModal;
@@ -3290,15 +3645,48 @@ switchReport('weekly');
 (window as any).switchReport      = switchReport;
 (window as any).generateReport    = generateReport;
 (window as any).printReport       = printReport;
+(window as any).deactivateBlockedDate = deactivateBlockedDate;
 
 // ── ADMIN AVAILABILITY CALENDAR ───────────────────────────────────────────────
 const admMonths = ['January','February','March','April','May','June',
                    'July','August','September','October','November','December'];
 let admYear  = new Date().getFullYear();
 let admMonth = new Date().getMonth(); // 0-indexed
-const admCache: Record<string, any[]> = {};
+type AdminAvailability = { bookings: any[]; blockedDates: any[] };
+const admCache: Record<string, AdminAvailability> = {};
+let activeBlockedDates: any[] = [];
+const adminVenues: any[] = (window as any).__venues ?? [];
 
-async function admFetchBookings(year: number, month: number): Promise<any[]> {
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function venueNameById(id: string): string {
+  return adminVenues.find((venue: any) => venue.id === id)?.name ?? 'Venue';
+}
+
+function formatAdminDate(iso: string): string {
+  return new Date(iso + 'T00:00:00').toLocaleDateString('en-PH', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatAdminDateRange(start: string, end: string): string {
+  return start === end ? formatAdminDate(start) : `${formatAdminDate(start)} to ${formatAdminDate(end)}`;
+}
+
+function clearAvailabilityCache() {
+  Object.keys(admCache).forEach((key) => delete admCache[key]);
+}
+
+async function admFetchAvailability(year: number, month: number): Promise<AdminAvailability> {
   const key = `${year}-${month}`;
   if (admCache[key]) return admCache[key];
   const loading = document.getElementById('adm-cal-loading')!;
@@ -3306,9 +3694,12 @@ async function admFetchBookings(year: number, month: number): Promise<any[]> {
   try {
     const res  = await fetch(`/api/bookings/availability?year=${year}&month=${month + 1}`);
     const json = await res.json();
-    admCache[key] = json.bookings ?? [];
+    admCache[key] = {
+      bookings: json.bookings ?? [],
+      blockedDates: json.blockedDates ?? [],
+    };
     return admCache[key];
-  } catch { return []; }
+  } catch { return { bookings: [], blockedDates: [] }; }
   finally { loading.style.display = 'none'; }
 }
 
@@ -3327,12 +3718,151 @@ function admBuildDateMap(bookings: any[]): Record<string, any[]> {
   return map;
 }
 
+function admBuildBlockedDateMap(blockedDates: any[]): Record<string, any[]> {
+  const map: Record<string, any[]> = {};
+  for (const block of blockedDates) {
+    const start = new Date(block.start_date + 'T00:00:00');
+    const end = new Date(block.end_date + 'T00:00:00');
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const iso = d.toISOString().split('T')[0];
+      if (!map[iso]) map[iso] = [];
+      map[iso].push(block);
+    }
+  }
+  return map;
+}
+
 const STATUS_CELL: Record<string, { bg: string; ring: string; text: string }> = {
   booked:   { bg: '#f0fdf4', ring: '#4a7c3f', text: '#2d5a27' },
   contract_signing: { bg: '#e8f2e3', ring: '#4a7c3f', text: '#2d5a27' },
   rescheduled: { bg: '#eee8e0', ring: '#aa8f66', text: '#463926' },
   completed: { bg: '#eee8e0', ring: '#5e5c60', text: '#363537' },
 };
+const BLOCKED_CELL = { bg: '#f7f2ea', ring: '#aa8f66', text: '#463926' };
+
+async function loadBlockedDates() {
+  const list = document.getElementById('blockedDateList');
+  if (list) list.innerHTML = '<p class="blocked-date-empty">Loading blocked dates...</p>';
+  try {
+    const res = await fetch('/api/admin/blocked-dates');
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload.error ?? payload.message ?? 'Could not load blocked dates');
+    activeBlockedDates = payload.blockedDates ?? [];
+    renderBlockedDateList();
+  } catch (loadError) {
+    const message = loadError instanceof Error ? loadError.message : 'Could not load blocked dates';
+    if (list) list.innerHTML = `<p class="blocked-date-empty">${escapeHtml(message)}</p>`;
+  }
+}
+
+function renderBlockedDateList() {
+  const list = document.getElementById('blockedDateList');
+  if (!list) return;
+  if (activeBlockedDates.length === 0) {
+    list.innerHTML = '<p class="blocked-date-empty">No active blocked dates.</p>';
+    return;
+  }
+
+  list.innerHTML = activeBlockedDates
+    .map((block: any) => `
+      <div class="blocked-date-card">
+        <strong>${escapeHtml(venueNameById(block.venueId))}</strong>
+        <p>${escapeHtml(formatAdminDateRange(block.startDate, block.endDate))}</p>
+        <p>${escapeHtml(block.reason)}</p>
+        <button type="button" onclick="deactivateBlockedDate('${escapeHtml(block.id)}')">Unblock</button>
+      </div>
+    `)
+    .join('');
+}
+
+async function createBlockedDate(event: Event) {
+  event.preventDefault();
+  const venueInput = document.getElementById('blockedVenue') as HTMLSelectElement;
+  const startInput = document.getElementById('blockedStartDate') as HTMLInputElement;
+  const endInput = document.getElementById('blockedEndDate') as HTMLInputElement;
+  const reasonInput = document.getElementById('blockedReason') as HTMLTextAreaElement;
+  const reason = reasonInput.value.trim();
+
+  if (!venueInput.value || !startInput.value || !endInput.value || !reason) {
+    toast('Please choose a venue, date range, and blocked-date reason.', false);
+    return;
+  }
+  if (endInput.value < startInput.value) {
+    toast('Blocked end date must be on or after start date.', false);
+    return;
+  }
+
+  const confirmed = await showConfirm({
+    title: 'Block Dates',
+    message: `Block ${venueNameById(venueInput.value)} for ${formatAdminDateRange(startInput.value, endInput.value)}? Reason: ${reason}`,
+    okLabel: 'Block Dates',
+    okColor: '#aa8f66',
+    icon: '!',
+  });
+  if (!confirmed) return;
+
+  const submitButton = (event.currentTarget as HTMLFormElement).querySelector('button[type="submit"]') as HTMLButtonElement | null;
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = 'Blocking...';
+  }
+
+  try {
+    const res = await fetch('/api/admin/blocked-dates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        venueId: venueInput.value,
+        startDate: startInput.value,
+        endDate: endInput.value,
+        reason,
+      }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload.error ?? payload.message ?? 'Could not block dates');
+
+    toast('Dates blocked');
+    (event.currentTarget as HTMLFormElement).reset();
+    clearAvailabilityCache();
+    await loadBlockedDates();
+    await admRenderCalendar();
+  } catch (blockError) {
+    toast(blockError instanceof Error ? blockError.message : 'Could not block dates', false);
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = 'Block Dates';
+    }
+  }
+}
+
+async function deactivateBlockedDate(id: string) {
+  const confirmed = await showConfirm({
+    title: 'Unblock Date',
+    message: 'Make this blocked date available again?',
+    okLabel: 'Unblock',
+    okColor: '#9a4a36',
+    icon: '!',
+  });
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch('/api/admin/blocked-dates', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, isActive: false }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload.error ?? payload.message ?? 'Could not unblock dates');
+
+    toast('Blocked date deactivated');
+    clearAvailabilityCache();
+    await loadBlockedDates();
+    await admRenderCalendar();
+  } catch (unblockError) {
+    toast(unblockError instanceof Error ? unblockError.message : 'Could not unblock dates', false);
+  }
+}
 
 async function admRenderCalendar() {
   const label = document.getElementById('adm-month-label')!;
@@ -3340,8 +3870,9 @@ async function admRenderCalendar() {
   const grid  = document.getElementById('adm-cal-grid')!;
   grid.innerHTML = '';
 
-  const bookings = await admFetchBookings(admYear, admMonth);
-  const dateMap  = admBuildDateMap(bookings);
+  const availability = await admFetchAvailability(admYear, admMonth);
+  const dateMap  = admBuildDateMap(availability.bookings);
+  const blockedDateMap = admBuildBlockedDateMap(availability.blockedDates);
 
   const firstDow  = new Date(admYear, admMonth, 1).getDay();
   const offset    = (firstDow + 6) % 7;
@@ -3360,11 +3891,14 @@ async function admRenderCalendar() {
     } else {
       const iso = `${admYear}-${String(admMonth+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
       const dayBookings = dateMap[iso] ?? [];
+      const dayBlocks = blockedDateMap[iso] ?? [];
       const isPast  = iso < todayISO;
       const isToday = iso === todayISO;
-      const isUnavailable = dayBookings.length > 0;
+      const hasBookings = dayBookings.length > 0;
+      const hasBlocks = dayBlocks.length > 0;
+      const isUnavailable = hasBookings || hasBlocks;
 
-      cell.style.background = isPast ? '#fafafa' : isUnavailable ? '#fef2f2' : '#fff';
+      cell.style.background = isPast ? '#fafafa' : hasBookings ? '#fef2f2' : hasBlocks ? BLOCKED_CELL.bg : '#fff';
       if (isToday && !isUnavailable) cell.style.background = '#f0fdf4';
 
       // Day number
@@ -3382,25 +3916,34 @@ async function admRenderCalendar() {
         chip.style.cssText = `font-size:0.65rem;font-weight:700;padding:1px 5px;border-radius:4px;background:${s.bg};color:${s.text};outline:1px solid ${s.ring};margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
         cell.appendChild(chip);
       }
-      if (dayBookings.length > 3) {
+      for (const block of dayBlocks.slice(0, Math.max(0, 3 - shown.length))) {
+        const chip = document.createElement('div');
+        chip.textContent = 'Blocked';
+        chip.title = block.reason ?? 'Admin blocked';
+        chip.style.cssText = `font-size:0.65rem;font-weight:700;padding:1px 5px;border-radius:4px;background:${BLOCKED_CELL.bg};color:${BLOCKED_CELL.text};outline:1px solid ${BLOCKED_CELL.ring};margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
+        cell.appendChild(chip);
+      }
+      if (dayBookings.length + dayBlocks.length > 3) {
         const more = document.createElement('div');
-        more.textContent = `+${dayBookings.length - 3} more`;
+        more.textContent = `+${dayBookings.length + dayBlocks.length - 3} more`;
         more.style.cssText = 'font-size:0.6rem;color:#9ca3af;font-weight:600;';
         cell.appendChild(more);
       }
 
-      cell.addEventListener('mouseenter', () => { if (!isPast) cell.style.background = isUnavailable ? '#fee2e2' : '#f8faff'; });
-      cell.addEventListener('mouseleave', () => {
-        cell.style.background = isPast ? '#fafafa' : isUnavailable ? '#fef2f2' : isToday ? '#f0fdf4' : '#fff';
+      cell.addEventListener('mouseenter', () => {
+        if (!isPast) cell.style.background = hasBookings ? '#fee2e2' : hasBlocks ? '#eee8e0' : '#f8faff';
       });
-      cell.addEventListener('click', () => admShowDayDetail(iso, dayBookings));
+      cell.addEventListener('mouseleave', () => {
+        cell.style.background = isPast ? '#fafafa' : hasBookings ? '#fef2f2' : hasBlocks ? BLOCKED_CELL.bg : isToday ? '#f0fdf4' : '#fff';
+      });
+      cell.addEventListener('click', () => admShowDayDetail(iso, dayBookings, dayBlocks));
     }
 
     grid.appendChild(cell);
   }
 }
 
-function admShowDayDetail(iso: string, bookings: any[]) {
+function admShowDayDetail(iso: string, bookings: any[], blockedDates: any[]) {
   const panel   = document.getElementById('adm-day-detail')!;
   const dateEl  = document.getElementById('adm-detail-date')!;
   const content = document.getElementById('adm-detail-content')!;
@@ -3409,8 +3952,8 @@ function admShowDayDetail(iso: string, bookings: any[]) {
   dateEl.textContent = formatted;
   panel.classList.remove('hidden');
 
-  if (bookings.length === 0) {
-    content.innerHTML = '<p class="text-gray-400 py-4 text-center">No bookings on this date — it\'s available! ✅</p>';
+  if (bookings.length === 0 && blockedDates.length === 0) {
+    content.innerHTML = '<p class="text-gray-400 py-4 text-center">No bookings or blocked dates on this date. It is available.</p>';
     return;
   }
 
@@ -3419,12 +3962,23 @@ function admShowDayDetail(iso: string, bookings: any[]) {
   const byId: Record<string, any> = {};
   allB.forEach((b: any) => { byId[b.id] = b; });
 
-  content.innerHTML = bookings.map(b => {
+  const blockedHtml = blockedDates.map((block: any) => `
+    <div style="padding:12px 16px;border-radius:12px;background:${BLOCKED_CELL.bg};outline:1.5px solid ${BLOCKED_CELL.ring};display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+      <div>
+        <div style="font-weight:700;color:${BLOCKED_CELL.text};font-size:0.85rem;">Admin blocked</div>
+        <div style="color:#6f5430;font-size:0.75rem;margin-top:2px;">${escapeHtml(venueNameById(block.venue_id))}</div>
+        <div style="color:#6f5430;font-size:0.72rem;margin-top:2px;">${escapeHtml(formatAdminDateRange(block.start_date, block.end_date))}</div>
+        <div style="color:#6f5430;font-size:0.72rem;margin-top:4px;">${escapeHtml(block.reason)}</div>
+      </div>
+      <button onclick="deactivateBlockedDate('${escapeHtml(block.id)}')" style="padding:4px 10px;border-radius:6px;background:#9a4a36;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">Unblock</button>
+    </div>
+  `).join('');
+
+  const bookingsHtml = bookings.map(b => {
     const full = byId[b.id] ?? b;
     const s = STATUS_CELL[b.status] ?? STATUS_CELL.contract_signing;
     const actionBtns = b.status === 'contract_signing'
       ? `<button onclick="confirmBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#4a7c3f;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✓ Book</button>
-         <button onclick="openReschedule('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#aa8f66;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">↻ Reschedule</button>
          <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#9a4a36;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>`
       : b.status === 'booked'
       ? `<button onclick="openReschedule('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#aa8f66;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">↻ Reschedule</button>
@@ -3432,8 +3986,7 @@ function admShowDayDetail(iso: string, bookings: any[]) {
          <button onclick="setBookingCompleted('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#5e5c60;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">Complete</button>`
       : b.status === 'rescheduled'
       ? `<button onclick="confirmBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#4a7c3f;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✓ Book</button>
-         <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#9a4a36;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>
-         <button onclick="setBookingCompleted('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#5e5c60;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">Complete</button>`
+         <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#9a4a36;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>`
       : '';
     return `<div style="padding:12px 16px;border-radius:12px;background:${s.bg};outline:1.5px solid ${s.ring};display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
       <div>
@@ -3447,6 +4000,8 @@ function admShowDayDetail(iso: string, bookings: any[]) {
       </div>
     </div>`;
   }).join('');
+
+  content.innerHTML = blockedHtml + bookingsHtml;
 }
 
 document.getElementById('adm-detail-close')?.addEventListener('click', () => {
@@ -3462,11 +4017,17 @@ document.getElementById('adm-next-month')?.addEventListener('click', () => {
   admRenderCalendar();
   document.getElementById('adm-day-detail')?.classList.add('hidden');
 });
+document.getElementById('blockedDateForm')?.addEventListener('submit', createBlockedDate);
+document.getElementById('refreshBlockedDates')?.addEventListener('click', () => loadBlockedDates());
+loadBlockedDates();
 
 // Render calendar when the tab becomes active
 const _origSwitchTab = (window as any).switchTab;
 document.querySelectorAll<HTMLElement>('.nav-btn[data-tab="calendar"]').forEach(btn => {
-  btn.addEventListener('click', () => admRenderCalendar());
+  btn.addEventListener('click', () => {
+    loadBlockedDates();
+    admRenderCalendar();
+  });
 });
 </script>
 

@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { supabase, supabaseAdmin } from "../../../lib/supabase";
 import { paymongoRequest } from "../../../lib/paymongo";
+import { logBookingAudit } from "../../../services/bookingAudit";
 export const prerender = false;
 const db = supabaseAdmin ?? supabase;
 
@@ -35,15 +36,37 @@ export const POST: APIRoute = async ({ request }) => {
       if (booking) {
         const total = Number(booking.total_price);
         const amount = Number(tx.amount);
+        const nextStatus =
+          booking.status === "contract_signing" || booking.status === "rescheduled"
+            ? "booked"
+            : booking.status;
         await db.from("booking_payments").upsert({
           booking_id: booking.id, total_booking_amount: total, minimum_payment_amount: amount,
           amount_paid: amount, remaining_balance: Math.max(total - amount, 0), payment_status: amount >= total ? "paid" : "partial",
           payment_method: method ?? "PayMongo", payment_recorded_at: new Date().toISOString(), updated_at: new Date().toISOString(),
         }, { onConflict: "booking_id" });
         if (booking.status === "contract_signing" || booking.status === "rescheduled") {
-          await db.from("bookings").update({ status: "booked", confirmed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", booking.id);
+          await db.from("bookings").update({ status: "booked", confirmed_at: new Date().toISOString(), status_updated_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", booking.id);
         }
-        await db.from("booking_audit_log").insert({ booking_id: booking.id, actor_type: "system", action: "payment_succeeded", from_status: booking.status, to_status: "booked", reason: "Verified PayMongo webhook", metadata: { transaction_id: transactionId } });
+        await logBookingAudit(
+          {
+            bookingId: booking.id,
+            actorType: "system",
+            action: "payment_succeeded",
+            fromStatus: booking.status,
+            toStatus: nextStatus,
+            reason: "Verified PayMongo webhook",
+            metadata: {
+              transactionId,
+              gatewayPaymentId,
+              amountPaid: amount,
+              totalBookingAmount: total,
+              paymentMethod: method ?? "PayMongo",
+              paymentStatus: amount >= total ? "paid" : "partial",
+            },
+          },
+          db,
+        );
       }
     }
     return new Response("ok", { status: 200 });

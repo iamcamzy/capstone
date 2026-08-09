@@ -393,11 +393,11 @@ If booking date validation is involved:
 
 Current preferred rule:
 
-* bookings must be at least one calendar month in advance
+* bookings must be at least one week in advance
 
 Example:
 
-* If today is June 18, the earliest bookable date should be July 18.
+* If today is June 18, the earliest bookable date should be June 25.
 
 ---
 

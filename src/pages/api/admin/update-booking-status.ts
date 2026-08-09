@@ -1,12 +1,18 @@
-// POST /api/admin/update-booking-status - update a booking status (admin only)
+// POST /api/admin/update-booking-status - update a booking status (staff or admin)
 import type { APIRoute } from "astro";
 import { z } from "zod";
 import { supabaseAdmin, supabase } from "../../../lib/supabase";
-import { adminGuard } from "../../../lib/adminGuard";
-import { normalizeBookingStatus, type BookingStatus } from "../../../lib/bookingStatus";
+import { staffOrAdminGuard } from "../../../lib/adminGuard";
+import {
+  bookingStatusTransitionErrorMessage,
+  isValidBookingStatusTransition,
+  normalizeBookingStatus,
+  type BookingStatus,
+} from "../../../lib/bookingStatus";
 import { ok, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
 import {
+  BookingStatusTransitionError,
   ContractSigningScheduleStatusError,
   updateBookingStatusAndNotify,
   updateContractSigningScheduleAndNotify,
@@ -22,11 +28,14 @@ const ALLOWED_STATUS_UPDATES: BookingStatus[] = [
   "cancelled",
   "completed",
 ];
+const reasonSchema = z.string().max(500);
 
 const updateStatusSchema = z.object({
   bookingId: z.string().uuid("bookingId must be a valid UUID"),
   status: z.string().min(1, "status is required").optional(),
   manualOverride: z.boolean().optional().default(false),
+  cancellationReason: reasonSchema.optional(),
+  overrideReason: reasonSchema.optional(),
   contractSigningDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "contractSigningDate must use YYYY-MM-DD")
@@ -55,7 +64,7 @@ const updateStatusSchema = z.object({
 });
 
 export const POST: APIRoute = async ({ request, cookies }) => {
-  const guard = await adminGuard(cookies);
+  const guard = await staffOrAdminGuard(cookies);
   if (guard instanceof Response) return guard;
 
   const body = await parseBody(request);
@@ -70,23 +79,74 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return error(`status must be one of: ${ALLOWED_STATUS_UPDATES.join(", ")}`, 400);
   }
   const status = parsed.data.status ? normalizeBookingStatus(parsed.data.status) : null;
+  const cancellationReason = parsed.data.cancellationReason?.trim() ?? "";
+  const overrideReason = parsed.data.overrideReason?.trim() ?? "";
 
   try {
-    if (status === "booked") {
+    if (parsed.data.manualOverride && guard.role !== "admin") {
+      return error("Forbidden: admin manual override requires an admin account", 403);
+    }
+
+    let statusUpdateFields: Record<string, unknown> | undefined;
+    if (status) {
+      if (status === "cancelled" && !cancellationReason) {
+        return error("cancellationReason is required when cancelling a booking", 400);
+      }
+      if (parsed.data.manualOverride && !overrideReason) {
+        return error("overrideReason is required for admin manual override", 400);
+      }
+
       const { data: currentBooking, error: currentBookingError } = await db
         .from("bookings")
         .select("id, status, reservation_expired_at, cancellation_source")
         .eq("id", parsed.data.bookingId)
         .single();
       if (currentBookingError || !currentBooking) return error("Booking not found", 404);
+      const currentStatus = normalizeBookingStatus(currentBooking.status);
       const expirationCancelled =
-        normalizeBookingStatus(currentBooking.status) === "cancelled" &&
+        currentStatus === "cancelled" &&
         Boolean(currentBooking.reservation_expired_at || currentBooking.cancellation_source === "system");
-      if (expirationCancelled && !parsed.data.manualOverride) {
+      if (status === "booked" && expirationCancelled && !parsed.data.manualOverride) {
         return error(
           "This reservation was cancelled after expiration and requires an explicit manual override.",
           409,
         );
+      }
+
+      if (
+        !isValidBookingStatusTransition(currentStatus, status, {
+          manualOverride: parsed.data.manualOverride,
+        })
+      ) {
+        return error(
+          bookingStatusTransitionErrorMessage(currentStatus, status, {
+            manualOverride: parsed.data.manualOverride,
+          }),
+          409,
+        );
+      }
+
+      if (status === "booked" && currentStatus === "cancelled" && parsed.data.manualOverride) {
+        statusUpdateFields = {
+          reservation_expired_at: null,
+          cancellation_reason: null,
+          cancellation_source: "admin_manual_override",
+          override_reason: overrideReason,
+          cancelled_at: null,
+        };
+      }
+      if (status === "cancelled") {
+        statusUpdateFields = {
+          ...(statusUpdateFields ?? {}),
+          cancellation_reason: cancellationReason,
+          cancellation_source: "admin_manual",
+        };
+      }
+      if (parsed.data.manualOverride) {
+        statusUpdateFields = {
+          ...(statusUpdateFields ?? {}),
+          override_reason: overrideReason,
+        };
       }
     }
 
@@ -100,20 +160,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
             contractSigningDate: parsed.data.contractSigningDate!,
             contractSigningTime: parsed.data.contractSigningTime!,
           },
-          { client: db },
+          { client: db, actorId: guard.user.id, actorType: guard.role },
         )
       : await updateBookingStatusAndNotify(parsed.data.bookingId, status!, {
           client: db,
-          ...(status === "booked" && parsed.data.manualOverride
-            ? {
-                update: {
-                  reservation_expired_at: null,
-                  cancellation_reason: null,
-                  cancellation_source: "admin_manual_override",
-                  cancelled_at: null,
-                },
-              }
-            : {}),
+          manualOverride: parsed.data.manualOverride,
+          actorId: guard.user.id,
+          actorType: guard.role,
+          reason: cancellationReason || overrideReason || null,
+          metadata: {
+            manualOverride: parsed.data.manualOverride,
+            updatedFields: Object.keys(statusUpdateFields ?? {}),
+          },
+          ...(statusUpdateFields ? { update: statusUpdateFields } : {}),
         });
 
     return ok({
@@ -131,6 +190,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     console.error("[UpdateBookingStatus]", message);
     if (updateError instanceof ContractSigningScheduleStatusError) {
       return error(message, 400);
+    }
+    if (updateError instanceof BookingStatusTransitionError) {
+      return error(message, 409);
     }
     return error(message, 500);
   }

@@ -1,7 +1,7 @@
-// GET /api/bookings/GetAllBookings — get all bookings with pagination (admin only)
+// GET /api/bookings/GetAllBookings - get all bookings with pagination (staff or admin)
 import type { APIRoute } from "astro";
 import { supabaseAdmin, supabase } from "../../../lib/supabase";
-import { adminGuard } from "../../../lib/adminGuard";
+import { staffOrAdminGuard } from "../../../lib/adminGuard";
 import { ok, error } from "../../../lib/response";
 import { BOOKING_STATUSES, normalizeBookingStatus, type BookingStatus } from "../../../lib/bookingStatus";
 
@@ -11,7 +11,7 @@ const db = supabaseAdmin ?? supabase;
 const VALID_STATUSES = [...BOOKING_STATUSES];
 
 export const GET: APIRoute = async ({ cookies, url }) => {
-  const guard = await adminGuard(cookies);
+  const guard = await staffOrAdminGuard(cookies);
   if (guard instanceof Response) return guard;
 
   const page   = Math.max(1, parseInt(url.searchParams.get("page")  ?? "1"));

@@ -6,6 +6,7 @@ import {
   sendExpirationCancellationNotice,
   sendExpirationReminder,
 } from "./notifications";
+import { logBookingAudit } from "./bookingAudit";
 
 type DbClient = SupabaseClient<Database>;
 
@@ -139,7 +140,7 @@ export async function expireUnpaidReservations(
   const expiredAt = now.toISOString();
   const { data: candidates, error: candidateError } = await client
     .from("bookings")
-    .select("id")
+    .select("id, reservation_expires_at")
     .eq("status", "contract_signing")
     .lte("reservation_expires_at", expiredAt)
     .is("reservation_expired_at", null);
@@ -152,7 +153,8 @@ export async function expireUnpaidReservations(
   const unpaidBookingIds = await findUnpaidBookingIds(client, candidateIds);
   const expiredBookingIds: string[] = [];
 
-  for (const bookingId of candidateIds) {
+  for (const candidate of candidates ?? []) {
+    const bookingId = candidate.id;
     if (!unpaidBookingIds.has(bookingId)) continue;
 
     const { data: cancelledBooking, error: updateError } = await client
@@ -179,6 +181,21 @@ export async function expireUnpaidReservations(
 
     if (cancelledBooking) {
       expiredBookingIds.push(cancelledBooking.id);
+      await logBookingAudit(
+        {
+          bookingId: cancelledBooking.id,
+          actorType: "system",
+          action: "reservation_expired_cancelled",
+          fromStatus: "contract_signing",
+          toStatus: "cancelled",
+          reason: EXPIRATION_REASON,
+          metadata: {
+            reservationExpiresAt: candidate.reservation_expires_at,
+            expiredAt,
+          },
+        },
+        client,
+      );
     }
   }
 

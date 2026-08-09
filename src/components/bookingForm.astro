@@ -132,7 +132,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
         Booking Details
       </h3>
       <p class="text-sm text-gray-600">
-        Please choose booking dates at least one month in advance.
+        Please choose booking dates at least one week in advance.
       </p>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -1192,22 +1192,16 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     return year + "-" + month + "-" + day;
   }
 
-  function addOneCalendarMonth(date) {
-    var oneMonthLater = new Date(
-      date.getFullYear(),
-      date.getMonth() + 1,
-      date.getDate(),
-    );
-    if (oneMonthLater.getDate() !== date.getDate()) {
-      oneMonthLater.setDate(0);
-    }
-    return oneMonthLater;
+  function addDays(date, days) {
+    var result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
   }
 
   function getMinimumBookingDate() {
     var today = new Date();
     today.setHours(0, 0, 0, 0);
-    return addOneCalendarMonth(today);
+    return addDays(today, 7);
   }
 
   var minimumBookingDate = getMinimumBookingDate();
@@ -1215,6 +1209,10 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   checkInInput.min = minimumBookingDateValue;
   checkOutInput.min = minimumBookingDateValue;
   eventDateInput.min = minimumBookingDateValue;
+  var unavailableDateMessage = "Selected dates are unavailable. Please choose another date.";
+  var availabilityCheckMessage = "Could not verify venue availability. Please try again.";
+  var availabilityCache = {};
+  var dateAvailabilityValidationRun = 0;
 
   function showNotice(msg, type) {
     if (!noticeEl) return;
@@ -1226,6 +1224,163 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     noticeEl.textContent = (type === "success" ? "Success: " : "Error: ") + msg;
     noticeEl.classList.remove("hidden");
     noticeEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function hideAvailabilityNoticeIfCurrent(message) {
+    if (!noticeEl || !noticeEl.textContent.includes(message)) return;
+    noticeEl.classList.add("hidden");
+  }
+
+  function setDateAvailabilityValidity(message) {
+    [checkInInput, checkOutInput, eventDateInput].forEach(function (input) {
+      input.setCustomValidity(message || "");
+      input.toggleAttribute("data-availability-invalid", !!message);
+      input.setAttribute("aria-invalid", message ? "true" : "false");
+    });
+  }
+
+  function availabilityMonthKey(year, monthIndex) {
+    return String(venueId || "all") + "-" + year + "-" + monthIndex;
+  }
+
+  function addDateRangeToSet(set, startISO, endISO) {
+    var start = parseDateOnly(String(startISO || "").slice(0, 10));
+    var end = parseDateOnly(String(endISO || startISO || "").slice(0, 10));
+    if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
+    for (var day = new Date(start); day <= end; day.setDate(day.getDate() + 1)) {
+      set.add(formatDateOnly(day));
+    }
+  }
+
+  function addBlockedDatesToSet(set, blockedDates) {
+    (blockedDates || []).forEach(function (blockedDate) {
+      if (typeof blockedDate === "string") {
+        set.add(blockedDate.slice(0, 10));
+        return;
+      }
+      var start =
+        blockedDate.date ||
+        blockedDate.blocked_date ||
+        blockedDate.start_date ||
+        blockedDate.startDate;
+      var end = blockedDate.end_date || blockedDate.endDate || start;
+      if (start) addDateRangeToSet(set, start, end);
+    });
+  }
+
+  async function fetchAvailabilityMonth(year, monthIndex, forceRefresh) {
+    var key = availabilityMonthKey(year, monthIndex);
+    if (!forceRefresh && availabilityCache[key]) return availabilityCache[key];
+
+    var params = new URLSearchParams({
+      year: String(year),
+      month: String(monthIndex + 1),
+    });
+    if (venueId) params.set("venueId", venueId);
+
+    var response = await fetch("/api/bookings/availability?" + params.toString());
+    var payload = await response.json().catch(function () {
+      return {};
+    });
+    if (!response.ok) throw new Error(payload.error || payload.message || availabilityCheckMessage);
+
+    var unavailableDates = new Set();
+    (payload.bookings || []).forEach(function (booking) {
+      addDateRangeToSet(unavailableDates, booking.start_date, booking.end_date);
+      if (booking.event_date) unavailableDates.add(String(booking.event_date).slice(0, 10));
+    });
+    addBlockedDatesToSet(unavailableDates, payload.blockedDates);
+
+    availabilityCache[key] = unavailableDates;
+    return unavailableDates;
+  }
+
+  function selectedMonthKeys(startDate, endDate, eventDate) {
+    var keys = [];
+    var seen = new Set();
+
+    function addMonth(date) {
+      var key = date.getFullYear() + "-" + date.getMonth();
+      if (seen.has(key)) return;
+      seen.add(key);
+      keys.push({ year: date.getFullYear(), monthIndex: date.getMonth() });
+    }
+
+    var cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    var last = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+    while (cursor <= last) {
+      addMonth(cursor);
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    if (eventDate) addMonth(eventDate);
+
+    return keys;
+  }
+
+  async function getUnavailableDatesForSelection(startDate, endDate, eventDate, forceRefresh) {
+    var unavailableDates = new Set();
+    var months = selectedMonthKeys(startDate, endDate, eventDate);
+    for (var i = 0; i < months.length; i++) {
+      var monthDates = await fetchAvailabilityMonth(
+        months[i].year,
+        months[i].monthIndex,
+        forceRefresh,
+      );
+      monthDates.forEach(function (date) {
+        unavailableDates.add(date);
+      });
+    }
+    return unavailableDates;
+  }
+
+  function selectionOverlapsUnavailableDates(startDate, endDate, eventDate, unavailableDates) {
+    for (var day = new Date(startDate); day <= endDate; day.setDate(day.getDate() + 1)) {
+      if (day < minimumBookingDate || unavailableDates.has(formatDateOnly(day))) return true;
+    }
+    return !!eventDate && (eventDate < minimumBookingDate || unavailableDates.has(formatDateOnly(eventDate)));
+  }
+
+  async function validateSelectedAvailability(showMessage, forceRefresh) {
+    var run = ++dateAvailabilityValidationRun;
+    setDateAvailabilityValidity("");
+
+    var selectedStartDate = parseDateOnly(checkInInput.value);
+    var selectedEndDate = parseDateOnly(checkOutInput.value);
+    var selectedEventDate = parseDateOnly(eventDateInput.value);
+    if (!selectedStartDate || !selectedEndDate || !selectedEventDate) return true;
+    if (selectedEndDate <= selectedStartDate) return true;
+
+    try {
+      var unavailableDates = await getUnavailableDatesForSelection(
+        selectedStartDate,
+        selectedEndDate,
+        selectedEventDate,
+        forceRefresh,
+      );
+      if (run !== dateAvailabilityValidationRun) return true;
+
+      if (
+        selectionOverlapsUnavailableDates(
+          selectedStartDate,
+          selectedEndDate,
+          selectedEventDate,
+          unavailableDates,
+        )
+      ) {
+        setDateAvailabilityValidity(unavailableDateMessage);
+        if (showMessage) showNotice(unavailableDateMessage, "error");
+        return false;
+      }
+
+      hideAvailabilityNoticeIfCurrent(unavailableDateMessage);
+      hideAvailabilityNoticeIfCurrent(availabilityCheckMessage);
+      return true;
+    } catch (availabilityError) {
+      if (run !== dateAvailabilityValidationRun) return true;
+      setDateAvailabilityValidity(availabilityCheckMessage);
+      if (showMessage) showNotice(availabilityCheckMessage, "error");
+      return false;
+    }
   }
 
   function calculateNights() {
@@ -1537,14 +1692,21 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     });
   }
 
-  checkInInput.addEventListener("change", function () {
+  checkInInput.addEventListener("change", async function () {
     checkOutInput.min =
       checkInInput.value && checkInInput.value > minimumBookingDateValue
         ? checkInInput.value
         : minimumBookingDateValue;
     calculateNights();
+    await validateSelectedAvailability(true, false);
   });
-  checkOutInput.addEventListener("change", calculateNights);
+  checkOutInput.addEventListener("change", async function () {
+    calculateNights();
+    await validateSelectedAvailability(true, false);
+  });
+  eventDateInput.addEventListener("change", async function () {
+    await validateSelectedAvailability(true, false);
+  });
   document.getElementById("guests").addEventListener("input", function () {
     validatePackagePax(false);
     calculateNights();
@@ -1559,7 +1721,8 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     }
   });
 
-  function validateMainForm() {
+  async function validateMainForm(forceAvailabilityRefresh) {
+    setDateAvailabilityValidity("");
     if (noticeEl) noticeEl.classList.add("hidden");
 
     if (!form.checkValidity()) {
@@ -1580,7 +1743,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       selectedEndDate < minimumBookingDate ||
       selectedEventDate < minimumBookingDate
     ) {
-      showNotice("Bookings must be made at least one month in advance.", "error");
+      showNotice("Bookings must be made at least one week in advance.", "error");
       return false;
     }
 
@@ -1597,6 +1760,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     var inclusions = getSelectedInclusions();
     if (!validateFacilityRanges(inclusions)) return false;
     if (!validatePackagePax(true)) return false;
+    if (!(await validateSelectedAvailability(true, !!forceAvailabilityRefresh))) return false;
 
     return true;
   }
@@ -1667,9 +1831,9 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     confirmModal.classList.remove("hidden");
   }
 
-  form.addEventListener("submit", function (e) {
+  form.addEventListener("submit", async function (e) {
     e.preventDefault();
-    if (!validateMainForm()) return;
+    if (!(await validateMainForm(false))) return;
     termsModal.classList.remove("hidden");
   });
 
@@ -1681,7 +1845,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     if (e.target === termsModal) termsModal.classList.add("hidden");
   });
 
-  termsContinueBtn.addEventListener("click", function () {
+  termsContinueBtn.addEventListener("click", async function () {
     if (noticeEl) noticeEl.classList.add("hidden");
 
     if (!termsAcceptedInput.checked) {
@@ -1693,7 +1857,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       return;
     }
 
-    if (!validateMainForm()) return;
+    if (!(await validateMainForm(false))) return;
     termsModal.classList.add("hidden");
     openConfirmationModal();
   });
@@ -1715,6 +1879,11 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       confirmModal.classList.add("hidden");
       termsModal.classList.remove("hidden");
       termsAcceptedInput.focus();
+      return;
+    }
+
+    if (!(await validateMainForm(true))) {
+      confirmModal.classList.add("hidden");
       return;
     }
 
@@ -1992,6 +2161,11 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     border-color: var(--wb-green) !important;
     box-shadow: 0 0 0 4px rgba(74, 124, 63, 0.1);
     outline: none;
+  }
+
+  #bookingForm input[data-availability-invalid] {
+    border-color: #9a4a36 !important;
+    box-shadow: 0 0 0 4px rgba(154, 74, 54, 0.12);
   }
 
   #bookingForm input:disabled,

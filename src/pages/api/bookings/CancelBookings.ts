@@ -1,25 +1,34 @@
 // POST /api/bookings/CancelBookings - cancel a booking (admin or booking owner)
 import type { APIRoute } from "astro";
 import { supabaseAdmin, supabase } from "../../../lib/supabase";
-import { getUser } from "../../../lib/auth";
+import { getUserRole } from "../../../lib/adminGuard";
 import { ok, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
 import { normalizeBookingStatus } from "../../../lib/bookingStatus";
-import { updateBookingStatusAndNotify } from "../../../services/notifications";
+import {
+  BookingStatusTransitionError,
+  updateBookingStatusAndNotify,
+} from "../../../services/notifications";
 
 export const prerender = false;
 
 const db = supabaseAdmin ?? supabase;
 
 export const POST: APIRoute = async ({ request, cookies }) => {
-  const user = await getUser(cookies);
-  if (!user) return error("Unauthorized - please sign in", 401);
+  const roleInfo = await getUserRole(cookies);
+  if (!roleInfo) return error("Unauthorized - please sign in", 401);
+  const user = roleInfo.user;
 
-  const body = await parseBody<{ bookingId?: string }>(request);
+  const body = await parseBody<{ bookingId?: string; cancellationReason?: string }>(request);
   if (!body.ok) return body.response;
 
   const { bookingId } = body.data;
   if (!bookingId) return error("bookingId is required", 400);
+  const cancellationReason =
+    typeof body.data.cancellationReason === "string" ? body.data.cancellationReason.trim() : "";
+  if (cancellationReason.length > 500) {
+    return error("cancellationReason must be 500 characters or fewer", 400);
+  }
 
   const { data: booking, error: fetchError } = await db
     .from("bookings")
@@ -32,14 +41,29 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (bookingStatus === "cancelled") return error("Booking is already cancelled", 400);
   if (bookingStatus === "completed") return error("Cannot cancel a completed booking", 400);
 
-  const { data: adminRow } = await db.from("admins").select("id").eq("id", user.id).single();
-  const isAdmin = !!adminRow;
-  if (!isAdmin && booking.user_id !== user.id) {
+  const isInternalUser = roleInfo.role === "admin" || roleInfo.role === "staff";
+  if (!isInternalUser && booking.user_id !== user.id) {
     return error("You can only cancel your own bookings", 403);
+  }
+  if (isInternalUser && !cancellationReason) {
+    return error("cancellationReason is required when staff or admins cancel a booking", 400);
   }
 
   try {
-    const result = await updateBookingStatusAndNotify(bookingId, "cancelled", { client: db });
+    const result = await updateBookingStatusAndNotify(bookingId, "cancelled", {
+      client: db,
+      actorId: user.id,
+      actorType: isInternalUser ? roleInfo.role : "customer",
+      reason: cancellationReason || null,
+      ...(isInternalUser
+        ? {
+            update: {
+              cancellation_reason: cancellationReason,
+              cancellation_source: `${roleInfo.role}_manual`,
+            },
+          }
+        : {}),
+    });
     return ok({
       message: "Booking cancelled successfully",
       booking: result.booking,
@@ -48,6 +72,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   } catch (updateError) {
     const message = updateError instanceof Error ? updateError.message : "Booking update failed";
     console.error("[CancelBookings]", message);
+    if (updateError instanceof BookingStatusTransitionError) {
+      return error(message, 409);
+    }
     return error(message, 500);
   }
 };

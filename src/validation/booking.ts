@@ -54,18 +54,16 @@ const estimateSummarySchema = z.object({
   remainingBalance: z.number().min(0),
 });
 
-function addOneCalendarMonth(date: Date) {
-  const oneMonthLater = new Date(date.getFullYear(), date.getMonth() + 1, date.getDate());
-  if (oneMonthLater.getDate() !== date.getDate()) {
-    oneMonthLater.setDate(0);
-  }
-  return oneMonthLater;
+function addDays(date: Date, days: number) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
 }
 
 function getMinimumBookingDate() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return addOneCalendarMonth(today);
+  return addDays(today, 7);
 }
 
 const termsAgreementMessage =
@@ -120,11 +118,11 @@ export const createBookingSchema = z
   )
   .refine(
     (d) => parseDateOnly(d.startDate) >= getMinimumBookingDate(),
-    { message: "startDate must be at least one month in advance", path: ["startDate"] },
+    { message: "startDate must be at least one week in advance", path: ["startDate"] },
   )
   .refine(
     (d) => !d.eventDate || parseDateOnly(d.eventDate) >= getMinimumBookingDate(),
-    { message: "eventDate must be at least one month in advance", path: ["eventDate"] },
+    { message: "eventDate must be at least one week in advance", path: ["eventDate"] },
   )
   .refine(
     (d) =>

@@ -106,6 +106,30 @@ function sumItems(items: RateItem[]) {
   return items.reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
 }
 
+async function hasOverlappingBooking(venueId: string, startDate: string, endDate: string) {
+  return db
+    .from("bookings")
+    .select("id")
+    .eq("venue_id", venueId)
+    .neq("status", "cancelled")
+    .lte("start_date", endDate)
+    .gte("end_date", startDate)
+    .limit(1);
+}
+
+async function hasOverlappingBlockedDate(venueId: string, startDate: string, endDate: string) {
+  return db
+    .from("blocked_dates")
+    .select("id")
+    .eq("venue_id", venueId)
+    .eq("is_active", true)
+    .lte("start_date", endDate)
+    .gte("end_date", startDate)
+    .limit(1);
+}
+
+const db = supabaseAdmin ?? supabase;
+
 export const POST: APIRoute = async ({ request, cookies }) => {
   const user = await getUser(cookies);
   if (!user) return error("Unauthorized - please sign in", 401);
@@ -135,7 +159,6 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     smsNotificationsEnabled,
   } = parsed.data;
 
-  const db = supabaseAdmin ?? supabase;
   const now = new Date().toISOString();
   const reservationExpiresAt = new Date(
     new Date(now).getTime() + 48 * 60 * 60 * 1000,
@@ -164,27 +187,6 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     if (profileError) {
       console.warn("[CreateBookings] Customer contact update failed", profileError.message);
     }
-  }
-
-  const { data: overlap, error: overlapError } = await db
-    .from("bookings")
-    .select("id")
-    .eq("venue_id", venueId)
-    .neq("status", "cancelled")
-    .lte("start_date", endDate)
-    .gte("end_date", startDate)
-    .limit(1);
-
-  if (overlapError) {
-    console.error("[CreateBookings] Availability check failed", overlapError.message);
-    return error("Could not verify venue availability. Please try again.", 500);
-  }
-
-  if (overlap && overlap.length > 0) {
-    return error(
-      "Selected dates overlap an existing non-cancelled booking for this venue. Please choose another date range.",
-      409,
-    );
   }
 
   const { data: venue } = await supabase
@@ -227,6 +229,26 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     minimumPayment: computedMinimumPayment,
     remainingBalance: computedRemainingBalance,
   };
+
+  const [
+    { data: overlap, error: overlapError },
+    { data: blockedOverlap, error: blockedOverlapError },
+  ] = await Promise.all([
+    hasOverlappingBooking(venueId, startDate, endDate),
+    hasOverlappingBlockedDate(venueId, startDate, endDate),
+  ]);
+
+  if (overlapError || blockedOverlapError) {
+    console.error(
+      "[CreateBookings] Availability check failed",
+      overlapError?.message ?? blockedOverlapError?.message,
+    );
+    return error("Could not verify venue availability. Please try again.", 500);
+  }
+
+  if ((overlap && overlap.length > 0) || (blockedOverlap && blockedOverlap.length > 0)) {
+    return error("Selected dates are unavailable. Please choose another date.", 409);
+  }
 
   const { data: newBooking, error: insertError } = await db
     .from("bookings")

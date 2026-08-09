@@ -1,18 +1,21 @@
-// POST /api/bookings/ConfirmBookings - book a booking (admin only)
+// POST /api/bookings/ConfirmBookings - book a booking (staff or admin)
 import type { APIRoute } from "astro";
 import { supabaseAdmin, supabase } from "../../../lib/supabase";
-import { adminGuard } from "../../../lib/adminGuard";
+import { staffOrAdminGuard } from "../../../lib/adminGuard";
 import { ok, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
 import { normalizeBookingStatus } from "../../../lib/bookingStatus";
-import { updateBookingStatusAndNotify } from "../../../services/notifications";
+import {
+  BookingStatusTransitionError,
+  updateBookingStatusAndNotify,
+} from "../../../services/notifications";
 
 export const prerender = false;
 
 const db = supabaseAdmin ?? supabase;
 
 export const POST: APIRoute = async ({ request, cookies }) => {
-  const guard = await adminGuard(cookies);
+  const guard = await staffOrAdminGuard(cookies);
   if (guard instanceof Response) return guard;
 
   const body = await parseBody<{ bookingId?: string }>(request);
@@ -40,7 +43,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   try {
-    const result = await updateBookingStatusAndNotify(bookingId, "booked", { client: db });
+    const result = await updateBookingStatusAndNotify(bookingId, "booked", {
+      client: db,
+      actorId: guard.user.id,
+      actorType: guard.role,
+    });
     return ok({
       message: "Booking booked successfully",
       booking: result.booking,
@@ -49,6 +56,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   } catch (updateError) {
     const message = updateError instanceof Error ? updateError.message : "Booking update failed";
     console.error("[ConfirmBookings]", message);
+    if (updateError instanceof BookingStatusTransitionError) {
+      return error(message, 409);
+    }
     return error(message, 500);
   }
 };

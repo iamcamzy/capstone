@@ -1,13 +1,16 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "../lib/database.types";
+import type { Database, Json } from "../lib/database.types";
 import {
   BOOKING_STATUS_LABELS,
+  bookingStatusTransitionErrorMessage,
   type BookingStatus,
   type NotifiableBookingStatus,
+  isValidBookingStatusTransition,
   isNotifiableBookingStatus,
   normalizeBookingStatus,
 } from "../lib/bookingStatus";
 import { supabaseAdmin, supabase } from "../lib/supabase";
+import { logBookingAudit, type BookingAuditActorType } from "./bookingAudit";
 import { sendTransactionalEmail, type EmailSendResult } from "./email";
 import { sendSmsNotification, type SmsSendResult } from "./sms";
 
@@ -69,6 +72,13 @@ export class ContractSigningScheduleStatusError extends Error {
   constructor() {
     super(CONTRACT_SIGNING_SCHEDULE_STATUS_MESSAGE);
     this.name = "ContractSigningScheduleStatusError";
+  }
+}
+
+export class BookingStatusTransitionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BookingStatusTransitionError";
   }
 }
 
@@ -445,6 +455,20 @@ export function notificationChannelSucceeded(
   return delivered(result);
 }
 
+function statusAuditAction(
+  fromStatus: BookingStatus,
+  toStatus: BookingStatus,
+  manualOverride?: boolean,
+): string {
+  if (manualOverride) return "manual_override";
+  if (toStatus === "cancelled") return "booking_cancelled";
+  if (toStatus === "rescheduled") return "booking_rescheduled";
+  if (toStatus === "booked" && fromStatus === "rescheduled") return "booking_rebooked";
+  if (toStatus === "booked") return "booking_booked";
+  if (toStatus === "completed") return "booking_completed";
+  return "booking_status_changed";
+}
+
 export async function updateBookingStatusAndNotify(
   bookingId: string,
   newStatus: BookingStatus,
@@ -452,11 +476,48 @@ export async function updateBookingStatusAndNotify(
     client?: DbClient;
     update?: Record<string, unknown>;
     notify?: boolean;
+    manualOverride?: boolean;
+    actorId?: string | null;
+    actorType?: BookingAuditActorType;
+    action?: string;
+    reason?: string | null;
+    metadata?: Json;
   } = {},
 ): Promise<BookingStatusUpdateResult> {
   const client = options.client ?? db;
   const now = new Date().toISOString();
   const normalizedStatus = normalizeBookingStatus(newStatus);
+
+  const { data: currentBooking, error: fetchError } = await client
+    .from("bookings")
+    .select("id, status")
+    .eq("id", bookingId)
+    .single();
+
+  if (fetchError || !currentBooking) {
+    throw new Error(fetchError?.message ?? "Booking not found");
+  }
+
+  const currentStatus = normalizeBookingStatus(currentBooking.status);
+  if (
+    !isValidBookingStatusTransition(currentStatus, normalizedStatus, {
+      manualOverride: options.manualOverride,
+    })
+  ) {
+    throw new BookingStatusTransitionError(
+      bookingStatusTransitionErrorMessage(currentStatus, normalizedStatus, {
+        manualOverride: options.manualOverride,
+      }),
+    );
+  }
+
+  if (currentStatus === normalizedStatus) {
+    return {
+      booking: { id: currentBooking.id, status: currentStatus },
+      message: "Booking status unchanged.",
+      unchanged: true,
+    };
+  }
 
   const statusDates: Record<string, string> = {};
   if (normalizedStatus === "booked") statusDates.confirmed_at = now;
@@ -479,6 +540,25 @@ export async function updateBookingStatusAndNotify(
   if (updateError || !booking) {
     throw new Error(updateError?.message ?? "Booking update failed");
   }
+
+  await logBookingAudit(
+    {
+      bookingId,
+      actorId: options.actorId ?? null,
+      actorType: options.actorType ?? "system",
+      action: options.action ?? statusAuditAction(currentStatus, normalizedStatus, options.manualOverride),
+      fromStatus: currentStatus,
+      toStatus: normalizedStatus,
+      reason: options.reason ?? null,
+      metadata: {
+        ...(typeof options.metadata === "object" && options.metadata !== null && !Array.isArray(options.metadata)
+          ? options.metadata
+          : {}),
+        manualOverride: options.manualOverride === true,
+      },
+    },
+    client,
+  );
 
   const result: BookingStatusUpdateResult = {
     booking: { id: booking.id, status: normalizeBookingStatus(booking.status) },
@@ -513,6 +593,10 @@ export async function updateContractSigningScheduleAndNotify(
   },
   options: {
     client?: DbClient;
+    actorId?: string | null;
+    actorType?: BookingAuditActorType;
+    reason?: string | null;
+    metadata?: Json;
   } = {},
 ): Promise<BookingStatusUpdateResult> {
   const client = options.client ?? db;
@@ -559,6 +643,25 @@ export async function updateContractSigningScheduleAndNotify(
   if (updateError || !booking) {
     throw new Error(updateError?.message ?? "Contract signing schedule update failed");
   }
+
+  await logBookingAudit(
+    {
+      bookingId,
+      actorId: options.actorId ?? null,
+      actorType: options.actorType ?? "system",
+      action: "contract_signing_schedule_updated",
+      fromStatus: currentStatus,
+      toStatus: normalizeBookingStatus(booking.status),
+      reason: options.reason ?? null,
+      metadata: {
+        oldContractSigningDate: currentDate,
+        oldContractSigningTime: currentTime,
+        newContractSigningDate: schedule.contractSigningDate,
+        newContractSigningTime: newTime,
+      },
+    },
+    client,
+  );
 
   const result: BookingStatusUpdateResult = {
     booking: { id: booking.id, status: normalizeBookingStatus(booking.status) },

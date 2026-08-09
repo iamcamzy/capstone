@@ -53,6 +53,7 @@
         {[
           { color:'#22c55e', label:'Available' },
           { color:'#ef4444', label:'Booked' },
+          { color:'#aa8f66', label:'Blocked' },
           { color:'#e5e7eb', label:'Unavailable' },
         ].map(item => (
           <div style="display:flex;align-items:center;gap:6px;">
@@ -92,16 +93,14 @@
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
   }
 
-  function addOneCalendarMonth(date: Date) {
-    const oneMonthLater = new Date(date.getFullYear(), date.getMonth() + 1, date.getDate());
-    if (oneMonthLater.getDate() !== date.getDate()) {
-      oneMonthLater.setDate(0);
-    }
-    return oneMonthLater;
+  function addDays(date: Date, days: number) {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
   }
 
   const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const minimumBookingDateISO = formatDateOnly(addOneCalendarMonth(todayDateOnly));
+  const minimumBookingDateISO = formatDateOnly(addDays(todayDateOnly, 7));
 
   // Cache fetched data per "YYYY-MM" key
   const cache: Record<string, Set<string>> = {};
@@ -131,6 +130,13 @@
 
       const combined = new Set<string>();
       booked.forEach(d  => combined.add('b:' + d));
+      for (const blockedDate of (json.blockedDates ?? [])) {
+        const start = new Date(blockedDate.start_date + 'T00:00:00');
+        const end = new Date(blockedDate.end_date + 'T00:00:00');
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          combined.add('x:' + formatDateOnly(d));
+        }
+      }
 
       cache[key] = combined;
       return combined;
@@ -166,6 +172,7 @@
         const isPast  = dateISO < todayISO;
         const isTooSoon = dateISO < minimumBookingDateISO;
         const isBooked   = bookedSet.has('b:' + dateISO);
+        const isBlocked = bookedSet.has('x:' + dateISO);
 
         let state = 'available';
         let bg = '#f0fdf4', textColor = '#166534', ring = '#22c55e'; // available
@@ -175,6 +182,9 @@
         } else if (isBooked) {
           state = 'booked';
           bg = '#fef2f2'; textColor = '#991b1b'; ring = '#ef4444';
+        } else if (isBlocked) {
+          state = 'blocked';
+          bg = '#f7f2ea'; textColor = '#6f5430'; ring = '#aa8f66';
         }
 
         cell.dataset.state = state;
@@ -278,6 +288,12 @@
     background: #3a211c !important;
     color: #efb0a2 !important;
     outline-color: #9a4a36 !important;
+  }
+
+  :global(html.dark) #calGrid > div[data-state="blocked"] {
+    background: #33291c !important;
+    color: #d4bd94 !important;
+    outline-color: #aa8f66 !important;
   }
 
   :global(html.dark) #calGrid > div[data-state="unavailable"] {

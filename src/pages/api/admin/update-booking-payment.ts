@@ -1,9 +1,10 @@
 import type { APIRoute } from "astro";
 import { z } from "zod";
-import { adminGuard } from "../../../lib/adminGuard";
+import { staffOrAdminGuard } from "../../../lib/adminGuard";
 import { parseBody } from "../../../lib/parseBody";
 import { error, ok } from "../../../lib/response";
 import { supabase, supabaseAdmin } from "../../../lib/supabase";
+import { logBookingAudit } from "../../../services/bookingAudit";
 
 export const prerender = false;
 
@@ -32,7 +33,7 @@ const paymentSchema = z.object({
 });
 
 export const POST: APIRoute = async ({ request, cookies }) => {
-  const guard = await adminGuard(cookies);
+  const guard = await staffOrAdminGuard(cookies);
   if (guard instanceof Response) return guard;
 
   const body = await parseBody(request);
@@ -42,7 +43,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   const { data: booking, error: bookingError } = await db
     .from("bookings")
-    .select("id")
+    .select("id, status")
     .eq("id", parsed.data.bookingId)
     .single();
   if (bookingError || !booking) return error("Booking not found", 404);
@@ -72,6 +73,26 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     console.error("[UpdateBookingPayment]", dbError.message);
     return error("Could not save payment information", 500);
   }
+
+  await logBookingAudit(
+    {
+      bookingId: booking.id,
+      actorId: guard.user.id,
+      actorType: guard.role,
+      action: "payment_status_updated",
+      fromStatus: booking.status,
+      toStatus: booking.status,
+      reason: parsed.data.paymentNotes || null,
+      metadata: {
+        paymentStatus: parsed.data.paymentStatus,
+        amountPaid,
+        totalBookingAmount: total,
+        paymentMethod: parsed.data.paymentMethod ?? null,
+        paymentRecordedAt: parsed.data.paymentRecordedAt ?? null,
+      },
+    },
+    db,
+  );
 
   return ok({ message: "Payment information saved", payment: data });
 };

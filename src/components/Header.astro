@@ -2,21 +2,19 @@
 import CalendarPreview from './calendarComps/calendarPreview.astro';
 import Theme from './ThemeButton.astro';
 import { getUser } from '../lib/auth';
-import { supabase, supabaseAdmin } from '../lib/supabase';
+import { getUserRole } from '../lib/adminGuard';
 
 const user = await getUser(Astro.cookies);
 const pathname = Astro.url.pathname;
-
-let isAdmin = false;
-if (user) {
-  const client = supabaseAdmin ?? supabase;
-  const { data } = await client
-    .from('admins')
-    .select('id')
-    .eq('id', user.id)
-    .single();
-  isAdmin = Boolean(data);
-}
+const roleInfo = user ? await getUserRole(Astro.cookies) : null;
+const dashboardHref = roleInfo?.role === 'admin' || roleInfo?.role === 'staff'
+  ? '/admin'
+  : '/dashboard';
+const dashboardLabel = roleInfo?.role === 'admin'
+  ? 'Admin Dashboard'
+  : roleInfo?.role === 'staff'
+    ? 'Staff Dashboard'
+    : 'Dashboard';
 
 const navItems = [
   { href: '/', label: 'Home', active: pathname === '/' },
@@ -92,10 +90,10 @@ const navItems = [
           {user ? (
             <>
               <a
-                href={isAdmin ? '/admin' : '/dashboard'}
+                href={dashboardHref}
                 class="header-action-link"
               >
-                {isAdmin ? 'Admin Dashboard' : 'Dashboard'}
+                {dashboardLabel}
               </a>
               <form method="POST" action="/api/auth/signout">
                 <button type="submit" class="header-action-link header-action-link--logout">

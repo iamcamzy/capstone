@@ -72,6 +72,114 @@ export type Database = {
         };
         Relationships: [];
       };
+      employees: {
+        Row: {
+          id: string;
+          email: string | null;
+          first_name: string | null;
+          last_name: string | null;
+          position: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          email?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
+          position?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
+          position?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      blocked_dates: {
+        Row: {
+          id: string;
+          venue_id: string;
+          start_date: string;
+          end_date: string;
+          reason: string;
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+          is_active: boolean;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          start_date: string;
+          end_date: string;
+          reason: string;
+          created_by: string;
+          created_at?: string;
+          updated_at?: string;
+          is_active?: boolean;
+        };
+        Update: {
+          id?: string;
+          venue_id?: string;
+          start_date?: string;
+          end_date?: string;
+          reason?: string;
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+          is_active?: boolean;
+        };
+        Relationships: [];
+      };
+      booking_audit_log: {
+        Row: {
+          id: string;
+          booking_id: string;
+          actor_id: string | null;
+          actor_type: "admin" | "staff" | "customer" | "system";
+          action: string;
+          from_status: string | null;
+          to_status: string | null;
+          reason: string | null;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          booking_id: string;
+          actor_id?: string | null;
+          actor_type: "admin" | "staff" | "customer" | "system";
+          action: string;
+          from_status?: string | null;
+          to_status?: string | null;
+          reason?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          booking_id?: string;
+          actor_id?: string | null;
+          actor_type?: "admin" | "staff" | "customer" | "system";
+          action?: string;
+          from_status?: string | null;
+          to_status?: string | null;
+          reason?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       bookings: {
         Row: {
           id: string;
@@ -122,6 +230,7 @@ export type Database = {
           expiration_cancel_notice_sent_at: string | null;
           cancellation_reason: string | null;
           cancellation_source: string | null;
+          override_reason: string | null;
           rescheduled_from_booking_id: string | null;
           created_at: string;
           updated_at: string;
@@ -175,6 +284,7 @@ export type Database = {
           expiration_cancel_notice_sent_at?: string | null;
           cancellation_reason?: string | null;
           cancellation_source?: string | null;
+          override_reason?: string | null;
           rescheduled_from_booking_id?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -228,6 +338,7 @@ export type Database = {
           expiration_cancel_notice_sent_at?: string | null;
           cancellation_reason?: string | null;
           cancellation_source?: string | null;
+          override_reason?: string | null;
           rescheduled_from_booking_id?: string | null;
           created_at?: string;
           updated_at?: string;
