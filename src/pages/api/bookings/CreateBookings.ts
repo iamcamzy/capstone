@@ -1,7 +1,7 @@
 // POST /api/bookings/CreateBookings - create a booking (requires auth)
 import type { APIRoute } from "astro";
 import { supabase, supabaseAdmin } from "../../../lib/supabase";
-import { getUser } from "../../../lib/auth";
+import { getUser, isEmailVerified } from "../../../lib/auth";
 import { createBookingSchema } from "../../../validation/booking";
 import { created, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
@@ -133,6 +133,9 @@ const db = supabaseAdmin ?? supabase;
 export const POST: APIRoute = async ({ request, cookies }) => {
   const user = await getUser(cookies);
   if (!user) return error("Unauthorized - please sign in", 401);
+  if (!isEmailVerified(user)) {
+    return error("Please verify your email before creating a booking.", 403);
+  }
 
   const body = await parseBody(request);
   if (!body.ok) return body.response;

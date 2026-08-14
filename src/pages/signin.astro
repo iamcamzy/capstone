@@ -1,13 +1,17 @@
 ---
 import ShowButton from '../components/showButton.astro';
 import Layout from '../layouts/Layout.astro';
+import { clearSessionCookies, getUser, isEmailVerified } from '../lib/auth';
 export const prerender = false;
 
 const { cookies, url } = Astro;
-const hasSession = cookies.get('sb-access-token') && cookies.get('sb-refresh-token');
-if (hasSession) return Astro.redirect('/dashboard');
+const currentUser = await getUser(cookies);
+if (currentUser && isEmailVerified(currentUser)) return Astro.redirect('/dashboard');
+if (currentUser) clearSessionCookies(cookies);
 
 const errorMsg = url.searchParams.get('error');
+const isUnverified = url.searchParams.get('unverified') === '1';
+const unverifiedEmail = url.searchParams.get('email') ?? '';
 ---
 
 <Layout title="Sign in">
@@ -24,10 +28,16 @@ const errorMsg = url.searchParams.get('error');
         </div>
       )}
 
-      <form action="/api/auth/signin" method="post" class="px-6 py-8 space-y-5">
+      {isUnverified && (
+        <div class="mx-6 mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+          Please verify your email before signing in. You can resend the verification email below.
+        </div>
+      )}
+
+      <form action="/api/auth/signin" method="post" class="px-6 pt-8 pb-4 space-y-5">
         <div>
           <label for="email" class="block text-sm font-bold mb-1">Email</label>
-          <input id="email" name="email" type="email" required
+          <input id="email" name="email" type="email" required value={unverifiedEmail}
             class="w-full p-2 pl-4 rounded ring focus:outline-none focus:ring-2" />
         </div>
         <div class="relative">
@@ -41,6 +51,10 @@ const errorMsg = url.searchParams.get('error');
           Log in
         </button>
       </form>
+      <div class="px-6 pb-5 text-center">
+        <button id="resendVerification" type="button" class="auth-link underline text-sm">Resend verification email</button>
+        <div id="resendNotice" class="hidden mt-3 p-3 rounded-lg text-sm font-semibold"></div>
+      </div>
       <p class="flex justify-end pb-4 px-6 gap-2 text-sm">
         New here?
         <a href="/signup" class="auth-link underline">Create an account</a>
@@ -48,6 +62,42 @@ const errorMsg = url.searchParams.get('error');
     </div>
   </div>
 </Layout>
+
+<script>
+  const resendButton = document.getElementById('resendVerification') as HTMLButtonElement | null;
+  const emailInput = document.getElementById('email') as HTMLInputElement | null;
+  const resendNotice = document.getElementById('resendNotice');
+
+  function showResendNotice(message: string, success: boolean) {
+    if (!resendNotice) return;
+    resendNotice.textContent = message;
+    resendNotice.className = 'mt-3 p-3 rounded-lg text-sm font-semibold '
+      + (success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
+  }
+
+  resendButton?.addEventListener('click', async () => {
+    const email = emailInput?.value.trim() ?? '';
+    if (!email) {
+      showResendNotice('Enter your email address first.', false);
+      return;
+    }
+
+    resendButton.disabled = true;
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json().catch(() => ({}));
+      showResendNotice(data.message ?? data.error ?? 'Unable to resend verification email.', response.ok);
+    } catch {
+      showResendNotice('Unable to resend verification email. Please try again.', false);
+    } finally {
+      resendButton.disabled = false;
+    }
+  });
+</script>
 
 <style>
   .auth-page {

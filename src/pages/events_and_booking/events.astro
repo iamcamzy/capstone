@@ -8,6 +8,25 @@ const user = await getUser(Astro.cookies);
 const isLoggedIn = Boolean(user);
 const { data: venues } = await getAllVenues();
 const venuesToDisplay = venues || [];
+
+const packageOptions = [
+  { value: 'lunch-time', label: 'Lunch Time Package', minGuests: 80, eventTypes: ['wedding', 'birthday', 'corporate', 'conference', 'debut', 'other'] },
+  { value: 'dinner-time', label: 'Dinner Time Package', minGuests: 80, eventTypes: ['wedding', 'birthday', 'corporate', 'conference', 'debut', 'other'] },
+  { value: 'barkada-staycation', label: 'Barkada Staycation', minGuests: 10, eventTypes: ['birthday', 'other'] },
+  { value: 'pamilya-staycation', label: 'Pamilya Staycation', minGuests: 20, eventTypes: ['birthday', 'debut', 'other'] },
+  { value: 'room-rates', label: 'Room Rates', minGuests: 1, eventTypes: ['other'] },
+];
+
+const eventTypeOptions = [
+  ['wedding', 'Wedding'],
+  ['birthday', 'Birthday Party'],
+  ['corporate', 'Corporate Event'],
+  ['conference', 'Conference'],
+  ['debut', 'Debut'],
+  ['other', 'Other'],
+];
+
+const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue.price_per_night) || 0));
 ---
 
 <Layout>
@@ -40,13 +59,101 @@ const venuesToDisplay = venues || [];
           </div>
         </div>
 
+        {venuesToDisplay.length > 0 && (
+          <section class="events-filters wb-card" aria-labelledby="events-filter-title">
+            <div class="events-filters__heading">
+              <div>
+                <p class="wb-section-header__eyebrow">Refine your search</p>
+                <h2 id="events-filter-title">Find your best fit</h2>
+              </div>
+              <p class="events-results" aria-live="polite">
+                <strong data-result-count>{venuesToDisplay.length}</strong>
+                <span data-result-label>{venuesToDisplay.length === 1 ? ' matching venue' : ' matching venues'}</span>
+              </p>
+            </div>
+
+            <form class="events-filter-form" data-events-filter-form>
+              <label>
+                <span>Venue</span>
+                <select name="venue">
+                  <option value="">All venues</option>
+                  {venuesToDisplay.map((venue) => <option value={venue.id}>{venue.name}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Package</span>
+                <select name="package">
+                  <option value="">All packages</option>
+                  {packageOptions.map((pkg) => <option value={pkg.value}>{pkg.label}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Event type</span>
+                <select name="eventType">
+                  <option value="">All event types</option>
+                  {eventTypeOptions.map(([value, label]) => <option value={value}>{label}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Guest capacity</span>
+                <input name="guests" type="number" min="1" inputmode="numeric" placeholder="Number of guests" />
+              </label>
+              <label>
+                <span>Minimum price</span>
+                <input name="minPrice" type="number" min="0" inputmode="decimal" placeholder="₱0" />
+              </label>
+              <label>
+                <span>Maximum price</span>
+                <input name="maxPrice" type="number" min="0" inputmode="decimal" placeholder={maxVenuePrice ? `₱${maxVenuePrice.toLocaleString('en-PH')}` : 'Any price'} />
+              </label>
+              <label>
+                <span>Sort by</span>
+                <select name="sort">
+                  <option value="name-asc">Name: A to Z</option>
+                  <option value="name-desc">Name: Z to A</option>
+                  <option value="price-asc">Price: low to high</option>
+                  <option value="price-desc">Price: high to low</option>
+                  <option value="capacity-asc">Capacity: low to high</option>
+                  <option value="capacity-desc">Capacity: high to low</option>
+                </select>
+              </label>
+              <div class="events-filter-form__actions">
+                <button type="button" class="events-filter-button events-filter-button--secondary" data-clear-filters>Clear filters</button>
+                <button type="reset" class="events-filter-button">Reset filters</button>
+              </div>
+            </form>
+          </section>
+        )}
+
         {
           venuesToDisplay.length > 0 ? (
-            <div class="events-grid">
-              {venuesToDisplay.map((venue) => (
-                <EventCard venue={venue} isLoggedIn={isLoggedIn} />
-              ))}
-            </div>
+            <>
+              <div class="events-grid" data-events-grid>
+                {venuesToDisplay.map((venue) => {
+                  const compatiblePackages = packageOptions.filter((pkg) => !venue.capacity || venue.capacity >= pkg.minGuests);
+                  const supportedEvents = [...new Set(compatiblePackages.flatMap((pkg) => pkg.eventTypes))];
+                  return (
+                    <div
+                      class="events-grid__item"
+                      data-event-item
+                      data-id={venue.id}
+                      data-name={venue.name || ''}
+                      data-price={Number(venue.price_per_night) || 0}
+                      data-capacity={Number(venue.capacity) || 0}
+                      data-packages={compatiblePackages.map((pkg) => pkg.value).join(',')}
+                      data-event-types={supportedEvents.join(',')}
+                    >
+                      <EventCard venue={venue} isLoggedIn={isLoggedIn} />
+                    </div>
+                  );
+                })}
+              </div>
+              <div class="wb-empty-state events-no-results" data-no-results hidden>
+                <div class="wb-empty-state__icon" aria-hidden="true">WB</div>
+                <h2 class="wb-empty-state__title">No venues match those filters</h2>
+                <p class="wb-empty-state__text">Try widening your price or guest range, or clear the filters to see every venue.</p>
+              </div>
+            </>
           ) : (
             <div class="wb-empty-state events-empty-state">
               <div class="wb-empty-state__icon" aria-hidden="true">
@@ -64,6 +171,65 @@ const venuesToDisplay = venues || [];
     </div>
   </div>
 </Layout>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>('[data-events-filter-form]');
+  const grid = document.querySelector<HTMLElement>('[data-events-grid]');
+  const noResults = document.querySelector<HTMLElement>('[data-no-results]');
+  const count = document.querySelector<HTMLElement>('[data-result-count]');
+  const countLabel = document.querySelector<HTMLElement>('[data-result-label]');
+
+  if (form && grid) {
+    const items = Array.from(grid.querySelectorAll<HTMLElement>('[data-event-item]'));
+    const value = (name: string) => (form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null)?.value ?? '';
+
+    const updateResults = () => {
+      const venue = value('venue');
+      const selectedPackage = value('package');
+      const eventType = value('eventType');
+      const guests = Number(value('guests')) || 0;
+      const minPrice = value('minPrice') === '' ? 0 : Number(value('minPrice'));
+      const maxPrice = value('maxPrice') === '' ? Number.POSITIVE_INFINITY : Number(value('maxPrice'));
+      const [sortField, sortDirection] = value('sort').split('-');
+
+      const matching = items.filter((item) => {
+        const price = Number(item.dataset.price) || 0;
+        const capacity = Number(item.dataset.capacity) || 0;
+        const packages = (item.dataset.packages ?? '').split(',');
+        const eventTypes = (item.dataset.eventTypes ?? '').split(',');
+        return (!venue || item.dataset.id === venue)
+          && (!selectedPackage || packages.includes(selectedPackage))
+          && (!eventType || eventTypes.includes(eventType))
+          && (!guests || capacity >= guests)
+          && price >= minPrice
+          && price <= maxPrice;
+      });
+
+      items.sort((a, b) => {
+        const direction = sortDirection === 'desc' ? -1 : 1;
+        if (sortField === 'name') return (a.dataset.name ?? '').localeCompare(b.dataset.name ?? '') * direction;
+        return ((Number(a.dataset[sortField]) || 0) - (Number(b.dataset[sortField]) || 0)) * direction;
+      }).forEach((item) => grid.append(item));
+
+      items.forEach((item) => { item.hidden = !matching.includes(item); });
+      if (count) count.textContent = String(matching.length);
+      if (countLabel) countLabel.textContent = matching.length === 1 ? ' matching venue' : ' matching venues';
+      if (noResults) noResults.hidden = matching.length !== 0;
+      grid.hidden = matching.length === 0;
+    };
+
+    form.addEventListener('input', updateResults);
+    form.addEventListener('reset', () => requestAnimationFrame(updateResults));
+    form.querySelector('[data-clear-filters]')?.addEventListener('click', () => {
+      ['venue', 'package', 'eventType', 'guests', 'minPrice', 'maxPrice'].forEach((name) => {
+        const control = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null;
+        if (control) control.value = '';
+      });
+      updateResults();
+    });
+    updateResults();
+  }
+</script>
 
 <style>
   .events-page {
@@ -128,6 +294,104 @@ const venuesToDisplay = venues || [];
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
   }
 
+  .events-grid__item {
+    min-width: 0;
+  }
+
+  .events-grid__item[hidden],
+  .events-no-results[hidden] {
+    display: none;
+  }
+
+  .events-filters {
+    margin: 1.5rem 0;
+    padding: clamp(1rem, 3vw, 1.5rem);
+  }
+
+  .events-filters__heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .events-filters__heading h2 {
+    margin: 0.2rem 0 0;
+    color: var(--wb-green-dark);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.35rem, 3vw, 1.75rem);
+  }
+
+  .events-results {
+    margin: 0;
+    color: var(--wb-muted);
+    white-space: nowrap;
+  }
+
+  .events-results strong {
+    color: var(--wb-green);
+    font-size: 1.35rem;
+  }
+
+  .events-filter-form {
+    display: grid;
+    gap: 0.9rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .events-filter-form label {
+    display: grid;
+    gap: 0.4rem;
+    color: var(--wb-green-dark);
+    font-size: 0.78rem;
+    font-weight: 900;
+  }
+
+  .events-filter-form input,
+  .events-filter-form select {
+    width: 100%;
+    min-height: 2.75rem;
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius-sm);
+    background: var(--wb-surface-soft);
+    color: var(--wb-text);
+    padding: 0.7rem 0.8rem;
+  }
+
+  .events-filter-form input:focus,
+  .events-filter-form select:focus {
+    border-color: var(--wb-green);
+    outline: 3px solid color-mix(in srgb, var(--wb-green) 18%, transparent);
+  }
+
+  .events-filter-form__actions {
+    display: flex;
+    align-items: end;
+    gap: 0.6rem;
+  }
+
+  .events-filter-button {
+    min-height: 2.75rem;
+    flex: 1;
+    border: 1px solid var(--wb-green);
+    border-radius: var(--wb-radius-sm);
+    background: var(--wb-green);
+    color: #fff;
+    cursor: pointer;
+    font-weight: 900;
+    padding: 0.65rem 0.8rem;
+  }
+
+  .events-filter-button--secondary {
+    background: transparent;
+    color: var(--wb-green-mid);
+  }
+
+  .events-no-results {
+    margin-top: 1rem;
+  }
+
   .events-empty-state {
     margin-top: 0.5rem;
   }
@@ -156,6 +420,26 @@ const venuesToDisplay = venues || [];
     .events-hero__inner,
     .events-showcase__inner {
       width: min(100% - 1.5rem, 72rem);
+    }
+
+    .events-filters__heading {
+      align-items: start;
+      flex-direction: column;
+    }
+
+    .events-filter-form {
+      grid-template-columns: 1fr;
+    }
+
+    .events-filter-form__actions {
+      align-items: stretch;
+      flex-direction: column;
+    }
+  }
+
+  @media (min-width: 641px) and (max-width: 960px) {
+    .events-filter-form {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 </style>

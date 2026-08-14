@@ -14,5 +14,10 @@ export const signUpSchema = z.object({
   lastName:  z.string().min(1).max(100).optional(),
 });
 
+export const resendVerificationSchema = z.object({
+  email: z.string().email("Enter a valid email address"),
+});
+
 export type SignInInput  = z.infer<typeof signInSchema>;
 export type SignUpInput  = z.infer<typeof signUpSchema>;
+export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;

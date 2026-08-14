@@ -12,6 +12,16 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     </p>
   </div>
 
+  <aside class="booking-instructions" aria-labelledby="booking-instructions-title">
+    <h3 id="booking-instructions-title">Before you send your request</h3>
+    <ol>
+      <li>Enter accurate contact, schedule, guest, and package details.</li>
+      <li>Review your complete booking summary and estimated charges.</li>
+      <li>Submit the request for staff review; submission does not confirm the booking.</li>
+    </ol>
+    <p><strong>Important:</strong> A verified email is required before booking or payment. Unpaid reservations expire after 48 hours, and a 50% down payment is required to secure the booking.</p>
+  </aside>
+
   <!-- Notification banner -->
   <div
     id="bookingNotice"
@@ -29,7 +39,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
         <label
           for="fullName"
           class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);">Full Name *</label
+          style="color: var(--jet-primary);">Guest / Contact Full Name *</label
         >
         <input
           type="text"
@@ -43,7 +53,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
         <label
           for="email"
           class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);">Email Address *</label
+          style="color: var(--jet-primary);">Verified Email Address *</label
         >
         <input
           type="email"
@@ -57,7 +67,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
         <label
           for="phone"
           class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);">Phone Number *</label
+          style="color: var(--jet-primary);">Mobile Number *</label
         >
         <input
           type="tel"
@@ -71,7 +81,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
         <label
           for="address"
           class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);">Address *</label
+          style="color: var(--jet-primary);">Complete Address *</label
         >
         <input
           type="text"
@@ -836,10 +846,11 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       <button id="conf-back-btn" class="confirmation-button confirmation-button--secondary">
         Go Back & Edit
       </button>
-      <button id="conf-submit-btn" class="confirmation-button confirmation-button--primary">
+      <button id="conf-submit-btn" type="button" class="confirmation-button confirmation-button--primary">
         Submit Booking Request
       </button>
     </div>
+    <p id="confirmationError" class="confirmation-error hidden" role="alert"></p>
   </div>
 </div>
 
@@ -921,6 +932,9 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   var termsContinueBtn = document.getElementById("terms-continue-btn");
   var confBackBtn = document.getElementById("conf-back-btn");
   var confSubmitBtn = document.getElementById("conf-submit-btn");
+  var submitBtn = document.getElementById("submitBtn");
+  var confirmationError = document.getElementById("confirmationError");
+  var isSubmitting = false;
   var pricePerNightValue = Number(pricePerNight) || 0;
   var woodberryCatererName = "Woodberry's Caterer";
   var packageOptionsWrap = document.getElementById("packageOptions");
@@ -1833,8 +1847,16 @@ const { venueId, venueName, pricePerNight } = Astro.props;
 
   form.addEventListener("submit", async function (e) {
     e.preventDefault();
-    if (!(await validateMainForm(false))) return;
-    termsModal.classList.remove("hidden");
+    if (isSubmitting || submitBtn.disabled) return;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Checking booking details...";
+    try {
+      if (!(await validateMainForm(false))) return;
+      termsModal.classList.remove("hidden");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Review Terms and Conditions";
+    }
   });
 
   termsBackBtn.addEventListener("click", function () {
@@ -1846,6 +1868,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   });
 
   termsContinueBtn.addEventListener("click", async function () {
+    if (isSubmitting || termsContinueBtn.disabled) return;
     if (noticeEl) noticeEl.classList.add("hidden");
 
     if (!termsAcceptedInput.checked) {
@@ -1857,9 +1880,16 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       return;
     }
 
-    if (!(await validateMainForm(false))) return;
-    termsModal.classList.add("hidden");
-    openConfirmationModal();
+    termsContinueBtn.disabled = true;
+    termsContinueBtn.textContent = "Preparing summary...";
+    try {
+      if (!(await validateMainForm(false))) return;
+      termsModal.classList.add("hidden");
+      openConfirmationModal();
+    } finally {
+      termsContinueBtn.disabled = false;
+      termsContinueBtn.textContent = "Continue to Review Booking";
+    }
   });
 
   confBackBtn.addEventListener("click", function () {
@@ -1871,6 +1901,8 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   });
 
   confSubmitBtn.addEventListener("click", async function () {
+    if (isSubmitting) return;
+    if (confirmationError) confirmationError.classList.add("hidden");
     if (!termsAcceptedInput.checked) {
       showNotice(
         "You must agree to the Terms and Conditions before submitting your booking.",
@@ -1882,13 +1914,19 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       return;
     }
 
+    isSubmitting = true;
+    confSubmitBtn.disabled = true;
+    confBackBtn.disabled = true;
+    confSubmitBtn.textContent = "Submitting booking request...";
+
     if (!(await validateMainForm(true))) {
+      isSubmitting = false;
+      confSubmitBtn.disabled = false;
+      confBackBtn.disabled = false;
+      confSubmitBtn.textContent = "Submit Booking Request";
       confirmModal.classList.add("hidden");
       return;
     }
-
-    confSubmitBtn.disabled = true;
-    confSubmitBtn.textContent = "Submitting...";
 
     var inclusions = getSelectedInclusions();
     var totals = calculateNights();
@@ -2002,22 +2040,22 @@ const { venueId, venueName, pricePerNight } = Astro.props;
           }
         }, 1000);
       } else {
-        confirmModal.classList.add("hidden");
         var fallbackMessage = "Please try again.";
         var apiMessage = result.error ?? result.message ?? fallbackMessage;
-        showNotice(
-          response.status === 409 ? apiMessage : "Booking failed: " + apiMessage,
-          "error",
-        );
+        if (confirmationError) {
+          confirmationError.textContent = response.status === 409 ? apiMessage : "Booking failed: " + apiMessage;
+          confirmationError.classList.remove("hidden");
+        }
       }
     } catch (err) {
-      confirmModal.classList.add("hidden");
-      showNotice(
-        "An error occurred. Please check your connection and try again.",
-        "error",
-      );
+      if (confirmationError) {
+        confirmationError.textContent = "We could not submit your request. Please check your connection and try again; your summary is still available.";
+        confirmationError.classList.remove("hidden");
+      }
     } finally {
+      isSubmitting = false;
       confSubmitBtn.disabled = false;
+      confBackBtn.disabled = false;
       confSubmitBtn.textContent = "Submit Booking Request";
     }
   });
@@ -2060,6 +2098,28 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     margin: 0.55rem 0 0;
     color: var(--wb-muted);
     font-size: 0.96rem;
+  }
+
+  .booking-instructions {
+    margin: 1.25rem 0;
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius-lg);
+    background: var(--wb-green-soft);
+    padding: clamp(1rem, 3vw, 1.35rem);
+  }
+
+  .booking-instructions h3 { margin: 0; color: var(--wb-green-dark); font-family: Georgia, "Times New Roman", serif; font-size: 1.15rem; }
+  .booking-instructions ol { margin: 0.7rem 0; padding-left: 1.25rem; color: var(--wb-text); font-size: 0.9rem; line-height: 1.6; }
+  .booking-instructions p { margin: 0; color: var(--wb-muted); font-size: 0.86rem; line-height: 1.55; }
+
+  .confirmation-error {
+    margin: 0;
+    border-top: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #b91c1c;
+    padding: 0.8rem 1.5rem;
+    font-size: 0.85rem;
+    font-weight: 700;
   }
 
   .booking-flow {
@@ -2389,6 +2449,14 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   .booking-submit:hover {
     background: var(--wb-green-mid);
     transform: translateY(-1px);
+  }
+
+  .booking-submit:disabled,
+  .confirmation-button:disabled,
+  #terms-continue-btn:disabled {
+    cursor: wait;
+    opacity: 0.65;
+    transform: none;
   }
 
   #termsModal,

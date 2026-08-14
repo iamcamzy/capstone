@@ -2,7 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import { getVenue } from '../../../services/venues';
 import BookingForm from '../../../components/bookingForm.astro';
-import { getUser } from '../../../lib/auth';
+import { getUser, isEmailVerified } from '../../../lib/auth';
 
 const { venueId } = Astro.params;
 
@@ -10,6 +10,7 @@ if (!venueId) return Astro.redirect('/events_and_booking/events');
 
 const { data, error } = await getVenue(venueId);
 const user = await getUser(Astro.cookies);
+const emailVerified = user ? isEmailVerified(user) : false;
 
 if (error || !data) return Astro.redirect('/events_and_booking/events');
 
@@ -49,8 +50,8 @@ const venue = {
       <p class="booking-page__eyebrow">Woodberry Booking Request</p>
       <h1>{venue.name}</h1>
       <p class="booking-page__intro">
-        Complete your request with your event details, preferred facilities, and
-        contract signing payment estimate.
+        Choose your dates and package, review the full estimate, then send your
+        request to our staff for approval.
       </p>
     </div>
   </div>
@@ -117,7 +118,8 @@ const venue = {
 
               <div class="booking-page__note">
                 <p>
-                  You will receive updates after the request is submitted.
+                  Requests require staff review. Unpaid reservations expire after
+                  48 hours, and a 50% down payment secures an approved booking.
                 </p>
               </div>
             </div>
@@ -127,7 +129,7 @@ const venue = {
         <!-- Booking Form -->
         <div class="lg:col-span-2">
           {
-            user ? (
+            user && emailVerified ? (
               <div class="booking-page__form-card">
                 <BookingForm
                   venueId={venue.id}
@@ -141,23 +143,22 @@ const venue = {
                 aria-labelledby="booking-login-required-title"
               >
                 <p class="booking-page__login-eyebrow">Booking Access</p>
-                <h2 id="booking-login-required-title">Sign in to book</h2>
+                <h2 id="booking-login-required-title">
+                  {user ? 'Verify your email to book' : 'Sign in to book'}
+                </h2>
                 <p class="booking-page__login-message">
-                  You must be logged in to book this venue.
+                  {user
+                    ? 'A verified email address is required before you can submit a booking request or make a payment. Please use the verification link sent to your inbox.'
+                    : 'Sign in with a verified email address to submit a booking request and make payments.'}
                 </p>
                 <div class="booking-page__login-actions">
                   <a
-                    href="/signin"
+                    href={user ? '/dashboard' : '/signin'}
                     class="booking-page__login-button booking-page__login-button--primary"
                   >
-                    Log In
+                    {user ? 'Go to Dashboard' : 'Log In'}
                   </a>
-                  <a
-                    href="/signup"
-                    class="booking-page__login-button booking-page__login-button--secondary"
-                  >
-                    Sign Up
-                  </a>
+                  {!user && <a href="/signup" class="booking-page__login-button booking-page__login-button--secondary">Sign Up</a>}
                   <a
                     href="/events_and_booking/events"
                     class="booking-page__login-button booking-page__login-button--ghost"

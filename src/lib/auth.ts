@@ -1,5 +1,6 @@
 // auth.ts — server-side session helpers (cookies)
 import type { AstroCookies } from "astro";
+import type { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
 const COOKIE_OPTS = {
@@ -53,3 +54,7 @@ export async function getUser(cookies: AstroCookies) {
 }
 
 export const requireAuth = getUser;
+
+export function isEmailVerified(user: User): boolean {
+  return Boolean(user.email_confirmed_at);
+}

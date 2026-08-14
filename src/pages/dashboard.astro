@@ -1,11 +1,12 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { requireAuth } from '../lib/auth';
+import { requireAuth, isEmailVerified } from '../lib/auth';
 import { supabaseAdmin, supabase } from '../lib/supabase';
 import { normalizeBookingStatus } from '../lib/bookingStatus';
 
 const user = await requireAuth(Astro.cookies);
 if (!user) return Astro.redirect('/signin');
+const emailVerified = isEmailVerified(user);
 
 const db = supabaseAdmin ?? supabase;
 
@@ -100,6 +101,13 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
     </div>
 
     <!-- ── Quick action cards ── -->
+    {!emailVerified && (
+      <div class="mb-6 rounded-2xl border px-5 py-4" style="background:#fff7ed;border-color:#fed7aa;color:#9a3412;">
+        <p class="font-bold">Verify your email before booking or paying</p>
+        <p class="mt-1 text-sm">Use the verification link sent to {user.email}. A verified email is required before submitting requests or securing a reservation with the 50% down payment.</p>
+      </div>
+    )}
+
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
       <a href="/events_and_booking/events"
         class="group relative overflow-hidden rounded-2xl p-5 flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-lg"
@@ -479,7 +487,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
     </div>
 
     <div class="px-7 pb-7 flex justify-end gap-3 flex-wrap">
-      <button id="ubd-pay-button" onclick="payCurrentBooking()" class="hidden px-5 py-2 rounded-xl text-white font-bold text-sm disabled:opacity-60 disabled:cursor-not-allowed" style="background:#4a7c3f;">Pay 50% Down Payment</button>
+      <button id="ubd-pay-button" data-email-verified={String(emailVerified)} onclick="payCurrentBooking()" class="hidden px-5 py-2 rounded-xl text-white font-bold text-sm disabled:opacity-60 disabled:cursor-not-allowed" style="background:#4a7c3f;">Pay 50% Down Payment</button>
       <button onclick="closeUserBookingDetail()" class="px-5 py-2 rounded-xl border-2 font-bold text-sm" style="border-color:#cbd5e1;color:#64748b;">Close</button>
     </div>
   </div>
@@ -487,6 +495,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
 
 <script>
   let currentUserBookingId: string | null = null;
+  let paymentProcessing = false;
 
   const USER_BOOKING_STATUS_CONFIG: Record<string, any> = {
     contract_signing: { label: 'Contract Signing', bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
@@ -591,8 +600,13 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
   }
 
   async function payCurrentBooking() {
-    if (!currentUserBookingId) return;
+    if (!currentUserBookingId || paymentProcessing) return;
     const button = document.getElementById('ubd-pay-button') as HTMLButtonElement | null;
+    if (button?.dataset.emailVerified !== 'true') {
+      alert('Please verify your email before making a payment.');
+      return;
+    }
+    paymentProcessing = true;
     if (button) {
       button.disabled = true;
       button.textContent = 'Opening PayMongo...';
@@ -612,6 +626,8 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
         button.disabled = false;
         button.textContent = 'Pay 50% Down Payment';
       }
+    } finally {
+      paymentProcessing = false;
     }
   }
 
@@ -718,6 +734,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
 
 <script>
   let _reviewBookingId = '';
+  let _reviewSubmitting = false;
 
   function openReviewModal(bookingId: string, venueName: string) {
     _reviewBookingId = bookingId;
@@ -759,12 +776,14 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
     const errEl   = document.getElementById('reviewError')!;
     const btn     = document.getElementById('submitReviewBtn') as HTMLButtonElement;
 
+    if (_reviewSubmitting) return;
     if (rating < 1) {
       errEl.textContent = 'Please select a star rating before submitting.';
       errEl.classList.remove('hidden');
       return;
     }
 
+    _reviewSubmitting = true;
     btn.disabled = true;
     btn.textContent = 'Submitting…';
 
@@ -794,6 +813,8 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
       errEl.classList.remove('hidden');
       btn.disabled = false;
       btn.textContent = 'Submit Review ⭐';
+    } finally {
+      _reviewSubmitting = false;
     }
   }
 

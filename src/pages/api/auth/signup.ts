@@ -1,14 +1,13 @@
-// POST /api/auth/signup — register new account, auto sign-in, redirect to dashboard
+// POST /api/auth/signup — register a new account and require email verification
 import type { APIRoute } from "astro";
 import { supabase } from "../../../lib/supabase";
 import { signUpSchema } from "../../../validation/user";
-import { error } from "../../../lib/response";
-import { setSessionCookies } from "../../../lib/auth";
+import { created, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request, cookies, redirect }) => {
+export const POST: APIRoute = async ({ request }) => {
   const body = await parseBody(request);
   if (!body.ok) return body.response;
 
@@ -27,12 +26,11 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   if (authError) return error(authError.message, 400);
 
-  // Auto sign-in after signup so cookies are set immediately
-  if (signUpData.session) {
-    setSessionCookies(cookies, signUpData.session.access_token, signUpData.session.refresh_token);
-    return redirect("/dashboard");
-  }
+  // Some Supabase projects return a session when email confirmation is disabled.
+  // Discard it so signup never authenticates the customer implicitly.
+  if (signUpData.session) await supabase.auth.signOut();
 
-  // If email confirmation is required, session will be null
-  return error("Account created. Please confirm your email before signing in.", 201);
+  return created({
+    message: "Please check your email and verify your account before signing in.",
+  });
 };

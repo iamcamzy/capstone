@@ -7,8 +7,8 @@ function parseDateOnly(value: string) {
 
 const dateString = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date - use YYYY-MM-DD")
-  .refine((v) => !Number.isNaN(parseDateOnly(v).getTime()), "Invalid date - use YYYY-MM-DD");
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Please enter a valid date.")
+  .refine((v) => !Number.isNaN(parseDateOnly(v).getTime()), "Please enter a valid date.");
 
 const facilityTimeRangeSchema = z.object({
   key: z.string().max(100),
@@ -84,12 +84,12 @@ export const createBookingSchema = z
     // Accept both pax and guests from booking forms.
     pax: z.number().int().min(1, "pax must be at least 1").optional().nullable(),
     guests: z.number().int().min(1).optional().nullable(),
-    fullName: z.string().min(1).max(200).optional().nullable(),
-    email: z.string().email("Invalid email address").max(254).optional().nullable(),
-    phone: z.string().max(30).optional().nullable(),
+    fullName: z.string().trim().min(2, "Please enter the guest's full name.").max(200),
+    email: z.string().trim().email("Please enter a valid email address.").max(254),
+    phone: z.string().trim().min(7, "Please enter a valid mobile number.").max(30),
     specialRequests: z.string().max(1000).optional().nullable(),
     notificationPreference: notificationPreferenceSchema,
-    address: z.string().max(500).optional().nullable(),
+    address: z.string().trim().min(5, "Please enter a complete address.").max(500),
     caterer: z.string().max(200).optional().nullable(),
     useWoodberryCaterer: z.boolean().optional(),
     packageInclusions: z.array(facilityTimeRangeSchema).optional().nullable(),
@@ -114,22 +114,22 @@ export const createBookingSchema = z
   })
   .refine(
     (d) => parseDateOnly(d.endDate) > parseDateOnly(d.startDate),
-    { message: "endDate must be after startDate", path: ["endDate"] },
+    { message: "Check-out date must be after check-in date.", path: ["endDate"] },
   )
   .refine(
     (d) => parseDateOnly(d.startDate) >= getMinimumBookingDate(),
-    { message: "startDate must be at least one week in advance", path: ["startDate"] },
+    { message: "Check-in must be at least one week in advance.", path: ["startDate"] },
   )
   .refine(
     (d) => !d.eventDate || parseDateOnly(d.eventDate) >= getMinimumBookingDate(),
-    { message: "eventDate must be at least one week in advance", path: ["eventDate"] },
+    { message: "Event date must be at least one week in advance.", path: ["eventDate"] },
   )
   .refine(
     (d) =>
       !d.eventDate ||
       (parseDateOnly(d.eventDate) >= parseDateOnly(d.startDate) &&
         parseDateOnly(d.eventDate) <= parseDateOnly(d.endDate)),
-    { message: "eventDate must fall within the selected booking dates", path: ["eventDate"] },
+    { message: "Event date must fall within the selected booking dates.", path: ["eventDate"] },
   )
   .refine(
     (d) => {
@@ -139,7 +139,7 @@ export const createBookingSchema = z
       return pax >= limits.min && pax <= limits.max;
     },
     {
-      message: "pax must be within the selected package limits",
+      message: "Guest count must be within the selected package's capacity.",
       path: ["pax"],
     },
   )

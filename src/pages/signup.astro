@@ -103,18 +103,24 @@ import ShowButton from '../components/showButton.astro';
       </p>
       <!-- Inline error/notice banner -->
       <div id="signupNotice" class="hidden mx-5 mb-4 px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-2"></div>
+      <div id="verificationActions" class="hidden mx-5 mb-5 text-center">
+        <button id="resendVerification" type="button" class="auth-link underline text-sm">Resend verification email</button>
+      </div>
     </div>
   </div>
 </Layout>
 <script>
   const form = document.getElementById('register-form') as HTMLFormElement | null;
   const noticeEl = document.getElementById('signupNotice');
+  const verificationActions = document.getElementById('verificationActions');
+  const resendButton = document.getElementById('resendVerification') as HTMLButtonElement | null;
+  let registeredEmail = '';
 
   function showNotice(msg: string, type: 'error' | 'success') {
     if (!noticeEl) return;
     noticeEl.className = 'mx-5 mb-4 px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-2 '
       + (type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
-    noticeEl.innerHTML = (type === 'success' ? '✅ ' : '❌ ') + msg;
+    noticeEl.textContent = msg;
     noticeEl.classList.remove('hidden');
   }
 
@@ -141,19 +147,36 @@ import ShowButton from '../components/showButton.astro';
         redirect: 'follow',
       });
 
-      if (res.redirected) {
-        window.location.href = res.url;
-        return;
-      }
-
       if (res.ok) {
-        window.location.href = '/dashboard';
+        const data = await res.json().catch(() => ({}));
+        registeredEmail = email;
+        form.reset();
+        showNotice(data.message ?? 'Please check your email and verify your account before signing in.', 'success');
+        verificationActions?.classList.remove('hidden');
       } else {
         const data = await res.json().catch(() => ({}));
         showNotice('Signup failed: ' + (data.error ?? 'Please try again.'), 'error');
       }
     } catch {
       showNotice('Something went wrong. Please try again.', 'error');
+    }
+  });
+
+  resendButton?.addEventListener('click', async () => {
+    if (!registeredEmail) return;
+    resendButton.disabled = true;
+    try {
+      const res = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: registeredEmail }),
+      });
+      const data = await res.json().catch(() => ({}));
+      showNotice(data.message ?? data.error ?? 'Unable to resend verification email.', res.ok ? 'success' : 'error');
+    } catch {
+      showNotice('Unable to resend verification email. Please try again.', 'error');
+    } finally {
+      resendButton.disabled = false;
     }
   });
 </script>

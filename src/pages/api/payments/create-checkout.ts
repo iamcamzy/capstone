@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { z } from "zod";
-import { getUser } from "../../../lib/auth";
+import { getUser, isEmailVerified } from "../../../lib/auth";
 import { supabase, supabaseAdmin } from "../../../lib/supabase";
 import { parseBody } from "../../../lib/parseBody";
 import { error, ok } from "../../../lib/response";
@@ -23,7 +23,7 @@ export const POST: APIRoute = async ({ request, cookies, url }) => {
       : url.origin;
   const user = await getUser(cookies);
   if (!user) return error("Unauthorized", 401);
-  if (!user.email_confirmed_at) return error("Verify your email before paying", 403);
+  if (!isEmailVerified(user)) return error("Please verify your email before paying.", 403);
   const body = await parseBody(request);
   if (!body.ok) return body.response;
   const parsed = schema.safeParse(body.data);

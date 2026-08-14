@@ -2,6 +2,7 @@
 const { venue, isLoggedIn = false } = Astro.props;
 const bookingUrl = `/events_and_booking/events/${venue.id}`;
 const venueName = venue.name || 'this venue';
+const venuePrice = Number(venue.price_per_night) || 0;
 ---
 
 <!-- Refactored to receive individual venue as prop and render single card -->
@@ -23,6 +24,11 @@ const venueName = venue.name || 'this venue';
       {venueName}
     </h3>
 
+    <div class="event-card__details">
+      {venue.location && <span>{venue.location}</span>}
+      {venue.capacity && <span>Up to {venue.capacity} guests</span>}
+    </div>
+
     {
       venue.description && (
         <p class="event-card__description">
@@ -32,11 +38,15 @@ const venueName = venue.name || 'this venue';
     }
 
     {
-      venue.price_per_night && (
+      venuePrice > 0 && (
         <div class="event-card__price">
           <p class="event-card__price-label">Starting from</p>
           <p class="event-card__price-value">
-            ${venue.price_per_night}
+            {new Intl.NumberFormat('en-PH', {
+              style: 'currency',
+              currency: 'PHP',
+              maximumFractionDigits: 0,
+            }).format(venuePrice)}
             <span>/night</span>
           </p>
         </div>
@@ -188,6 +198,22 @@ const venueName = venue.name || 'this venue';
     color: var(--wb-muted);
     font-size: 0.94rem;
     line-height: 1.6;
+  }
+
+  .event-card__details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.8rem;
+    margin-top: 0.65rem;
+    color: var(--wb-green-mid);
+    font-size: 0.82rem;
+    font-weight: 800;
+  }
+
+  .event-card__details span + span::before {
+    content: "\2022";
+    margin-right: 0.8rem;
+    color: var(--wb-warm);
   }
 
   .event-card__price {
