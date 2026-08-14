@@ -10,7 +10,9 @@ if (!venueId) return Astro.redirect('/events_and_booking/events');
 
 const { data, error } = await getVenue(venueId);
 const user = await getUser(Astro.cookies);
-const emailVerified = user ? isEmailVerified(user) : false;
+const hasBookingAccess = Boolean(user && isEmailVerified(user));
+const bookingPath = `/events_and_booking/events/${venueId}`;
+const encodedBookingPath = encodeURIComponent(bookingPath);
 
 if (error || !data) return Astro.redirect('/events_and_booking/events');
 
@@ -129,7 +131,7 @@ const venue = {
         <!-- Booking Form -->
         <div class="lg:col-span-2">
           {
-            user && emailVerified ? (
+            hasBookingAccess ? (
               <div class="booking-page__form-card">
                 <BookingForm
                   venueId={venue.id}
@@ -144,21 +146,19 @@ const venue = {
               >
                 <p class="booking-page__login-eyebrow">Booking Access</p>
                 <h2 id="booking-login-required-title">
-                  {user ? 'Verify your email to book' : 'Sign in to book'}
+                  Sign in to book
                 </h2>
                 <p class="booking-page__login-message">
-                  {user
-                    ? 'A verified email address is required before you can submit a booking request or make a payment. Please use the verification link sent to your inbox.'
-                    : 'Sign in with a verified email address to submit a booking request and make payments.'}
+                  Sign in with a verified email address to submit a booking request and make payments.
                 </p>
                 <div class="booking-page__login-actions">
                   <a
-                    href={user ? '/dashboard' : '/signin'}
+                    href={`/signin?redirect=${encodedBookingPath}`}
                     class="booking-page__login-button booking-page__login-button--primary"
                   >
-                    {user ? 'Go to Dashboard' : 'Log In'}
+                    Log In
                   </a>
-                  {!user && <a href="/signup" class="booking-page__login-button booking-page__login-button--secondary">Sign Up</a>}
+                  <a href={`/signup?redirect=${encodedBookingPath}`} class="booking-page__login-button booking-page__login-button--secondary">Sign Up</a>
                   <a
                     href="/events_and_booking/events"
                     class="booking-page__login-button booking-page__login-button--ghost"

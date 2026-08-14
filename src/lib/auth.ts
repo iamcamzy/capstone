@@ -58,3 +58,18 @@ export const requireAuth = getUser;
 export function isEmailVerified(user: User): boolean {
   return Boolean(user.email_confirmed_at);
 }
+
+export function getSafeInternalRedirect(
+  value: string | null | undefined,
+  fallback = "/dashboard"
+): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return fallback;
+
+  try {
+    const parsed = new URL(value, "http://woodberry.local");
+    if (parsed.origin !== "http://woodberry.local") return fallback;
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return fallback;
+  }
+}

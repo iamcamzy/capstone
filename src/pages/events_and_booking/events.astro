@@ -1,11 +1,14 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import EventCard from '../../components/eventCards/eventCard.astro';
-import { getUser } from '../../lib/auth';
+import AuthRequiredModal from '../../components/auth/AuthRequiredModal.astro';
+import { getUser, isEmailVerified } from '../../lib/auth';
 import { getAllVenues } from '../../services/venues';
 
 const user = await getUser(Astro.cookies);
-const isLoggedIn = Boolean(user);
+const authState: 'guest' | 'verified' = user && isEmailVerified(user)
+  ? 'verified'
+  : 'guest';
 const { data: venues } = await getAllVenues();
 const venuesToDisplay = venues || [];
 
@@ -143,7 +146,7 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
                       data-packages={compatiblePackages.map((pkg) => pkg.value).join(',')}
                       data-event-types={supportedEvents.join(',')}
                     >
-                      <EventCard venue={venue} isLoggedIn={isLoggedIn} />
+                      <EventCard venue={venue} authState={authState} />
                     </div>
                   );
                 })}
@@ -169,6 +172,7 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
         }
       </div>
     </div>
+    {authState === 'guest' && <AuthRequiredModal />}
   </div>
 </Layout>
 

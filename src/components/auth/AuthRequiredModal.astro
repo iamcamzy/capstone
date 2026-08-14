@@ -1,0 +1,89 @@
+<div class="auth-required-modal" data-auth-required-modal hidden>
+  <div class="auth-required-modal__card" role="dialog" aria-modal="true" aria-labelledby="auth-required-title" aria-describedby="auth-required-message" tabindex="-1" data-auth-required-dialog>
+    <button type="button" class="auth-required-modal__close" data-auth-required-close aria-label="Close booking access dialog">×</button>
+    <p class="auth-required-modal__eyebrow">Booking Access</p>
+    <h2 id="auth-required-title">Sign in to continue</h2>
+    <p id="auth-required-message" class="auth-required-modal__message">
+      Sign in or create an account to book <strong data-auth-venue-name>this venue</strong>.
+    </p>
+    <div class="auth-required-modal__actions">
+      <a href="/signin" data-signin-link class="auth-required-modal__button auth-required-modal__button--primary">Log In</a>
+      <a href="/signup" data-signup-link class="auth-required-modal__button auth-required-modal__button--secondary">Sign Up</a>
+      <button type="button" data-auth-required-close class="auth-required-modal__button auth-required-modal__button--ghost">Back to Events</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const modal = document.querySelector<HTMLElement>('[data-auth-required-modal]');
+  const dialog = modal?.querySelector<HTMLElement>('[data-auth-required-dialog]');
+  let returnFocus: HTMLElement | null = null;
+  let previousOverflow = '';
+
+  const focusableSelector = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  const closeModal = () => {
+    if (!modal || modal.hidden) return;
+    modal.hidden = true;
+    document.body.style.overflow = previousOverflow;
+    returnFocus?.focus();
+    returnFocus = null;
+  };
+
+  const openModal = (trigger: HTMLElement) => {
+    if (!modal || !dialog) return;
+    returnFocus = trigger;
+    previousOverflow = document.body.style.overflow;
+    const venueName = trigger.dataset.venueName ?? 'this venue';
+    const bookingUrl = trigger.dataset.bookingUrl ?? '/events_and_booking/events';
+    modal.querySelectorAll<HTMLElement>('[data-auth-venue-name]').forEach((node) => { node.textContent = venueName; });
+    const redirect = encodeURIComponent(bookingUrl);
+    const signinLink = modal.querySelector<HTMLAnchorElement>('[data-signin-link]');
+    const signupLink = modal.querySelector<HTMLAnchorElement>('[data-signup-link]');
+    if (signinLink) signinLink.href = `/signin?redirect=${redirect}`;
+    if (signupLink) signupLink.href = `/signup?redirect=${redirect}`;
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(() => dialog.focus());
+  };
+
+  document.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const trigger = target.closest<HTMLElement>('[data-auth-required-trigger]');
+    if (trigger) return openModal(trigger);
+    if (target.closest('[data-auth-required-close]') || target === modal) closeModal();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (!modal || modal.hidden) return;
+    if (event.key === 'Escape') return closeModal();
+    if (event.key !== 'Tab' || !dialog) return;
+    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  });
+
+</script>
+
+<style>
+  .auth-required-modal[hidden] { display: none; }
+  .auth-required-modal { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; overflow-y: auto; background: rgba(26, 46, 16, 0.58); padding: 1rem; backdrop-filter: blur(3px); }
+  .auth-required-modal__card { position: relative; width: min(100%, 31rem); max-height: calc(100vh - 2rem); overflow-y: auto; border: 1px solid var(--wb-border); border-radius: var(--wb-radius-lg); outline: none; background: radial-gradient(circle at top right, rgba(232, 242, 227, 0.95), transparent 12rem), var(--wb-surface-raised); box-shadow: var(--wb-shadow-lg); color: var(--wb-text); padding: clamp(1.35rem, 5vw, 2rem); }
+  .auth-required-modal__close { position: absolute; top: .8rem; right: .8rem; display: grid; width: 2.4rem; height: 2.4rem; place-items: center; border: 1px solid var(--wb-border); border-radius: 999px; background: var(--wb-surface-soft); color: var(--wb-green-mid); cursor: pointer; font-size: 1.5rem; line-height: 1; }
+  .auth-required-modal__eyebrow { margin: 0 2.5rem .35rem 0; color: var(--wb-green); font-size: .72rem; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+  h2 { margin: 0; color: var(--wb-green-dark); font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.6rem, 6vw, 2.15rem); line-height: 1.1; }
+  .auth-required-modal__message { margin: .85rem 0 0; color: var(--wb-muted); line-height: 1.6; }
+  .auth-required-modal__message strong { color: var(--wb-green-dark); }
+  .auth-required-modal__actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.35rem; }
+  .auth-required-modal__button { display: inline-flex; min-height: 2.8rem; flex: 1 1 11rem; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: var(--wb-radius-md); cursor: pointer; font-size: .82rem; font-weight: 900; padding: .8rem 1rem; text-align: center; text-decoration: none; text-transform: uppercase; }
+  .auth-required-modal__button--primary { background: var(--wb-green); color: #fff; }
+  .auth-required-modal__button--secondary { border-color: var(--wb-border); background: var(--wb-surface-soft); color: var(--wb-green-mid); }
+  .auth-required-modal__button--ghost { border-color: transparent; background: transparent; color: var(--wb-green-mid); }
+  .auth-required-modal__button:hover, .auth-required-modal__close:hover { filter: brightness(.94); }
+  .auth-required-modal__button:focus-visible, .auth-required-modal__close:focus-visible { outline: 3px solid color-mix(in srgb, var(--wb-green) 35%, transparent); outline-offset: 2px; }
+  :global(html.dark) .auth-required-modal__card { background: var(--wb-surface-raised); }
+  @media (max-width: 430px) { .auth-required-modal { align-items: end; padding: .65rem; } .auth-required-modal__card { width: 100%; max-height: calc(100vh - 1.3rem); } .auth-required-modal__button { flex-basis: 100%; } }
+</style>
