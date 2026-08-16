@@ -10,7 +10,8 @@ if (!venueId) return Astro.redirect('/events_and_booking/events');
 
 const { data, error } = await getVenue(venueId);
 const user = await getUser(Astro.cookies);
-const hasBookingAccess = Boolean(user && isEmailVerified(user));
+const emailVerified = user ? isEmailVerified(user) : false;
+const hasBookingAccess = Boolean(user && emailVerified);
 const bookingPath = `/events_and_booking/events/${venueId}`;
 const encodedBookingPath = encodeURIComponent(bookingPath);
 
@@ -24,6 +25,11 @@ const venue = {
   capacity: data.capacity ?? undefined,
   description: data.description ?? undefined,
 };
+
+const bookingAccessTitle = user && !emailVerified ? 'Verify your email to book' : 'Sign in to book';
+const bookingAccessMessage = user && !emailVerified
+  ? 'Please verify your email before booking. A verified email is required before submitting requests or making the 50% down payment.'
+  : 'Sign in with a verified email address to submit a booking request and make payments.';
 ---
 
 <Layout>
@@ -120,9 +126,24 @@ const venue = {
 
               <div class="booking-page__note">
                 <p>
-                  Requests require staff review. Unpaid reservations expire after
-                  48 hours, and a 50% down payment secures an approved booking.
+                  Requests require staff review. Unpaid reservations are held for
+                  48 hours. A 50% down payment secures the booking after contract signing.
                 </p>
+              </div>
+
+              <div class="booking-page__info-list" aria-label="Booking information">
+                <div>
+                  <strong>Packages</strong>
+                  <p>Choose a daytime event, evening event, staycation, or room-rate package in the form.</p>
+                </div>
+                <div>
+                  <strong>Payment</strong>
+                  <p>The estimate shows the total, 50% down payment, and remaining balance before submission.</p>
+                </div>
+                <div>
+                  <strong>Cancellation</strong>
+                  <p>Cancellation requests are coordinated with staff and follow the terms shown before submission.</p>
+                </div>
               </div>
             </div>
           </div>
@@ -146,11 +167,17 @@ const venue = {
               >
                 <p class="booking-page__login-eyebrow">Booking Access</p>
                 <h2 id="booking-login-required-title">
-                  Sign in to book
+                  {bookingAccessTitle}
                 </h2>
                 <p class="booking-page__login-message">
-                  Sign in with a verified email address to submit a booking request and make payments.
+                  {bookingAccessMessage}
                 </p>
+                {user && !emailVerified && (
+                  <div class="booking-page__verification-box">
+                    <p>Didn't receive the email? <button type="button" id="resendVenueVerification" data-email={user.email ?? ''}>Resend verification email.</button></p>
+                    <p id="venueVerificationNotice" class="hidden"></p>
+                  </div>
+                )}
                 <div class="booking-page__login-actions">
                   <a
                     href={`/signin?redirect=${encodedBookingPath}`}
@@ -175,6 +202,38 @@ const venue = {
   </div>
   </main>
 </Layout>
+
+<script>
+  const resendVenueVerification = document.getElementById('resendVenueVerification') as HTMLButtonElement | null;
+  const venueVerificationNotice = document.getElementById('venueVerificationNotice');
+
+  function showVenueVerificationNotice(message: string, success: boolean) {
+    if (!venueVerificationNotice) return;
+    venueVerificationNotice.textContent = message;
+    venueVerificationNotice.className = success
+      ? 'booking-page__verification-message booking-page__verification-message--success'
+      : 'booking-page__verification-message booking-page__verification-message--error';
+  }
+
+  resendVenueVerification?.addEventListener('click', async () => {
+    const email = resendVenueVerification.dataset.email ?? '';
+    if (!email) return showVenueVerificationNotice('Enter your email on the sign-in page to resend verification.', false);
+    resendVenueVerification.disabled = true;
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json().catch(() => ({}));
+      showVenueVerificationNotice(data.message ?? data.error ?? 'Unable to resend verification email.', response.ok);
+    } catch {
+      showVenueVerificationNotice('Unable to resend verification email. Please try again.', false);
+    } finally {
+      resendVenueVerification.disabled = false;
+    }
+  });
+</script>
 
 <style>
   .booking-page {
@@ -397,6 +456,74 @@ const venue = {
     color: var(--wb-muted);
     font-size: 0.8rem;
     text-align: center;
+  }
+
+  .booking-page__info-list {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+
+  .booking-page__info-list div {
+    border: 1px solid var(--wb-border);
+    border-radius: var(--wb-radius-md);
+    background: var(--wb-surface-soft);
+    padding: 0.85rem;
+  }
+
+  .booking-page__info-list strong {
+    color: var(--wb-green-dark);
+    font-size: 0.82rem;
+  }
+
+  .booking-page__info-list p {
+    margin: 0.25rem 0 0;
+    color: var(--wb-muted);
+    font-size: 0.8rem;
+    line-height: 1.45;
+  }
+
+  .booking-page__verification-box {
+    margin-top: 1rem;
+    border: 1px solid rgba(237, 155, 64, 0.35);
+    border-radius: var(--wb-radius-md);
+    background: rgba(237, 155, 64, 0.1);
+    color: #6e400a;
+    padding: 0.9rem 1rem;
+  }
+
+  .booking-page__verification-box p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .booking-page__verification-box button {
+    border: 0;
+    background: transparent;
+    color: var(--wb-green-mid);
+    cursor: pointer;
+    font-weight: 900;
+    padding: 0;
+    text-decoration: underline;
+  }
+
+  .booking-page__verification-box button:disabled {
+    cursor: wait;
+    opacity: 0.65;
+  }
+
+  :global(.booking-page__verification-message) {
+    margin-top: 0.55rem !important;
+    font-weight: 800;
+  }
+
+  :global(.booking-page__verification-message--success) {
+    color: var(--wb-green-mid);
+  }
+
+  :global(.booking-page__verification-message--error) {
+    color: #b91c1c;
   }
 
   @media (max-width: 1023px) {

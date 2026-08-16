@@ -1,14 +1,18 @@
 ---
+import { getMinimumBookingDateValue } from "../../lib/bookingDateRules";
+
 /**
  * Woodberry Availability Calendar — real data from Supabase
  * Drops down below navbar. No layout shift.
  */
+const initialMinimumBookingDateValue = getMinimumBookingDateValue();
 ---
 
 <div
   id="availabilityPanel"
   class="fixed left-0 right-0 z-50 opacity-0 pointer-events-none transition-all duration-300 -translate-y-2"
   style="top: 70px;"
+  data-minimum-booking-date={initialMinimumBookingDateValue}
 >
   <div style="max-width: 480px; margin-left: auto; margin-right: 1.5rem;">
     <div
@@ -93,14 +97,8 @@
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
   }
 
-  function addDays(date: Date, days: number) {
-    const result = new Date(date);
-    result.setDate(result.getDate() + days);
-    return result;
-  }
-
   const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const minimumBookingDateISO = formatDateOnly(addDays(todayDateOnly, 7));
+  let minimumBookingDateISO = panel.dataset.minimumBookingDate || '';
 
   // Cache fetched data per "YYYY-MM" key
   const cache: Record<string, Set<string>> = {};
@@ -113,6 +111,7 @@
     try {
       const res  = await fetch(`/api/bookings/availability?year=${year}&month=${month + 1}`);
       const json = await res.json();
+      if (json.minimumBookingDate) minimumBookingDateISO = json.minimumBookingDate;
       const booked = new Set<string>();
 
       for (const b of (json.bookings ?? [])) {

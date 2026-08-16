@@ -29,8 +29,12 @@ export const POST: APIRoute = async ({ request }) => {
   // Some Supabase projects return a session when email confirmation is disabled.
   // Discard it so signup never authenticates the customer implicitly.
   if (signUpData.session) await supabase.auth.signOut();
+  const requiresEmailVerification = !signUpData.session && !signUpData.user?.email_confirmed_at;
 
   return created({
-    message: "Please check your email and verify your account before signing in.",
+    message: requiresEmailVerification
+      ? "Account created. Please verify your email before signing in."
+      : "Account created. You can sign in now.",
+    requiresEmailVerification,
   });
 };

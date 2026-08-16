@@ -1,9 +1,5 @@
 import { z } from "zod";
-
-function parseDateOnly(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day);
-}
+import { isOnOrAfterMinimumBookingDate, parseDateOnly } from "../lib/bookingDateRules";
 
 const dateString = z
   .string()
@@ -53,18 +49,6 @@ const estimateSummarySchema = z.object({
   minimumPayment: z.number().min(0),
   remainingBalance: z.number().min(0),
 });
-
-function addDays(date: Date, days: number) {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-}
-
-function getMinimumBookingDate() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return addDays(today, 7);
-}
 
 const termsAgreementMessage =
   "You must agree to the Terms and Conditions before submitting your booking.";
@@ -117,11 +101,11 @@ export const createBookingSchema = z
     { message: "Check-out date must be after check-in date.", path: ["endDate"] },
   )
   .refine(
-    (d) => parseDateOnly(d.startDate) >= getMinimumBookingDate(),
+    (d) => isOnOrAfterMinimumBookingDate(d.startDate),
     { message: "Check-in must be at least one week in advance.", path: ["startDate"] },
   )
   .refine(
-    (d) => !d.eventDate || parseDateOnly(d.eventDate) >= getMinimumBookingDate(),
+    (d) => !d.eventDate || isOnOrAfterMinimumBookingDate(d.eventDate),
     { message: "Event date must be at least one week in advance.", path: ["eventDate"] },
   )
   .refine(

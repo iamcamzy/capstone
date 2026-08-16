@@ -6,18 +6,20 @@ import { getUser, isEmailVerified } from '../../lib/auth';
 import { getAllVenues } from '../../services/venues';
 
 const user = await getUser(Astro.cookies);
-const authState: 'guest' | 'verified' = user && isEmailVerified(user)
-  ? 'verified'
+const authState: 'guest' | 'unverified' | 'verified' = user
+  ? isEmailVerified(user)
+    ? 'verified'
+    : 'unverified'
   : 'guest';
 const { data: venues } = await getAllVenues();
 const venuesToDisplay = venues || [];
 
 const packageOptions = [
-  { value: 'lunch-time', label: 'Lunch Time Package', minGuests: 80, eventTypes: ['wedding', 'birthday', 'corporate', 'conference', 'debut', 'other'] },
-  { value: 'dinner-time', label: 'Dinner Time Package', minGuests: 80, eventTypes: ['wedding', 'birthday', 'corporate', 'conference', 'debut', 'other'] },
-  { value: 'barkada-staycation', label: 'Barkada Staycation', minGuests: 10, eventTypes: ['birthday', 'other'] },
-  { value: 'pamilya-staycation', label: 'Pamilya Staycation', minGuests: 20, eventTypes: ['birthday', 'debut', 'other'] },
-  { value: 'room-rates', label: 'Room Rates', minGuests: 1, eventTypes: ['other'] },
+  { value: 'lunch-time', label: 'Lunch Time Package', price: 12000, minGuests: 80, maxGuests: 200, eventTypes: ['wedding', 'birthday', 'corporate', 'conference', 'debut', 'other'] },
+  { value: 'dinner-time', label: 'Dinner Time Package', price: 13000, minGuests: 80, maxGuests: 200, eventTypes: ['wedding', 'birthday', 'corporate', 'conference', 'debut', 'other'] },
+  { value: 'barkada-staycation', label: 'Barkada Staycation', price: 14500, minGuests: 10, maxGuests: 15, eventTypes: ['birthday', 'other'] },
+  { value: 'pamilya-staycation', label: 'Pamilya Staycation', price: 20500, minGuests: 20, maxGuests: 30, eventTypes: ['birthday', 'debut', 'other'] },
+  { value: 'room-rates', label: 'Room Rates', price: 999, minGuests: 1, maxGuests: 24, eventTypes: ['other'] },
 ];
 
 const eventTypeOptions = [
@@ -135,6 +137,10 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
                 {venuesToDisplay.map((venue) => {
                   const compatiblePackages = packageOptions.filter((pkg) => !venue.capacity || venue.capacity >= pkg.minGuests);
                   const supportedEvents = [...new Set(compatiblePackages.flatMap((pkg) => pkg.eventTypes))];
+                  const packageSummary = compatiblePackages
+                    .slice(0, 3)
+                    .map((pkg) => pkg.label.replace(' Package', ''))
+                    .join(', ');
                   return (
                     <div
                       class="events-grid__item"
@@ -144,9 +150,16 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
                       data-price={Number(venue.price_per_night) || 0}
                       data-capacity={Number(venue.capacity) || 0}
                       data-packages={compatiblePackages.map((pkg) => pkg.value).join(',')}
+                      data-package-prices={compatiblePackages.map((pkg) => `${pkg.value}:${pkg.price}`).join(',')}
+                      data-package-ranges={compatiblePackages.map((pkg) => `${pkg.value}:${pkg.minGuests}:${pkg.maxGuests}`).join(',')}
                       data-event-types={supportedEvents.join(',')}
                     >
-                      <EventCard venue={venue} authState={authState} />
+                      <EventCard
+                        venue={venue}
+                        authState={authState}
+                        authEmail={user?.email ?? ''}
+                        packageSummary={packageSummary ? `${packageSummary}${compatiblePackages.length > 3 ? ', more' : ''}` : ''}
+                      />
                     </div>
                   );
                 })}
@@ -172,7 +185,7 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
         }
       </div>
     </div>
-    {authState === 'guest' && <AuthRequiredModal />}
+    {authState !== 'verified' && <AuthRequiredModal />}
   </div>
 </Layout>
 
@@ -186,6 +199,24 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
   if (form && grid) {
     const items = Array.from(grid.querySelectorAll<HTMLElement>('[data-event-item]'));
     const value = (name: string) => (form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null)?.value ?? '';
+    const getPackagePrices = (item: HTMLElement) => new Map(
+      (item.dataset.packagePrices ?? '')
+        .split(',')
+        .filter(Boolean)
+        .map((entry) => {
+          const [key, price] = entry.split(':');
+          return [key, Number(price) || 0] as const;
+        }),
+    );
+    const getPackageRanges = (item: HTMLElement) => new Map(
+      (item.dataset.packageRanges ?? '')
+        .split(',')
+        .filter(Boolean)
+        .map((entry) => {
+          const [key, min, max] = entry.split(':');
+          return [key, { min: Number(min) || 0, max: Number(max) || Number.POSITIVE_INFINITY }] as const;
+        }),
+    );
 
     const updateResults = () => {
       const venue = value('venue');
@@ -197,14 +228,23 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
       const [sortField, sortDirection] = value('sort').split('-');
 
       const matching = items.filter((item) => {
-        const price = Number(item.dataset.price) || 0;
+        const venuePrice = Number(item.dataset.price) || 0;
         const capacity = Number(item.dataset.capacity) || 0;
         const packages = (item.dataset.packages ?? '').split(',');
+        const packagePrices = getPackagePrices(item);
+        const packageRanges = getPackageRanges(item);
         const eventTypes = (item.dataset.eventTypes ?? '').split(',');
+        const selectedPackagePrice = selectedPackage ? packagePrices.get(selectedPackage) : null;
+        const price = selectedPackagePrice ?? venuePrice;
+        const packageRange = selectedPackage ? packageRanges.get(selectedPackage) : null;
+        const packageCanFitGuests = !guests
+          || !packageRange
+          || (guests >= packageRange.min && guests <= packageRange.max);
         return (!venue || item.dataset.id === venue)
           && (!selectedPackage || packages.includes(selectedPackage))
           && (!eventType || eventTypes.includes(eventType))
           && (!guests || capacity >= guests)
+          && packageCanFitGuests
           && price >= minPrice
           && price <= maxPrice;
       });
@@ -212,6 +252,11 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
       items.sort((a, b) => {
         const direction = sortDirection === 'desc' ? -1 : 1;
         if (sortField === 'name') return (a.dataset.name ?? '').localeCompare(b.dataset.name ?? '') * direction;
+        if (sortField === 'price' && selectedPackage) {
+          const aPrice = getPackagePrices(a).get(selectedPackage) ?? (Number(a.dataset.price) || 0);
+          const bPrice = getPackagePrices(b).get(selectedPackage) ?? (Number(b.dataset.price) || 0);
+          return (aPrice - bPrice) * direction;
+        }
         return ((Number(a.dataset[sortField]) || 0) - (Number(b.dataset[sortField]) || 0)) * direction;
       }).forEach((item) => grid.append(item));
 

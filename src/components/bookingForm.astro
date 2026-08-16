@@ -1,5 +1,8 @@
 ---
+import { getMinimumBookingDateValue } from "../lib/bookingDateRules";
+
 const { venueId, venueName, pricePerNight } = Astro.props;
+const initialMinimumBookingDateValue = getMinimumBookingDateValue();
 ---
 
 <div id="booking-form" class="booking-shell">
@@ -19,7 +22,21 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       <li>Review your complete booking summary and estimated charges.</li>
       <li>Submit the request for staff review; submission does not confirm the booking.</li>
     </ol>
-    <p><strong>Important:</strong> A verified email is required before booking or payment. Unpaid reservations expire after 48 hours, and a 50% down payment is required to secure the booking.</p>
+    <p><strong>Important:</strong> Please verify your email before booking. Please verify your email before paying. Unpaid reservations stay valid for 48 hours only, and the 50% down payment is the amount needed to secure an approved booking.</p>
+    <div class="booking-faqs" aria-label="Booking FAQs">
+      <details>
+        <summary>What does the 50% down payment mean?</summary>
+        <p>It is half of your estimated booking total. Paying it secures the approved reservation; the remaining balance is settled based on the final contract.</p>
+      </details>
+      <details>
+        <summary>What happens after 48 hours?</summary>
+        <p>If the reservation remains unpaid after 48 hours, Woodberry may release the date for other guests.</p>
+      </details>
+      <details>
+        <summary>Can I change or cancel after submitting?</summary>
+        <p>Coordinate with Woodberry staff. Changes and cancellation requests follow the Terms and Conditions shown before final submission.</p>
+      </details>
+    </div>
   </aside>
 
   <!-- Notification banner -->
@@ -526,7 +543,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
           <span id="remainingBalance" class="font-semibold">&#8369;0.00</span>
         </div>
         <p class="text-xs text-gray-500 pt-1">
-          Minimum payment is required upon face-to-face contract signing.
+          The 50% down payment is half of the current estimate. It secures your approved reservation; the remaining balance is based on the final contract and any approved additions.
         </p>
       </div>
     </div>
@@ -907,7 +924,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   </div>
 </div>
 
-<script is:inline define:vars={{ venueId, venueName, pricePerNight }}>
+<script is:inline define:vars={{ venueId, venueName, pricePerNight, initialMinimumBookingDateValue }}>
   var form = document.getElementById("bookingForm");
   var checkInInput = document.getElementById("checkIn");
   var checkOutInput = document.getElementById("checkOut");
@@ -1206,27 +1223,32 @@ const { venueId, venueName, pricePerNight } = Astro.props;
     return year + "-" + month + "-" + day;
   }
 
-  function addDays(date, days) {
-    var result = new Date(date);
-    result.setDate(result.getDate() + days);
-    return result;
-  }
-
-  function getMinimumBookingDate() {
-    var today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return addDays(today, 7);
-  }
-
-  var minimumBookingDate = getMinimumBookingDate();
-  var minimumBookingDateValue = formatDateOnly(minimumBookingDate);
-  checkInInput.min = minimumBookingDateValue;
-  checkOutInput.min = minimumBookingDateValue;
-  eventDateInput.min = minimumBookingDateValue;
+  var minimumBookingDate = parseDateOnly(initialMinimumBookingDateValue);
+  var minimumBookingDateValue = initialMinimumBookingDateValue;
   var unavailableDateMessage = "Selected dates are unavailable. Please choose another date.";
   var availabilityCheckMessage = "Could not verify venue availability. Please try again.";
   var availabilityCache = {};
   var dateAvailabilityValidationRun = 0;
+
+  function syncDateInputMinimums() {
+    checkInInput.min = minimumBookingDateValue;
+    eventDateInput.min = minimumBookingDateValue;
+    checkOutInput.min =
+      checkInInput.value && checkInInput.value > minimumBookingDateValue
+        ? checkInInput.value
+        : minimumBookingDateValue;
+  }
+
+  function applyMinimumBookingDateValue(nextMinimumBookingDateValue) {
+    var nextMinimumBookingDate = parseDateOnly(nextMinimumBookingDateValue);
+    if (!nextMinimumBookingDate || Number.isNaN(nextMinimumBookingDate.getTime())) return;
+
+    minimumBookingDate = nextMinimumBookingDate;
+    minimumBookingDateValue = nextMinimumBookingDateValue;
+    syncDateInputMinimums();
+  }
+
+  applyMinimumBookingDateValue(minimumBookingDateValue);
 
   function showNotice(msg, type) {
     if (!noticeEl) return;
@@ -1297,6 +1319,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
       return {};
     });
     if (!response.ok) throw new Error(payload.error || payload.message || availabilityCheckMessage);
+    if (payload.minimumBookingDate) applyMinimumBookingDateValue(payload.minimumBookingDate);
 
     var unavailableDates = new Set();
     (payload.bookings || []).forEach(function (booking) {
@@ -1707,10 +1730,7 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   }
 
   checkInInput.addEventListener("change", async function () {
-    checkOutInput.min =
-      checkInInput.value && checkInInput.value > minimumBookingDateValue
-        ? checkInInput.value
-        : minimumBookingDateValue;
+    syncDateInputMinimums();
     calculateNights();
     await validateSelectedAvailability(true, false);
   });
@@ -2111,6 +2131,30 @@ const { venueId, venueName, pricePerNight } = Astro.props;
   .booking-instructions h3 { margin: 0; color: var(--wb-green-dark); font-family: Georgia, "Times New Roman", serif; font-size: 1.15rem; }
   .booking-instructions ol { margin: 0.7rem 0; padding-left: 1.25rem; color: var(--wb-text); font-size: 0.9rem; line-height: 1.6; }
   .booking-instructions p { margin: 0; color: var(--wb-muted); font-size: 0.86rem; line-height: 1.55; }
+
+  .booking-faqs {
+    display: grid;
+    gap: 0.55rem;
+    margin-top: 1rem;
+  }
+
+  .booking-faqs details {
+    border: 1px solid rgba(74, 124, 63, 0.18);
+    border-radius: var(--wb-radius-md);
+    background: rgba(255, 255, 255, 0.65);
+    padding: 0.75rem 0.85rem;
+  }
+
+  .booking-faqs summary {
+    color: var(--wb-green-dark);
+    cursor: pointer;
+    font-size: 0.86rem;
+    font-weight: 900;
+  }
+
+  .booking-faqs details p {
+    margin-top: 0.45rem;
+  }
 
   .confirmation-error {
     margin: 0;

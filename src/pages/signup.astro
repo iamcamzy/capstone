@@ -106,8 +106,9 @@ const redirectPath = getSafeInternalRedirect(Astro.url.searchParams.get('redirec
       </p>
       <!-- Inline error/notice banner -->
       <div id="signupNotice" class="hidden mx-5 mb-4 px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-2"></div>
-      <div id="verificationActions" class="hidden mx-5 mb-5 text-center">
-        <button id="resendVerification" type="button" class="auth-link underline text-sm">Resend verification email</button>
+      <div id="verificationActions" class="hidden mx-5 mb-5 text-center text-sm">
+        <span>Didn't receive the email? </span>
+        <button id="resendVerification" type="button" class="auth-link underline">Resend verification email.</button>
       </div>
     </div>
   </div>
@@ -154,8 +155,12 @@ const redirectPath = getSafeInternalRedirect(Astro.url.searchParams.get('redirec
         const data = await res.json().catch(() => ({}));
         registeredEmail = email;
         form.reset();
-        showNotice(data.message ?? 'Please check your email and verify your account before signing in.', 'success');
-        verificationActions?.classList.remove('hidden');
+        showNotice(data.message ?? 'Account created. Please verify your email before signing in.', 'success');
+        if (data.requiresEmailVerification !== false) {
+          verificationActions?.classList.remove('hidden');
+        } else {
+          verificationActions?.classList.add('hidden');
+        }
       } else {
         const data = await res.json().catch(() => ({}));
         showNotice('Signup failed: ' + (data.error ?? 'Please try again.'), 'error');

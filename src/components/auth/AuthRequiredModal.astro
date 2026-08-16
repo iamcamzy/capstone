@@ -6,6 +6,10 @@
     <p id="auth-required-message" class="auth-required-modal__message">
       Sign in or create an account to book <strong data-auth-venue-name>this venue</strong>.
     </p>
+    <div class="auth-required-modal__verification" data-verification-resend-wrap hidden>
+      <p>Didn't receive the email? <button type="button" data-verification-resend>Resend verification email.</button></p>
+      <p class="auth-required-modal__verification-notice" data-verification-notice hidden></p>
+    </div>
     <div class="auth-required-modal__actions">
       <a href="/signin" data-signin-link class="auth-required-modal__button auth-required-modal__button--primary">Log In</a>
       <a href="/signup" data-signup-link class="auth-required-modal__button auth-required-modal__button--secondary">Sign Up</a>
@@ -17,6 +21,12 @@
 <script>
   const modal = document.querySelector<HTMLElement>('[data-auth-required-modal]');
   const dialog = modal?.querySelector<HTMLElement>('[data-auth-required-dialog]');
+  const title = modal?.querySelector<HTMLElement>('#auth-required-title');
+  const message = modal?.querySelector<HTMLElement>('#auth-required-message');
+  const verificationWrap = modal?.querySelector<HTMLElement>('[data-verification-resend-wrap]');
+  const resendButton = modal?.querySelector<HTMLButtonElement>('[data-verification-resend]');
+  const verificationNotice = modal?.querySelector<HTMLElement>('[data-verification-notice]');
+  let verificationEmail = '';
   let returnFocus: HTMLElement | null = null;
   let previousOverflow = '';
 
@@ -35,7 +45,23 @@
     previousOverflow = document.body.style.overflow;
     const venueName = trigger.dataset.venueName ?? 'this venue';
     const bookingUrl = trigger.dataset.bookingUrl ?? '/events_and_booking/events';
+    const reason = trigger.dataset.authRequiredReason ?? 'guest';
+    verificationEmail = trigger.dataset.authEmail ?? '';
     modal.querySelectorAll<HTMLElement>('[data-auth-venue-name]').forEach((node) => { node.textContent = venueName; });
+    if (title && message) {
+      if (reason === 'unverified') {
+        title.textContent = 'Verify your email to book';
+        message.innerHTML = 'Please verify your email before booking. A verified email is required before booking <strong data-auth-venue-name></strong> or paying.';
+        message.querySelectorAll<HTMLElement>('[data-auth-venue-name]').forEach((node) => { node.textContent = venueName; });
+        if (verificationWrap) verificationWrap.hidden = false;
+      } else {
+        title.textContent = 'Sign in to continue';
+        message.innerHTML = 'Sign in or create an account to book <strong data-auth-venue-name></strong>.';
+        message.querySelectorAll<HTMLElement>('[data-auth-venue-name]').forEach((node) => { node.textContent = venueName; });
+        if (verificationWrap) verificationWrap.hidden = true;
+      }
+    }
+    if (verificationNotice) verificationNotice.hidden = true;
     const redirect = encodeURIComponent(bookingUrl);
     const signinLink = modal.querySelector<HTMLAnchorElement>('[data-signin-link]');
     const signupLink = modal.querySelector<HTMLAnchorElement>('[data-signup-link]');
@@ -66,6 +92,38 @@
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   });
 
+  resendButton?.addEventListener('click', async () => {
+    if (!verificationEmail) {
+      if (verificationNotice) {
+        verificationNotice.textContent = 'Open the sign-in page and enter your email to resend verification.';
+        verificationNotice.hidden = false;
+      }
+      return;
+    }
+    resendButton.disabled = true;
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: verificationEmail }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (verificationNotice) {
+        verificationNotice.textContent = data.message ?? data.error ?? 'Unable to resend verification email.';
+        verificationNotice.dataset.success = String(response.ok);
+        verificationNotice.hidden = false;
+      }
+    } catch {
+      if (verificationNotice) {
+        verificationNotice.textContent = 'Unable to resend verification email. Please try again.';
+        verificationNotice.dataset.success = 'false';
+        verificationNotice.hidden = false;
+      }
+    } finally {
+      resendButton.disabled = false;
+    }
+  });
+
 </script>
 
 <style>
@@ -77,6 +135,14 @@
   h2 { margin: 0; color: var(--wb-green-dark); font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.6rem, 6vw, 2.15rem); line-height: 1.1; }
   .auth-required-modal__message { margin: .85rem 0 0; color: var(--wb-muted); line-height: 1.6; }
   .auth-required-modal__message strong { color: var(--wb-green-dark); }
+  .auth-required-modal__verification { margin-top: 1rem; border: 1px solid rgba(237, 155, 64, 0.35); border-radius: var(--wb-radius-md); background: rgba(237, 155, 64, 0.1); color: #6e400a; padding: .85rem 1rem; }
+  .auth-required-modal__verification[hidden], .auth-required-modal__verification-notice[hidden] { display: none; }
+  .auth-required-modal__verification p { margin: 0; font-size: .9rem; line-height: 1.5; }
+  .auth-required-modal__verification button { border: 0; background: transparent; color: var(--wb-green-mid); cursor: pointer; font-weight: 900; padding: 0; text-decoration: underline; }
+  .auth-required-modal__verification button:disabled { cursor: wait; opacity: .65; }
+  .auth-required-modal__verification-notice { margin-top: .5rem !important; font-weight: 800; }
+  .auth-required-modal__verification-notice[data-success="true"] { color: var(--wb-green-mid); }
+  .auth-required-modal__verification-notice[data-success="false"] { color: #b91c1c; }
   .auth-required-modal__actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.35rem; }
   .auth-required-modal__button { display: inline-flex; min-height: 2.8rem; flex: 1 1 11rem; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: var(--wb-radius-md); cursor: pointer; font-size: .82rem; font-weight: 900; padding: .8rem 1rem; text-align: center; text-decoration: none; text-transform: uppercase; }
   .auth-required-modal__button--primary { background: var(--wb-green); color: #fff; }

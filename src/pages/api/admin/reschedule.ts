@@ -9,32 +9,17 @@ import {
   BookingStatusTransitionError,
   updateBookingStatusAndNotify,
 } from "../../../services/notifications";
+import {
+  ADVANCE_BOOKING_RULE_NAME,
+  getMinimumBookingDate,
+  isDateOnly,
+  parseDateOnly,
+} from "../../../lib/bookingDateRules";
+import { findAvailabilityOverlaps } from "../../../services/bookingAvailability";
 
 export const prerender = false;
 
 const db = supabaseAdmin ?? supabase;
-const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
-
-function parseDateOnly(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day);
-}
-
-function isDateOnly(value: string) {
-  return dateOnlyPattern.test(value) && !Number.isNaN(parseDateOnly(value).getTime());
-}
-
-function addDays(date: Date, days: number) {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-}
-
-function getMinimumBookingDate() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return addDays(today, 7);
-}
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const guard = await staffOrAdminGuard(cookies);
@@ -84,7 +69,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   if (requiresOneWeekOverride && adminOverrideOneWeek !== true) {
     return error(
-      "This reschedule is earlier than the normal one-week rule and requires admin override confirmation.",
+      `This reschedule is earlier than the normal ${ADVANCE_BOOKING_RULE_NAME} and requires admin override confirmation.`,
       400,
     );
   }
@@ -110,24 +95,27 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return error("Only booked bookings can be rescheduled.", 400);
   }
 
-  const { data: overlap, error: overlapError } = await db
-    .from("bookings")
-    .select("id")
-    .eq("venue_id", booking.venue_id)
-    .neq("id", bookingId)
-    .neq("status", "cancelled")
-    .lte("start_date", newEndDate)
-    .gte("end_date", newStartDate)
-    .limit(1);
+  const availabilityOverlap = await findAvailabilityOverlaps(db, {
+    venueId: booking.venue_id,
+    startDate: newStartDate,
+    endDate: newEndDate,
+    excludeBookingId: bookingId,
+  });
 
-  if (overlapError) {
-    console.error("[Reschedule] Availability check failed", overlapError.message);
+  if (availabilityOverlap.error) {
+    console.error("[Reschedule] Availability check failed", availabilityOverlap.error.message);
     return error("Could not verify venue availability. Please try again.", 500);
   }
 
-  if (overlap && overlap.length > 0) {
+  if (availabilityOverlap.bookings.length > 0) {
     return error(
       "Selected dates overlap an existing non-cancelled booking for this venue. Please choose another date range.",
+      409,
+    );
+  }
+  if (availabilityOverlap.blockedDates.length > 0) {
+    return error(
+      "Selected dates overlap an active blocked date for this venue. Please choose another date range.",
       409,
     );
   }

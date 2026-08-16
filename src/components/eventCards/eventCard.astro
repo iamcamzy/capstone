@@ -1,8 +1,9 @@
 ---
-const { venue, authState = 'guest' } = Astro.props;
+const { venue, authState = 'guest', authEmail = '', packageSummary = '' } = Astro.props;
 const bookingUrl = `/events_and_booking/events/${venue.id}`;
 const venueName = venue.name || 'this venue';
 const venuePrice = Number(venue.price_per_night) || 0;
+const requiresVerification = authState === 'unverified';
 ---
 
 <!-- Refactored to receive individual venue as prop and render single card -->
@@ -66,14 +67,22 @@ const venuePrice = Number(venue.price_per_night) || 0;
           type="button"
           class="event-card__book-button"
           data-auth-required-trigger
+          data-auth-required-reason={requiresVerification ? 'unverified' : 'guest'}
+          data-auth-email={authEmail}
           data-venue-id={venue.id}
           data-venue-name={venueName}
           data-booking-url={bookingUrl}
         >
-          Book Now
+          {requiresVerification ? 'Verify Email to Book' : 'Book Now'}
         </button>
       )
     }
+
+    {packageSummary && (
+      <p class="event-card__packages">
+        Packages: {packageSummary}
+      </p>
+    )}
   </div>
 </div>
 
@@ -129,7 +138,7 @@ const venuePrice = Number(venue.price_per_night) || 0;
   }
 
   .event-card__price {
-    margin-bottom: 1.1rem;
+    margin-bottom: 0.75rem;
   }
 
   .event-card__price-label {
@@ -153,6 +162,13 @@ const venuePrice = Number(venue.price_per_night) || 0;
     color: var(--wb-muted);
     font-size: 0.9rem;
     font-weight: 700;
+  }
+
+  .event-card__packages {
+    margin: 0 0 1rem;
+    color: var(--wb-muted);
+    font-size: 0.82rem;
+    line-height: 1.45;
   }
 
   .event-card__book-button {

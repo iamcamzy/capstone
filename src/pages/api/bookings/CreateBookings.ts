@@ -5,6 +5,7 @@ import { getUser, isEmailVerified } from "../../../lib/auth";
 import { createBookingSchema } from "../../../validation/booking";
 import { created, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
+import { findAvailabilityOverlaps } from "../../../services/bookingAvailability";
 
 export const prerender = false;
 
@@ -106,35 +107,13 @@ function sumItems(items: RateItem[]) {
   return items.reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
 }
 
-async function hasOverlappingBooking(venueId: string, startDate: string, endDate: string) {
-  return db
-    .from("bookings")
-    .select("id")
-    .eq("venue_id", venueId)
-    .neq("status", "cancelled")
-    .lte("start_date", endDate)
-    .gte("end_date", startDate)
-    .limit(1);
-}
-
-async function hasOverlappingBlockedDate(venueId: string, startDate: string, endDate: string) {
-  return db
-    .from("blocked_dates")
-    .select("id")
-    .eq("venue_id", venueId)
-    .eq("is_active", true)
-    .lte("start_date", endDate)
-    .gte("end_date", startDate)
-    .limit(1);
-}
-
 const db = supabaseAdmin ?? supabase;
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const user = await getUser(cookies);
   if (!user) return error("Unauthorized - please sign in", 401);
   if (!isEmailVerified(user)) {
-    return error("Please verify your email before creating a booking.", 403);
+    return error("Please verify your email before booking.", 403);
   }
 
   const body = await parseBody(request);
@@ -233,23 +212,24 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     remainingBalance: computedRemainingBalance,
   };
 
-  const [
-    { data: overlap, error: overlapError },
-    { data: blockedOverlap, error: blockedOverlapError },
-  ] = await Promise.all([
-    hasOverlappingBooking(venueId, startDate, endDate),
-    hasOverlappingBlockedDate(venueId, startDate, endDate),
-  ]);
+  const availabilityOverlap = await findAvailabilityOverlaps(db, {
+    venueId,
+    startDate,
+    endDate,
+  });
 
-  if (overlapError || blockedOverlapError) {
+  if (availabilityOverlap.error) {
     console.error(
       "[CreateBookings] Availability check failed",
-      overlapError?.message ?? blockedOverlapError?.message,
+      availabilityOverlap.error.message,
     );
     return error("Could not verify venue availability. Please try again.", 500);
   }
 
-  if ((overlap && overlap.length > 0) || (blockedOverlap && blockedOverlap.length > 0)) {
+  if (
+    availabilityOverlap.bookings.length > 0 ||
+    availabilityOverlap.blockedDates.length > 0
+  ) {
     return error("Selected dates are unavailable. Please choose another date.", 409);
   }
 
