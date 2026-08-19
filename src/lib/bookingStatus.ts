@@ -20,6 +20,8 @@ export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 export type NotifiableBookingStatus = (typeof NOTIFIABLE_BOOKING_STATUSES)[number];
 
 export const bookingStatusSchema = z.enum(BOOKING_STATUSES);
+export const BOOKING_ACTION_REASON_MAX_LENGTH = 500;
+export const bookingActionReasonSchema = z.string().max(BOOKING_ACTION_REASON_MAX_LENGTH);
 
 export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   contract_signing: "Contract Signing",
@@ -50,6 +52,33 @@ export const BOOKING_STATUS_TRANSITIONS: Record<BookingStatus, readonly BookingS
 
 export function getAllowedNextBookingStatuses(status: BookingStatus): readonly BookingStatus[] {
   return BOOKING_STATUS_TRANSITIONS[status];
+}
+
+export function normalizeBookingActionReason(reason: unknown): string {
+  return typeof reason === "string" ? reason.trim() : "";
+}
+
+export function bookingActionReasonError(
+  reason: unknown,
+  label: "Cancellation" | "Override",
+  required = true,
+): string | null {
+  const normalizedReason = normalizeBookingActionReason(reason);
+  if (required && !normalizedReason) return `${label} reason is required.`;
+  if (normalizedReason.length > BOOKING_ACTION_REASON_MAX_LENGTH) {
+    return `${label} reason must be ${BOOKING_ACTION_REASON_MAX_LENGTH} characters or fewer.`;
+  }
+  return null;
+}
+
+export function isExpiredReservationCancellation(booking: {
+  status: string | null | undefined;
+  reservation_expired_at: string | null | undefined;
+  cancellation_source: string | null | undefined;
+}): boolean {
+  return normalizeBookingStatus(booking.status) === "cancelled"
+    && Boolean(booking.reservation_expired_at)
+    && booking.cancellation_source === "system";
 }
 
 export function isValidBookingStatusTransition(

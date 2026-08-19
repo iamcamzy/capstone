@@ -3,7 +3,14 @@ import Layout from '../../layouts/Layout.astro';
 import { requireAuth } from '../../lib/auth';
 import { getUserRole } from '../../lib/adminGuard';
 import { supabase, supabaseAdmin } from '../../lib/supabase';
-import { BOOKING_STATUS_LABELS, normalizeBookingStatus } from '../../lib/bookingStatus';
+import {
+  BOOKING_STATUS_LABELS,
+  BOOKING_STATUS_TRANSITIONS,
+  getAllowedNextBookingStatuses,
+  isExpiredReservationCancellation,
+  normalizeBookingStatus,
+  type BookingStatus,
+} from '../../lib/bookingStatus';
 
 export const prerender = false;
 
@@ -34,6 +41,20 @@ const { data: bookingPayments, error: bookingPaymentsError } = bookingIds.length
   : { data: [], error: null };
 const paymentByBookingId: Record<string, any> = {};
 (bookingPayments ?? []).forEach((payment: any) => { paymentByBookingId[payment.booking_id] = payment; });
+
+const { data: bookingAuditRows, error: bookingAuditError } = bookingIds.length > 0
+  ? await adminClient
+      .from('booking_audit_log')
+      .select('id, booking_id, actor_id, actor_type, action, from_status, to_status, reason, metadata, created_at')
+      .in('booking_id', bookingIds)
+      .order('created_at', { ascending: false })
+  : { data: [], error: null };
+const auditByBookingId: Record<string, any[]> = {};
+if (bookingAuditError) console.error('[Admin] Could not load booking audit history:', bookingAuditError.message);
+(bookingAuditRows ?? []).forEach((entry: any) => {
+  if (!entry.booking_id) return;
+  (auditByBookingId[entry.booking_id] ??= []).push(entry);
+});
 
 // Separately fetch venue names for each booking
 const venueIds = [...new Set((bookings ?? []).map(b => b.venue_id).filter(Boolean))];
@@ -92,6 +113,7 @@ const enrichedBookings = (bookings ?? []).map(b => {
       payment_notes: null,
       payment_recorded_at: null,
     },
+    auditHistory: auditByBookingId[b.id] ?? [],
     status: normalizeBookingStatus(b.status),
     venueName: venueById[b.venue_id] ?? '—',
     packageName: b.package_type ? (woodberryPackageNames[b.package_type] ?? b.package_type) : b.package_id ? (packageById[b.package_id] ?? '—') : null,
@@ -209,12 +231,14 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
   });
 };
 
+const canTransitionBookingTo = (status: BookingStatus, nextStatus: BookingStatus) =>
+  getAllowedNextBookingStatuses(status).includes(nextStatus);
+
 const reservationState = (booking: any) => {
   const paymentStatus = booking.payment?.payment_status ?? 'unpaid';
   const expiresAt = booking.reservation_expires_at ? new Date(booking.reservation_expires_at).getTime() : null;
   const remainingMs = expiresAt === null ? null : expiresAt - Date.now();
-  const expirationCancelled = booking.status === 'cancelled'
-    && (booking.reservation_expired_at || booking.cancellation_source === 'system');
+  const expirationCancelled = isExpiredReservationCancellation(booking);
 
   if (paymentStatus === 'paid' || booking.status === 'booked' || booking.status === 'completed') {
     return { label: 'Paid / secured', className: 'reservation-secured', warning: false };
@@ -489,6 +513,13 @@ const reservationState = (booking: any) => {
                           <span class={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${statusColors[b.status]??'bg-gray-100 text-gray-600'}`}>
                             {statusLabels[b.status] ?? b.status}
                           </span>
+                          {b.status === 'cancelled' && (
+                            <div class="mt-2 max-w-48 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-xs font-semibold text-red-800">
+                              {isExpiredReservationCancellation(b)
+                                ? 'Expired unpaid reservation. Reopening requires an admin override.'
+                                : 'Cancelled reservation. Normal status actions are locked.'}
+                            </div>
+                          )}
                         </td>
 
                         {/* Booked on */}
@@ -508,25 +539,33 @@ const reservationState = (booking: any) => {
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
                                 style="background:#2d5a27;">Signing</button>
                             )}
-                            {(b.status==='contract_signing'||b.status==='rescheduled')&&(
+                            {canTransitionBookingTo(b.status, 'booked')&&(
                               <button onclick={`confirmBooking('${b.id}')`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80 hover:-translate-y-0.5"
                                 style="background:#4a7c3f;">✓ Book</button>
                             )}
-                            {b.status==='booked'&&(
+                            {canTransitionBookingTo(b.status, 'rescheduled')&&(
                               <button onclick={`openReschedule('${b.id}')`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
                                 style="background:#aa8f66;">↻</button>
                             )}
-                            {(b.status==='contract_signing'||b.status==='booked'||b.status==='rescheduled')&&(
+                            {canTransitionBookingTo(b.status, 'cancelled')&&(
                               <button onclick={`cancelBooking('${b.id}')`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
                                 style="background:#9a4a36;">✕</button>
                             )}
-                            {b.status==='booked'&&(
+                            {canTransitionBookingTo(b.status, 'completed')&&(
                               <button onclick={`setBookingCompleted('${b.id}')`}
                                 class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
                                 style="background:#5e5c60;">Complete</button>
+                            )}
+                            {isAdmin && b.status === 'cancelled' && (
+                              <div class="mt-1 w-full border-t border-red-200 pt-2">
+                                <div class="mb-1 text-[10px] font-bold uppercase tracking-wider text-red-700">Manual override</div>
+                                <button onclick={`manuallyReopenCancelledBooking('${b.id}', ${isExpiredReservationCancellation(b) ? 'true' : 'false'})`}
+                                  class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-80"
+                                  style="background:#9a4a36;">Reopen as booked</button>
+                              </div>
                             )}
                             <button onclick={`openBookingDetail(${JSON.stringify(JSON.stringify(b))})`}
                               class="px-2.5 py-1.5 rounded-lg text-xs font-bold border-2 transition hover:bg-gray-50"
@@ -1094,6 +1133,11 @@ const reservationState = (booking: any) => {
           <div id="bd-cancelled-wrap"><span class="text-gray-400">Cancelled At</span><p id="bd-cancelled" class="font-semibold mt-0.5 text-red-500"></p></div>
           <div id="bd-rescheduled-wrap"><span class="text-gray-400">Rescheduled At</span><p id="bd-rescheduled" class="font-semibold mt-0.5 text-purple-600"></p></div>
         </div>
+      </div>
+
+      <div>
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Audit History</p>
+        <div id="bd-audit-history" class="space-y-2 text-sm"></div>
       </div>
 
     </div>
@@ -2390,10 +2434,12 @@ const reservationState = (booking: any) => {
 </style>
 
 <!-- Pass server data to client scripts safely, without breaking TypeScript -->
-<script is:inline define:vars={{ enrichedBookings, venues, initialAdminTab }}>
+<script is:inline define:vars={{ enrichedBookings, venues, initialAdminTab, isAdmin, bookingStatusTransitions: BOOKING_STATUS_TRANSITIONS }}>
   window.__allBookings = enrichedBookings;
   window.__venues = venues;
   window.__initialAdminTab = initialAdminTab;
+  window.__isAdmin = isAdmin;
+  window.__bookingStatusTransitions = bookingStatusTransitions;
 </script>
 
 <script>
@@ -2524,6 +2570,7 @@ type ConfirmOptions = {
   icon?: string;
   reasonLabel?: string;
   reasonPlaceholder?: string;
+  reasonRequiredMessage?: string;
 };
 
 function showConfirm(opts: ConfirmOptions): Promise<boolean> {
@@ -2590,6 +2637,8 @@ function showReasonConfirm(opts: ConfirmOptions): Promise<string | null> {
     reasonLabel.textContent = opts.reasonLabel ?? 'Reason';
     reasonInput.placeholder = opts.reasonPlaceholder ?? 'Enter reason';
     reasonInput.value = '';
+    okBtn.disabled = true;
+    okBtn.style.opacity = '0.5';
     reasonWrap.classList.remove('hidden');
 
     dialog.classList.remove('hidden');
@@ -2598,6 +2647,9 @@ function showReasonConfirm(opts: ConfirmOptions): Promise<string | null> {
     function cleanup(result: string | null) {
       dialog.classList.add('hidden');
       reasonWrap.classList.add('hidden');
+      okBtn.disabled = false;
+      okBtn.style.opacity = '';
+      reasonInput.removeEventListener('input', onReasonInput);
       okBtn.removeEventListener('click', onOk);
       cancelBtn.removeEventListener('click', onCancel);
       dialog.removeEventListener('click', onBackdrop);
@@ -2606,10 +2658,15 @@ function showReasonConfirm(opts: ConfirmOptions): Promise<string | null> {
     function onOk() {
       const reason = reasonInput.value.trim();
       if (!reason) {
-        toast('Please enter a reason.', false);
+        toast(opts.reasonRequiredMessage ?? 'Override reason is required.', false);
         return;
       }
       cleanup(reason);
+    }
+    function onReasonInput() {
+      const enabled = reasonInput.value.trim().length > 0;
+      okBtn.disabled = !enabled;
+      okBtn.style.opacity = enabled ? '' : '0.5';
     }
     function onCancel()  { cleanup(null); }
     function onBackdrop(e: Event) { if (e.target === dialog) cleanup(null); }
@@ -2617,6 +2674,7 @@ function showReasonConfirm(opts: ConfirmOptions): Promise<string | null> {
     okBtn.addEventListener('click', onOk);
     cancelBtn.addEventListener('click', onCancel);
     dialog.addEventListener('click', onBackdrop);
+    reasonInput.addEventListener('input', onReasonInput);
   });
 }
 
@@ -2624,7 +2682,11 @@ async function updateBookingStatus(id: string, status: string, label: string) {
   const r = await fetch('/api/admin/update-booking-status', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ bookingId: id, status }),
+    body: JSON.stringify({
+      bookingId: id,
+      status,
+      confirmedSensitiveAction: status === 'cancelled' || status === 'completed',
+    }),
   });
   const payload = await r.json().catch(() => ({}));
   if (r.ok) {
@@ -2770,10 +2832,11 @@ async function cancelBooking(id: string) {
     okColor: '#9a4a36',
     reasonLabel: 'Cancellation reason',
     reasonPlaceholder: 'Client request, duplicate booking, payment issue...',
+    reasonRequiredMessage: 'Cancellation reason is required.',
     icon: '❌',
   });
   if (!cancellationReason) return;
-  const r = await fetch('/api/bookings/CancelBookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: id, cancellationReason }) });
+  const r = await fetch('/api/bookings/CancelBookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: id, cancellationReason, confirmedSensitiveAction: true }) });
   const payload = await r.json().catch(() => ({}));
   if (r.ok) {
     toast(payload.warning ? `Cancelled, but email warning: ${payload.warning}` : 'Booking cancelled');
@@ -2874,9 +2937,19 @@ async function submitReschedule() {
       icon: '!',
       reasonLabel: 'Override reason',
       reasonPlaceholder: 'Admin-approved urgent booking, special management approval...',
+      reasonRequiredMessage: 'Override reason is required.',
     });
     if (!reason) return;
     overrideReason = reason;
+  } else {
+    const confirmed = await showConfirm({
+      title: 'Confirm Reschedule',
+      message: `Move this booking to ${formatAdminDateRange(start, end)}${ev ? ` with event date ${formatAdminDateRange(ev, ev)}` : ''}? Its status will change to Rescheduled and the client will be notified.`,
+      okLabel: 'Yes, Reschedule',
+      okColor: '#aa8f66',
+      icon: '!',
+    });
+    if (!confirmed) return;
   }
   const r = await fetch('/api/admin/reschedule', {
     method: 'POST',
@@ -2888,6 +2961,7 @@ async function submitReschedule() {
       newEventDate: ev || null,
       adminOverrideOneWeek,
       overrideReason,
+      confirmedSensitiveAction: true,
     }),
   });
   const payload = await r.json().catch(() => ({}));
@@ -3089,29 +3163,37 @@ function addActionBtn(container: HTMLElement, label: string, color: string, fn: 
   container.appendChild(btn);
 }
 
-async function manuallySecureExpiredBooking(id: string) {
+function canTransitionBookingStatus(fromStatus: string, toStatus: string): boolean {
+  const transitions = (window as any).__bookingStatusTransitions ?? {};
+  return Array.isArray(transitions[fromStatus]) && transitions[fromStatus].includes(toStatus);
+}
+
+async function manuallyReopenCancelledBooking(id: string, expired: boolean) {
   const overrideReason = await showReasonConfirm({
-    title: 'Manual reservation override',
-    message: 'This reservation was cancelled after expiration. Enter the override reason after verifying availability and payment arrangements.',
-    okLabel: 'Manually secure booking',
+    title: expired ? 'Reopen expired reservation' : 'Reopen cancelled reservation',
+    message: expired
+      ? 'Warning: this unpaid reservation expired and was cancelled by the system. Confirm availability and payment arrangements, then enter the admin override reason.'
+      : 'Warning: this reservation was cancelled. Confirm that reopening is authorized and the dates remain available, then enter the admin override reason.',
+    okLabel: 'Confirm manual override',
     okColor: '#9a4a36',
     icon: '!',
     reasonLabel: 'Override reason',
     reasonPlaceholder: 'Payment verified manually, management approval, client settled balance...',
+    reasonRequiredMessage: 'Override reason is required.',
   });
   if (!overrideReason) return;
 
   const response = await fetch('/api/admin/update-booking-status', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ bookingId: id, status: 'booked', manualOverride: true, overrideReason }),
+    body: JSON.stringify({ bookingId: id, status: 'booked', manualOverride: true, overrideReason, confirmedSensitiveAction: true }),
   });
   const payload = await response.json().catch(() => ({}));
   if (response.ok) {
-    toast(payload.warning ? `Booking secured, but notification warning: ${payload.warning}` : 'Booking manually secured');
+    toast(payload.warning ? `Booking reopened, but notification warning: ${payload.warning}` : 'Booking reopened by manual override');
     location.reload();
   } else {
-    toast(payload.error ?? payload.message ?? 'Could not manually secure booking', false);
+    toast(payload.error ?? payload.message ?? 'Could not reopen booking', false);
   }
 }
 
@@ -3146,7 +3228,8 @@ function openPaymentModal(jsonStr: string) {
   const booking = JSON.parse(jsonStr);
   const payment = booking.payment ?? {};
   const expirationCancelled = booking.status === 'cancelled'
-    && !!(booking.reservation_expired_at || booking.cancellation_source === 'system');
+    && !!booking.reservation_expired_at
+    && booking.cancellation_source === 'system';
   const expiresInMs = booking.reservation_expires_at
     ? new Date(booking.reservation_expires_at).getTime() - Date.now()
     : null;
@@ -3258,7 +3341,8 @@ function openBookingDetail(jsonStr: string) {
   setText('bd-payment-notes', b.payment?.payment_notes ?? '—');
   const paymentStatus = b.payment?.payment_status ?? 'unpaid';
   const expirationCancelled = b.status === 'cancelled'
-    && !!(b.reservation_expired_at || b.cancellation_source === 'system');
+    && !!b.reservation_expired_at
+    && b.cancellation_source === 'system';
   const expiresInMs = b.reservation_expires_at
     ? new Date(b.reservation_expires_at).getTime() - Date.now()
     : null;
@@ -3313,29 +3397,78 @@ function openBookingDetail(jsonStr: string) {
   toggleEl('bd-rescheduled-wrap', !!b.rescheduled_at);
   if (b.rescheduled_at) setText('bd-rescheduled', fmtTs(b.rescheduled_at));
 
+  const auditHistory = document.getElementById('bd-audit-history')!;
+  auditHistory.replaceChildren();
+  if (!Array.isArray(b.auditHistory) || b.auditHistory.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'rounded-lg bg-gray-50 px-3 py-2 text-gray-500';
+    empty.textContent = 'No audit events recorded for this booking yet.';
+    auditHistory.appendChild(empty);
+  } else {
+    b.auditHistory.forEach((entry: any) => {
+      const item = document.createElement('div');
+      item.className = 'rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5';
+
+      const heading = document.createElement('div');
+      heading.className = 'flex flex-wrap items-center justify-between gap-2';
+      const action = document.createElement('p');
+      action.className = 'font-bold text-gray-700';
+      action.textContent = String(entry.action ?? 'booking_updated').replaceAll('_', ' ');
+      const timestamp = document.createElement('time');
+      timestamp.className = 'text-xs text-gray-400';
+      timestamp.textContent = fmtTs(entry.created_at);
+      heading.append(action, timestamp);
+      item.appendChild(heading);
+
+      const details = document.createElement('p');
+      details.className = 'mt-1 text-xs text-gray-500';
+      const actor = String(entry.actor_type ?? 'system');
+      const transition = entry.from_status || entry.to_status
+        ? ` · ${entry.from_status ?? '—'} → ${entry.to_status ?? '—'}`
+        : '';
+      details.textContent = `${actor}${transition}`;
+      item.appendChild(details);
+
+      if (entry.reason) {
+        const reason = document.createElement('p');
+        reason.className = 'mt-1 text-xs text-gray-600';
+        reason.textContent = `Reason: ${entry.reason}`;
+        item.appendChild(reason);
+      }
+      auditHistory.appendChild(item);
+    });
+  }
+
   const actions = document.getElementById('bd-actions')!;
   actions.innerHTML = '';
   addActionBtn(actions, 'Record Payment', '#2d5a27', function() { closeBookingDetail(); openPaymentModal(JSON.stringify(b)); });
   if (canUpdateContractSigningScheduleForAdmin(b.status)) {
     addActionBtn(actions, 'Set Signing Schedule', '#2d5a27', function() { closeBookingDetail(); openContractSigningSchedule(JSON.stringify(b)); });
   }
-  if (b.status === 'contract_signing' || b.status === 'rescheduled') {
+  if (canTransitionBookingStatus(b.status, 'booked')) {
     addActionBtn(actions, '✓ Book', '#4a7c3f', function() { closeBookingDetail(); confirmBooking(b.id); });
   }
-  if (b.status === 'booked') {
+  if (canTransitionBookingStatus(b.status, 'rescheduled')) {
     addActionBtn(actions, '↻ Reschedule', '#aa8f66', function() { closeBookingDetail(); openReschedule(b.id); });
   }
-  if (b.status === 'contract_signing' || b.status === 'booked' || b.status === 'rescheduled') {
+  if (canTransitionBookingStatus(b.status, 'cancelled')) {
     addActionBtn(actions, '✕ Cancel', '#9a4a36', function() { closeBookingDetail(); cancelBooking(b.id); });
   }
-  if (b.status === 'booked') {
+  if (canTransitionBookingStatus(b.status, 'completed')) {
     addActionBtn(actions, 'Complete', '#5e5c60', function() { closeBookingDetail(); setBookingCompleted(b.id); });
   }
-  if (expirationCancelled) {
-    addActionBtn(actions, 'Manual override: secure booking', '#9a4a36', function() {
+  if (b.status === 'cancelled' && (window as any).__isAdmin) {
+    const manualActions = document.createElement('div');
+    manualActions.className = 'w-full mt-2 pt-3 border-t border-red-200';
+    const manualLabel = document.createElement('div');
+    manualLabel.className = 'mb-2 text-xs font-bold uppercase tracking-wider text-red-700';
+    manualLabel.textContent = 'Manual override action';
+    manualActions.appendChild(manualLabel);
+    addActionBtn(manualActions, 'Reopen as booked', '#9a4a36', function() {
       closeBookingDetail();
-      manuallySecureExpiredBooking(b.id);
+      manuallyReopenCancelledBooking(b.id, expirationCancelled);
     });
+    actions.appendChild(manualActions);
   }
   addActionBtn(actions, 'Close', '#5e5c60', closeBookingDetail, true);
   document.getElementById('bookingDetailModal')?.classList.remove('hidden');
@@ -3617,6 +3750,7 @@ switchReport('weekly');
 (window as any).confirmBooking    = confirmBooking;
 (window as any).cancelBooking     = cancelBooking;
 (window as any).updateBookingStatus = updateBookingStatus;
+(window as any).manuallyReopenCancelledBooking = manuallyReopenCancelledBooking;
 (window as any).setBookingCompleted = setBookingCompleted;
 (window as any).setBookingContractSigning = setBookingContractSigning;
 (window as any).openContractSigningSchedule = openContractSigningSchedule;
@@ -3816,6 +3950,7 @@ async function createBlockedDate(event: Event) {
         startDate: startInput.value,
         endDate: endInput.value,
         reason,
+        confirmedSensitiveAction: true,
       }),
     });
     const payload = await res.json().catch(() => ({}));
@@ -3850,7 +3985,7 @@ async function deactivateBlockedDate(id: string) {
     const res = await fetch('/api/admin/blocked-dates', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, isActive: false }),
+      body: JSON.stringify({ id, isActive: false, confirmedSensitiveAction: true }),
     });
     const payload = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(payload.error ?? payload.message ?? 'Could not unblock dates');
@@ -3977,14 +4112,14 @@ function admShowDayDetail(iso: string, bookings: any[], blockedDates: any[]) {
   const bookingsHtml = bookings.map(b => {
     const full = byId[b.id] ?? b;
     const s = STATUS_CELL[b.status] ?? STATUS_CELL.contract_signing;
-    const actionBtns = b.status === 'contract_signing'
+    const actionBtns = canTransitionBookingStatus(b.status, 'booked') && b.status === 'contract_signing'
       ? `<button onclick="confirmBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#4a7c3f;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✓ Book</button>
          <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#9a4a36;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>`
-      : b.status === 'booked'
+      : canTransitionBookingStatus(b.status, 'rescheduled')
       ? `<button onclick="openReschedule('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#aa8f66;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">↻ Reschedule</button>
          <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#9a4a36;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>
          <button onclick="setBookingCompleted('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#5e5c60;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">Complete</button>`
-      : b.status === 'rescheduled'
+      : canTransitionBookingStatus(b.status, 'booked') && b.status === 'rescheduled'
       ? `<button onclick="confirmBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#4a7c3f;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✓ Book</button>
          <button onclick="cancelBooking('${b.id}')" style="padding:4px 10px;border-radius:6px;background:#9a4a36;color:white;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;">✕ Cancel</button>`
       : '';

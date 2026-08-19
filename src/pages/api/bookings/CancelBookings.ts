@@ -4,7 +4,11 @@ import { supabaseAdmin, supabase } from "../../../lib/supabase";
 import { getUserRole } from "../../../lib/adminGuard";
 import { ok, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
-import { normalizeBookingStatus } from "../../../lib/bookingStatus";
+import {
+  bookingActionReasonError,
+  normalizeBookingActionReason,
+  normalizeBookingStatus,
+} from "../../../lib/bookingStatus";
 import {
   BookingStatusTransitionError,
   updateBookingStatusAndNotify,
@@ -19,16 +23,16 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (!roleInfo) return error("Unauthorized - please sign in", 401);
   const user = roleInfo.user;
 
-  const body = await parseBody<{ bookingId?: string; cancellationReason?: string }>(request);
+  const body = await parseBody<{
+    bookingId?: string;
+    cancellationReason?: string;
+    confirmedSensitiveAction?: boolean;
+  }>(request);
   if (!body.ok) return body.response;
 
   const { bookingId } = body.data;
   if (!bookingId) return error("bookingId is required", 400);
-  const cancellationReason =
-    typeof body.data.cancellationReason === "string" ? body.data.cancellationReason.trim() : "";
-  if (cancellationReason.length > 500) {
-    return error("cancellationReason must be 500 characters or fewer", 400);
-  }
+  const cancellationReason = normalizeBookingActionReason(body.data.cancellationReason);
 
   const { data: booking, error: fetchError } = await db
     .from("bookings")
@@ -45,8 +49,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (!isInternalUser && booking.user_id !== user.id) {
     return error("You can only cancel your own bookings", 403);
   }
-  if (isInternalUser && !cancellationReason) {
-    return error("cancellationReason is required when staff or admins cancel a booking", 400);
+  const cancellationReasonError = bookingActionReasonError(
+    cancellationReason,
+    "Cancellation",
+    isInternalUser,
+  );
+  if (cancellationReasonError) return error(cancellationReasonError, 400);
+  if (isInternalUser && body.data.confirmedSensitiveAction !== true) {
+    return error("Explicit confirmation is required before cancelling a booking.", 400);
   }
 
   try {

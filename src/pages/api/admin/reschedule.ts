@@ -4,7 +4,13 @@ import { supabaseAdmin, supabase } from "../../../lib/supabase";
 import { staffOrAdminGuard } from "../../../lib/adminGuard";
 import { ok, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
-import { normalizeBookingStatus } from "../../../lib/bookingStatus";
+import {
+  bookingActionReasonError,
+  bookingStatusTransitionErrorMessage,
+  isValidBookingStatusTransition,
+  normalizeBookingActionReason,
+  normalizeBookingStatus,
+} from "../../../lib/bookingStatus";
 import {
   BookingStatusTransitionError,
   updateBookingStatusAndNotify,
@@ -32,14 +38,18 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     newEventDate?: string | null;
     adminOverrideOneWeek?: boolean;
     overrideReason?: string;
+    confirmedSensitiveAction?: boolean;
   }>(request);
   if (!body.ok) return body.response;
 
   const { bookingId, newStartDate, newEndDate } = body.data;
   const newEventDate = body.data.newEventDate || null;
   const adminOverrideOneWeek = body.data.adminOverrideOneWeek === true;
-  const overrideReason =
-    typeof body.data.overrideReason === "string" ? body.data.overrideReason.trim() : "";
+  const overrideReason = normalizeBookingActionReason(body.data.overrideReason);
+
+  if (body.data.confirmedSensitiveAction !== true) {
+    return error("Explicit confirmation is required before rescheduling a booking.", 400);
+  }
 
   if (!bookingId) return error("bookingId is required", 400);
   if (!newStartDate) return error("newStartDate is required", 400);
@@ -76,12 +86,12 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (adminOverrideOneWeek && guard.role !== "admin") {
     return error("Forbidden: date-rule override requires an admin account", 403);
   }
-  if (adminOverrideOneWeek && !overrideReason) {
-    return error("overrideReason is required for admin date-rule override", 400);
-  }
-  if (overrideReason.length > 500) {
-    return error("overrideReason must be 500 characters or fewer", 400);
-  }
+  const overrideReasonError = bookingActionReasonError(
+    overrideReason,
+    "Override",
+    adminOverrideOneWeek,
+  );
+  if (overrideReasonError) return error(overrideReasonError, 400);
 
   const { data: booking, error: fetchError } = await db
     .from("bookings")
@@ -91,8 +101,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   if (fetchError || !booking) return error("Booking not found", 404);
   const bookingStatus = normalizeBookingStatus(booking.status);
-  if (bookingStatus !== "booked") {
-    return error("Only booked bookings can be rescheduled.", 400);
+  if (!isValidBookingStatusTransition(bookingStatus, "rescheduled")) {
+    return error(bookingStatusTransitionErrorMessage(bookingStatus, "rescheduled"), 409);
   }
 
   const availabilityOverlap = await findAvailabilityOverlaps(db, {

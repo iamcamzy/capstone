@@ -4,13 +4,18 @@ import { z } from "zod";
 import { supabaseAdmin, supabase } from "../../../lib/supabase";
 import { staffOrAdminGuard } from "../../../lib/adminGuard";
 import {
+  bookingStatusSchema,
+  bookingActionReasonError,
+  bookingActionReasonSchema,
   bookingStatusTransitionErrorMessage,
+  isExpiredReservationCancellation,
   isValidBookingStatusTransition,
   normalizeBookingStatus,
-  type BookingStatus,
+  normalizeBookingActionReason,
 } from "../../../lib/bookingStatus";
 import { ok, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
+import { findAvailabilityOverlaps } from "../../../services/bookingAvailability";
 import {
   BookingStatusTransitionError,
   ContractSigningScheduleStatusError,
@@ -21,21 +26,13 @@ import {
 export const prerender = false;
 
 const db = supabaseAdmin ?? supabase;
-const ALLOWED_STATUS_UPDATES: BookingStatus[] = [
-  "contract_signing",
-  "booked",
-  "rescheduled",
-  "cancelled",
-  "completed",
-];
-const reasonSchema = z.string().max(500);
-
 const updateStatusSchema = z.object({
   bookingId: z.string().uuid("bookingId must be a valid UUID"),
-  status: z.string().min(1, "status is required").optional(),
+  status: bookingStatusSchema.optional(),
   manualOverride: z.boolean().optional().default(false),
-  cancellationReason: reasonSchema.optional(),
-  overrideReason: reasonSchema.optional(),
+  confirmedSensitiveAction: z.boolean().optional().default(false),
+  cancellationReason: bookingActionReasonSchema.optional(),
+  overrideReason: bookingActionReasonSchema.optional(),
   contractSigningDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "contractSigningDate must use YYYY-MM-DD")
@@ -51,6 +48,13 @@ const updateStatusSchema = z.object({
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "status or contract signing schedule is required",
+      path: ["status"],
+    });
+  }
+  if (value.status && (hasScheduleDate || hasScheduleTime)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Update the booking status and contract signing schedule in separate requests",
       path: ["status"],
     });
   }
@@ -75,12 +79,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return error(parsed.error.errors.map((item) => item.message).join(", "), 400);
   }
 
-  if (parsed.data.status && !ALLOWED_STATUS_UPDATES.includes(parsed.data.status as BookingStatus)) {
-    return error(`status must be one of: ${ALLOWED_STATUS_UPDATES.join(", ")}`, 400);
-  }
-  const status = parsed.data.status ? normalizeBookingStatus(parsed.data.status) : null;
-  const cancellationReason = parsed.data.cancellationReason?.trim() ?? "";
-  const overrideReason = parsed.data.overrideReason?.trim() ?? "";
+  const status = parsed.data.status ?? null;
+  const cancellationReason = normalizeBookingActionReason(parsed.data.cancellationReason);
+  const overrideReason = normalizeBookingActionReason(parsed.data.overrideReason);
 
   try {
     if (parsed.data.manualOverride && guard.role !== "admin") {
@@ -89,26 +90,36 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
     let statusUpdateFields: Record<string, unknown> | undefined;
     if (status) {
-      if (status === "cancelled" && !cancellationReason) {
-        return error("cancellationReason is required when cancelling a booking", 400);
+      if (
+        (status === "cancelled" || status === "completed" || parsed.data.manualOverride) &&
+        !parsed.data.confirmedSensitiveAction
+      ) {
+        return error("Explicit confirmation is required for this sensitive booking action.", 400);
       }
-      if (parsed.data.manualOverride && !overrideReason) {
-        return error("overrideReason is required for admin manual override", 400);
-      }
+      const reasonError = status === "cancelled"
+        ? bookingActionReasonError(cancellationReason, "Cancellation")
+        : parsed.data.manualOverride
+          ? bookingActionReasonError(overrideReason, "Override")
+          : null;
+      if (reasonError) return error(reasonError, 400);
 
       const { data: currentBooking, error: currentBookingError } = await db
         .from("bookings")
-        .select("id, status, reservation_expired_at, cancellation_source")
+        .select("id, status, reservation_expired_at, cancellation_source, venue_id, start_date, end_date")
         .eq("id", parsed.data.bookingId)
         .single();
       if (currentBookingError || !currentBooking) return error("Booking not found", 404);
       const currentStatus = normalizeBookingStatus(currentBooking.status);
-      const expirationCancelled =
-        currentStatus === "cancelled" &&
-        Boolean(currentBooking.reservation_expired_at || currentBooking.cancellation_source === "system");
-      if (status === "booked" && expirationCancelled && !parsed.data.manualOverride) {
+      const expirationCancelled = isExpiredReservationCancellation(currentBooking);
+      const reopeningCancelled = currentStatus === "cancelled" && status === "booked";
+      if (parsed.data.manualOverride && !reopeningCancelled) {
+        return error("Manual override is only allowed when reopening a cancelled booking as booked.", 400);
+      }
+      if (reopeningCancelled && !parsed.data.manualOverride) {
         return error(
-          "This reservation was cancelled after expiration and requires an explicit manual override.",
+          expirationCancelled
+            ? "This expired reservation was cancelled by the system and requires an explicit admin manual override."
+            : "Cancelled bookings require an explicit admin manual override before they can be reopened.",
           409,
         );
       }
@@ -126,7 +137,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         );
       }
 
-      if (status === "booked" && currentStatus === "cancelled" && parsed.data.manualOverride) {
+      if (reopeningCancelled && parsed.data.manualOverride) {
+        const availabilityOverlap = await findAvailabilityOverlaps(db, {
+          venueId: currentBooking.venue_id,
+          startDate: currentBooking.start_date,
+          endDate: currentBooking.end_date,
+          excludeBookingId: parsed.data.bookingId,
+        });
+        if (availabilityOverlap.error) {
+          return error("Could not verify venue availability for this override. Please try again.", 500);
+        }
+        if (availabilityOverlap.bookings.length > 0 || availabilityOverlap.blockedDates.length > 0) {
+          return error("This reservation cannot be reopened because its dates are no longer available.", 409);
+        }
         statusUpdateFields = {
           reservation_expired_at: null,
           cancellation_reason: null,

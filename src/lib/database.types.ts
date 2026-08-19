@@ -144,7 +144,7 @@ export type Database = {
       booking_audit_log: {
         Row: {
           id: string;
-          booking_id: string;
+          booking_id: string | null;
           actor_id: string | null;
           actor_type: "admin" | "staff" | "customer" | "system";
           action: string;
@@ -156,7 +156,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          booking_id: string;
+          booking_id?: string | null;
           actor_id?: string | null;
           actor_type: "admin" | "staff" | "customer" | "system";
           action: string;
@@ -168,7 +168,7 @@ export type Database = {
         };
         Update: {
           id?: string;
-          booking_id?: string;
+          booking_id?: string | null;
           actor_id?: string | null;
           actor_type?: "admin" | "staff" | "customer" | "system";
           action?: string;

@@ -7,7 +7,7 @@ type DbClient = SupabaseClient<Database>;
 export type BookingAuditActorType = "admin" | "staff" | "customer" | "system";
 
 export type BookingAuditInput = {
-  bookingId: string;
+  bookingId?: string | null;
   actorId?: string | null;
   actorType: BookingAuditActorType;
   action: string;
@@ -24,7 +24,7 @@ export async function logBookingAudit(
   client: DbClient = db,
 ): Promise<void> {
   const { error } = await client.from("booking_audit_log").insert({
-    booking_id: input.bookingId,
+    booking_id: input.bookingId ?? null,
     actor_id: input.actorId ?? null,
     actor_type: input.actorType,
     action: input.action,

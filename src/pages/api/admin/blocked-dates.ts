@@ -5,6 +5,7 @@ import { supabaseAdmin, supabase } from "../../../lib/supabase";
 import { adminGuard } from "../../../lib/adminGuard";
 import { ok, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
+import { logBookingAudit } from "../../../services/bookingAudit";
 
 export const prerender = false;
 
@@ -24,6 +25,9 @@ const createBlockedDateSchema = z
     startDate: dateString,
     endDate: dateString,
     reason: blockedDateReasonSchema,
+    confirmedSensitiveAction: z.literal(true, {
+      errorMap: () => ({ message: "Explicit confirmation is required before blocking dates" }),
+    }),
   })
   .refine((data) => data.endDate >= data.startDate, {
     message: "endDate must be on or after startDate",
@@ -37,6 +41,9 @@ const updateBlockedDateSchema = z.object({
   endDate: dateString.optional(),
   reason: blockedDateReasonSchema.optional(),
   isActive: z.boolean().optional(),
+  confirmedSensitiveAction: z.literal(true, {
+    errorMap: () => ({ message: "Explicit confirmation is required before changing blocked dates" }),
+  }),
 });
 
 function mapBlockedDate(row: any) {
@@ -100,6 +107,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     .single();
 
   if (insertError) return error(insertError.message, 500);
+  await logBookingAudit({
+    actorId: guard.user.id,
+    actorType: "admin",
+    action: "blocked_date_created",
+    reason: data.reason,
+    metadata: {
+      blockedDateId: data.id,
+      venueId: data.venue_id,
+      startDate: data.start_date,
+      endDate: data.end_date,
+      isActive: data.is_active,
+    },
+  }, db);
   return ok({ message: "Blocked date added", blockedDate: mapBlockedDate(data) });
 };
 
@@ -148,5 +168,28 @@ export const PATCH: APIRoute = async ({ request, cookies }) => {
     .single();
 
   if (updateError) return error(updateError.message, 500);
+  await logBookingAudit({
+    actorId: guard.user.id,
+    actorType: "admin",
+    action: data.is_active
+      ? (current.is_active ? "blocked_date_updated" : "blocked_date_reactivated")
+      : "blocked_date_deactivated",
+    reason: data.reason,
+    metadata: {
+      blockedDateId: data.id,
+      previous: {
+        venueId: current.venue_id,
+        startDate: current.start_date,
+        endDate: current.end_date,
+        isActive: current.is_active,
+      },
+      current: {
+        venueId: data.venue_id,
+        startDate: data.start_date,
+        endDate: data.end_date,
+        isActive: data.is_active,
+      },
+    },
+  }, db);
   return ok({ message: data.is_active ? "Blocked date updated" : "Blocked date deactivated", blockedDate: mapBlockedDate(data) });
 };

@@ -90,7 +90,7 @@ async function sendDueExpirationReminders(
   return sent;
 }
 
-async function sendPendingCancellationNotices(
+async function sendUnsentCancellationNotices(
   client: DbClient,
   failures: ExpireUnpaidReservationsResult["notificationFailures"],
 ): Promise<string[]> {
@@ -102,7 +102,7 @@ async function sendPendingCancellationNotices(
     .not("reservation_expired_at", "is", null)
     .is("expiration_cancel_notice_sent_at", null);
 
-  if (error) throw new Error(`Could not find pending expiration notices: ${error.message}`);
+  if (error) throw new Error(`Could not find unsent expiration notices: ${error.message}`);
   const sent: string[] = [];
 
   for (const booking of candidates ?? []) {
@@ -199,7 +199,7 @@ export async function expireUnpaidReservations(
     }
   }
 
-  const cancellationNoticesSent = await sendPendingCancellationNotices(
+  const cancellationNoticesSent = await sendUnsentCancellationNotices(
     client,
     notificationFailures,
   );

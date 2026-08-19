@@ -534,11 +534,17 @@ export async function updateBookingStatusAndNotify(
       updated_at: now,
     })
     .eq("id", bookingId)
+    .eq("status", currentBooking.status)
     .select("id, status")
-    .single();
+    .maybeSingle();
 
-  if (updateError || !booking) {
-    throw new Error(updateError?.message ?? "Booking update failed");
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+  if (!booking) {
+    throw new BookingStatusTransitionError(
+      "Booking status changed while this action was being processed. Refresh and try again.",
+    );
   }
 
   await logBookingAudit(
