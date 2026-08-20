@@ -1,7 +1,7 @@
 // GET /api/bookings/GetUserBookings — get current user's bookings (requires auth)
 import type { APIRoute } from "astro";
 import { supabase } from "../../../lib/supabase";
-import { getUser } from "../../../lib/auth";
+import { customerGuard } from "../../../lib/adminGuard";
 import { ok, error } from "../../../lib/response";
 import { BOOKING_STATUSES, normalizeBookingStatus, type BookingStatus } from "../../../lib/bookingStatus";
 
@@ -10,8 +10,9 @@ export const prerender = false;
 const VALID_STATUSES = [...BOOKING_STATUSES];
 
 export const GET: APIRoute = async ({ cookies, url }) => {
-  const user = await getUser(cookies);
-  if (!user) return error("Unauthorized — please sign in", 401);
+  const guard = await customerGuard(cookies);
+  if (guard instanceof Response) return guard;
+  const user = guard.user;
 
   const status = url.searchParams.get("status");
   const normalizedStatus = status ? normalizeBookingStatus(status) : null;

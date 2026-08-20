@@ -78,8 +78,10 @@ export type Database = {
           email: string | null;
           first_name: string | null;
           last_name: string | null;
+          phone: string | null;
           position: string | null;
           is_active: boolean;
+          created_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -88,8 +90,10 @@ export type Database = {
           email?: string | null;
           first_name?: string | null;
           last_name?: string | null;
+          phone?: string | null;
           position?: string | null;
           is_active?: boolean;
+          created_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -98,8 +102,10 @@ export type Database = {
           email?: string | null;
           first_name?: string | null;
           last_name?: string | null;
+          phone?: string | null;
           position?: string | null;
           is_active?: boolean;
+          created_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };

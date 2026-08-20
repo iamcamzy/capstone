@@ -1,10 +1,12 @@
 create table if not exists public.employees (
-  id uuid primary key,
+  id uuid primary key references auth.users(id),
   email text null,
   first_name text null,
   last_name text null,
-  position text null default 'Staff',
+  phone text null,
+  position text null,
   is_active boolean not null default true,
+  created_by uuid null references auth.users(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -56,6 +58,18 @@ create policy employees_admin_update
     )
   )
   with check (
+    exists (
+      select 1
+      from public.admins
+      where admins.id = auth.uid()
+    )
+  );
+
+drop policy if exists employees_admin_delete on public.employees;
+create policy employees_admin_delete
+  on public.employees
+  for delete
+  using (
     exists (
       select 1
       from public.admins

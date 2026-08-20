@@ -1,7 +1,8 @@
 // POST /api/bookings/CreateBookings - create a booking (requires auth)
 import type { APIRoute } from "astro";
 import { supabase, supabaseAdmin } from "../../../lib/supabase";
-import { getUser, isEmailVerified } from "../../../lib/auth";
+import { isEmailVerified } from "../../../lib/auth";
+import { customerGuard } from "../../../lib/adminGuard";
 import { createBookingSchema } from "../../../validation/booking";
 import { created, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
@@ -110,8 +111,9 @@ function sumItems(items: RateItem[]) {
 const db = supabaseAdmin ?? supabase;
 
 export const POST: APIRoute = async ({ request, cookies }) => {
-  const user = await getUser(cookies);
-  if (!user) return error("Unauthorized - please sign in", 401);
+  const guard = await customerGuard(cookies);
+  if (guard instanceof Response) return guard;
+  const user = guard.user;
   if (!isEmailVerified(user)) {
     return error("Please verify your email before booking.", 403);
   }

@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { supabase } from "../../../lib/supabase";
 import { clearSessionCookies, getSafeInternalRedirect, isEmailVerified, setSessionCookies } from "../../../lib/auth";
+import { getDashboardPathForRole, getUserRole } from "../../../lib/adminGuard";
 import { signInSchema } from "../../../validation/user";
 
 export const prerender = false;
@@ -35,5 +36,14 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   }
 
   setSessionCookies(cookies, data.session.access_token, data.session.refresh_token);
-  return redirect(redirectPath);
+  const roleInfo = await getUserRole(cookies);
+  if (roleInfo.role === "none") {
+    await supabase.auth.signOut();
+    clearSessionCookies(cookies);
+    return redirect("/signin?error=This+account+is+inactive+or+has+no+assigned+role");
+  }
+  const destination = redirectPath === "/dashboard"
+    ? getDashboardPathForRole(roleInfo.role)
+    : redirectPath;
+  return redirect(destination);
 };

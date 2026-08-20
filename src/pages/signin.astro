@@ -1,13 +1,20 @@
 ---
 import ShowButton from '../components/showButton.astro';
 import Layout from '../layouts/Layout.astro';
-import { clearSessionCookies, getSafeInternalRedirect, getUser, isEmailVerified } from '../lib/auth';
+import { clearSessionCookies, getSafeInternalRedirect, isEmailVerified } from '../lib/auth';
+import { getDashboardPathForRole, getUserRole } from '../lib/adminGuard';
 export const prerender = false;
 
 const { cookies, url } = Astro;
 const redirectPath = getSafeInternalRedirect(url.searchParams.get('redirect'));
-const currentUser = await getUser(cookies);
-if (currentUser && isEmailVerified(currentUser)) return Astro.redirect(redirectPath);
+const roleInfo = await getUserRole(cookies);
+const currentUser = roleInfo.user;
+if (currentUser && roleInfo.role !== 'none' && isEmailVerified(currentUser)) {
+  const destination = redirectPath === '/dashboard'
+    ? getDashboardPathForRole(roleInfo.role)
+    : redirectPath;
+  return Astro.redirect(destination);
+}
 if (currentUser) clearSessionCookies(cookies);
 
 const errorMsg = url.searchParams.get('error');

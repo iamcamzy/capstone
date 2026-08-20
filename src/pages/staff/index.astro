@@ -1,0 +1,16 @@
+---
+import { staffOrAdminGuard } from '../../lib/adminGuard';
+
+export const prerender = false;
+
+const guard = await staffOrAdminGuard(Astro.cookies);
+
+if (guard instanceof Response) {
+  if (guard.status === 401) return Astro.redirect('/signin');
+  return Astro.redirect('/dashboard');
+}
+
+// Keep the booking workspace shared with the admin page. The query flag makes
+// the shared page render only staff-safe booking operations, even for admins.
+return Astro.rewrite('/admin?staffView=1');
+---

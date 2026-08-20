@@ -1,7 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { requireAuth } from '../../lib/auth';
-import { getUserRole } from '../../lib/adminGuard';
+import { adminGuard, staffOrAdminGuard } from '../../lib/adminGuard';
 import { supabase, supabaseAdmin } from '../../lib/supabase';
 import {
   BOOKING_STATUS_LABELS,
@@ -14,18 +13,21 @@ import {
 
 export const prerender = false;
 
-const user = await requireAuth(Astro.cookies);
-if (!user) return Astro.redirect('/signin');
-
 // Use service role client so RLS never blocks the role check
 const adminClient = supabaseAdmin ?? supabase;
-const roleInfo = await getUserRole(Astro.cookies);
-
-if (!roleInfo || (roleInfo.role !== 'admin' && roleInfo.role !== 'staff')) {
+// `/staff` rewrites here with this flag so both staff and admins get the same
+// booking-operations-only workspace without duplicating the large booking UI.
+const staffViewRequested = Astro.url.searchParams.get('staffView') === '1';
+const roleInfo = staffViewRequested
+  ? await staffOrAdminGuard(Astro.cookies)
+  : await adminGuard(Astro.cookies);
+if (roleInfo instanceof Response) {
+  if (roleInfo.status === 401) return Astro.redirect('/signin');
   return Astro.redirect('/dashboard');
 }
-const isAdmin = roleInfo.role === 'admin';
-const isStaff = roleInfo.role === 'staff';
+const user = roleInfo.user;
+const isAdmin = roleInfo.role === 'admin' && !staffViewRequested;
+const isStaff = roleInfo.role === 'staff' || staffViewRequested;
 const profile = roleInfo.profile;
 const initialAdminTab = isAdmin ? 'dashboard' : 'bookings';
 
@@ -179,8 +181,7 @@ const { data: allAdmins } = isAdmin
 const { data: allEmployees } = isAdmin
   ? await adminClient
       .from('employees')
-      .select('id, email, first_name, last_name, position, is_active, created_at')
-      .eq('is_active', true)
+      .select('id, email, first_name, last_name, phone, position, is_active, created_at')
       .order('created_at', { ascending: false })
   : { data: [] };
 
@@ -211,6 +212,7 @@ const adminNavItems = isAdmin
       { id:'packages',  icon:'📦', label:'Packages'   },
       { id:'reviews',   icon:'⭐', label:'Reviews'    },
       { id:'users',     icon:'👥', label:'Users'      },
+      { id:'staff-management', icon:'ST', label:'Staff' },
       { id:'reports',   icon:'📈', label:'Reports'    },
       { id:'calendar',  icon:'🗓️', label:'Availability'},
     ]
@@ -253,7 +255,7 @@ const reservationState = (booking: any) => {
 };
 ---
 
-<Layout title="Admin Dashboard">
+<Layout title={isStaff ? "Staff Booking Management" : "Admin Dashboard"}>
 <div id="admin-root" class="admin-shell min-h-screen">
 
   <!-- SIDEBAR -->
@@ -708,43 +710,6 @@ const reservationState = (booking: any) => {
           </div>
         </div>
 
-        <!-- Staff -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
-          <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-            <h2 class="font-bold text-lg" style="color:var(--jet-primary);">Staff</h2>
-            <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">{allEmployees?.length ?? 0}</span>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-                <th class="px-5 py-3 text-left">Name</th>
-                <th class="px-5 py-3 text-left">Email</th>
-                <th class="px-5 py-3 text-left">Position</th>
-                <th class="px-5 py-3 text-left">Joined</th>
-                <th class="px-5 py-3 text-left">Actions</th>
-              </tr></thead>
-              <tbody>
-                {allEmployees?.map(e => (
-                  <tr class="border-t border-gray-50 hover:bg-gray-50">
-                    <td class="px-5 py-3 font-medium">{e.first_name??''} {e.last_name??''}</td>
-                    <td class="px-5 py-3 text-gray-600">{e.email??'—'}</td>
-                    <td class="px-5 py-3 text-gray-600">{e.position??'Staff'}</td>
-                    <td class="px-5 py-3 text-gray-400 text-xs">{new Date(e.created_at).toLocaleDateString('en-PH')}</td>
-                    <td class="px-5 py-3">
-                      <button onclick={`demoteStaff('${e.id}')`}
-                        class="px-3 py-1 rounded text-xs font-bold border-2 transition hover:bg-gray-50"
-                        style="border-color:#9a4a36;color:#9a4a36;">
-                        Demote to Customer
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {(!allEmployees||allEmployees.length===0)&&<tr><td colspan="5" class="px-5 py-8 text-center text-gray-400">No staff found.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         <!-- Customers -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
@@ -787,6 +752,47 @@ const reservationState = (booking: any) => {
           </div>
         </div>
       </section>
+
+      {isAdmin && (
+        <section id="tab-staff-management" class="tab-section hidden">
+          <div class="staff-heading">
+            <div>
+              <p class="staff-eyebrow">Account administration</p>
+              <h2>Staff Management</h2>
+              <p>Create staff sign-ins, update basic details, and control access without changing customer accounts.</p>
+            </div>
+            <button type="button" class="staff-primary-btn" onclick="openStaffModal()">Add staff account</button>
+          </div>
+          <div class="staff-summary">
+            <div><strong>{allEmployees?.length ?? 0}</strong><span>Total staff</span></div>
+            <div><strong>{allEmployees?.filter((employee) => employee.is_active).length ?? 0}</strong><span>Active</span></div>
+            <div><strong>{allEmployees?.filter((employee) => !employee.is_active).length ?? 0}</strong><span>Inactive</span></div>
+          </div>
+          <div class="staff-table-card">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm staff-table">
+                <thead><tr><th>Name</th><th>Contact</th><th>Position</th><th>Status</th><th>Added</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {allEmployees?.map((employee) => (
+                    <tr>
+                      <td class="font-semibold">{employee.first_name} {employee.last_name}</td>
+                      <td><span>{employee.email ?? '—'}</span><small>{employee.phone || 'No phone provided'}</small></td>
+                      <td>{employee.position || 'Staff'}</td>
+                      <td><span class={`staff-status ${employee.is_active ? 'active' : 'inactive'}`}>{employee.is_active ? 'Active' : 'Inactive'}</span></td>
+                      <td>{new Date(employee.created_at).toLocaleDateString('en-PH')}</td>
+                      <td><div class="staff-actions">
+                        <button type="button" onclick={`openStaffModal(${JSON.stringify(employee)})`}>Edit</button>
+                        <button type="button" class={employee.is_active ? 'danger' : 'activate'} onclick={`setStaffStatus('${employee.id}', '${employee.is_active ? 'deactivate' : 'activate'}')`}>{employee.is_active ? 'Deactivate' : 'Activate'}</button>
+                      </div></td>
+                    </tr>
+                  ))}
+                  {(!allEmployees || allEmployees.length === 0) && <tr><td colspan="6" class="staff-empty">No staff accounts yet.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      )}
 
       <!-- TAB: REPORTS -->
       <section id="tab-reports" class="tab-section hidden">
@@ -1288,6 +1294,28 @@ const reservationState = (booking: any) => {
   </div>
 </div>
 
+{isAdmin && (
+  <div id="staffModal" class="hidden staff-modal" role="dialog" aria-modal="true" aria-labelledby="staffModalTitle">
+    <form id="staffForm" class="staff-modal-card">
+      <div class="staff-modal-header">
+        <div><p class="staff-eyebrow">Admin only</p><h3 id="staffModalTitle">Add staff account</h3></div>
+        <button type="button" aria-label="Close" onclick="closeStaffModal()">×</button>
+      </div>
+      <input id="staffId" type="hidden" />
+      <div class="staff-form-grid">
+        <label><span>First name</span><input id="staffFirstName" required maxlength="100" /></label>
+        <label><span>Last name</span><input id="staffLastName" required maxlength="100" /></label>
+        <label class="full"><span>Email</span><input id="staffEmail" type="email" required /></label>
+        <label id="staffPasswordField" class="full"><span>Temporary password</span><input id="staffPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required /><small>Share this securely and ask the staff member to change it.</small></label>
+        <label><span>Phone</span><input id="staffPhone" type="tel" maxlength="30" /></label>
+        <label><span>Position</span><input id="staffPosition" required maxlength="100" value="Staff" /></label>
+      </div>
+      <p id="staffFormError" class="staff-form-error hidden" role="alert"></p>
+      <div class="staff-modal-actions"><button type="button" onclick="closeStaffModal()">Cancel</button><button id="staffSubmitButton" type="submit">Create account</button></div>
+    </form>
+  </div>
+)}
+
 <!-- TOAST -->
 <div id="toast" class="hidden fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl text-white text-sm font-semibold shadow-lg"></div>
 </Layout>
@@ -1297,6 +1325,26 @@ const reservationState = (booking: any) => {
   body > main { padding-top: 0 !important; }
   header#navbar { display: none !important; visibility: hidden !important; height: 0 !important; overflow: hidden !important; position: static !important; }
   footer { display: none !important; }
+  .staff-heading { display:flex; justify-content:space-between; gap:1.5rem; align-items:center; padding:1.75rem; border:1px solid #dde8d4; border-radius:1.25rem; background:linear-gradient(135deg,#f7f9f4,#e8f2e3); margin-bottom:1.25rem; }
+  .staff-heading h2 { color:#1a2e10; font:700 1.7rem/1.2 Georgia,serif; margin:.15rem 0 .35rem; }
+  .staff-heading p:not(.staff-eyebrow) { color:#5e6b58; max-width:42rem; }
+  .staff-eyebrow { color:#4a7c3f; font-size:.7rem; font-weight:800; letter-spacing:.13em; text-transform:uppercase; }
+  .staff-primary-btn, .staff-modal-actions button:last-child { background:#4a7c3f; color:white; border-radius:.75rem; padding:.7rem 1rem; font-weight:700; white-space:nowrap; }
+  .staff-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; margin-bottom:1.25rem; }
+  .staff-summary div { display:flex; flex-direction:column; padding:1.1rem 1.25rem; background:white; border:1px solid #e5eadf; border-radius:1rem; box-shadow:0 5px 18px rgba(26,46,16,.05); }
+  .staff-summary strong { color:#2d5a27; font-size:1.5rem; }.staff-summary span { color:#74806f; font-size:.78rem; }
+  .staff-table-card { background:white; border:1px solid #e5eadf; border-radius:1rem; overflow:hidden; box-shadow:0 5px 18px rgba(26,46,16,.05); }
+  .staff-table th { background:#f7f9f4; color:#687363; font-size:.7rem; letter-spacing:.08em; text-transform:uppercase; text-align:left; padding:.85rem 1rem; }
+  .staff-table td { border-top:1px solid #edf0e9; color:#495346; padding:1rem; vertical-align:middle; }.staff-table td small { display:block; color:#879183; margin-top:.15rem; }
+  .staff-status { display:inline-flex; border-radius:999px; padding:.25rem .65rem; font-size:.72rem; font-weight:800; }.staff-status.active { background:#e8f2e3;color:#2d5a27; }.staff-status.inactive { background:#f5e9e5;color:#934933; }
+  .staff-actions { display:flex; gap:.45rem; flex-wrap:wrap; }.staff-actions button { border:1px solid #cbd8c4; color:#2d5a27; border-radius:.55rem; padding:.4rem .65rem; font-weight:700; }.staff-actions .danger { border-color:#ddb8ad;color:#934933; }.staff-actions .activate { background:#4a7c3f;color:white;border-color:#4a7c3f; }
+  .staff-empty { text-align:center; color:#879183 !important; padding:2.5rem !important; }
+  .staff-modal { position:fixed; inset:0; z-index:70; display:flex; align-items:center; justify-content:center; padding:1rem; background:rgba(18,32,12,.65); }.staff-modal.hidden { display:none; }
+  .staff-modal-card { width:min(100%,38rem); max-height:calc(100vh - 2rem); overflow:auto; background:#f7f9f4; border-radius:1.2rem; padding:1.5rem; box-shadow:0 24px 70px rgba(0,0,0,.25); }
+  .staff-modal-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:1.25rem; }.staff-modal-header h3 { color:#1a2e10; font:700 1.5rem/1.2 Georgia,serif; }.staff-modal-header button { color:#60705a;font-size:1.75rem;line-height:1; }
+  .staff-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }.staff-form-grid label { display:flex; flex-direction:column; gap:.35rem; }.staff-form-grid label.full { grid-column:1/-1; }.staff-form-grid span { color:#3f4b3b;font-size:.8rem;font-weight:700; }.staff-form-grid input { width:100%; border:1px solid #cad7c3; border-radius:.7rem; background:white; padding:.7rem .8rem; outline:none; }.staff-form-grid input:focus { border-color:#4a7c3f; box-shadow:0 0 0 3px rgba(74,124,63,.13); }.staff-form-grid input:disabled { background:#edf0e9;color:#7b8577; }.staff-form-grid small { color:#7b8577;font-size:.72rem; }
+  .staff-form-error { color:#934933; background:#f8eae6; border-radius:.65rem; padding:.65rem .8rem; margin-top:1rem; font-size:.82rem; }.staff-modal-actions { display:flex; justify-content:flex-end; gap:.7rem; margin-top:1.4rem; }.staff-modal-actions button { border-radius:.7rem; padding:.65rem 1rem; font-weight:700; }.staff-modal-actions button:first-child { color:#4f5b4a;border:1px solid #cad7c3; }
+  @media (max-width: 620px) { .staff-heading { align-items:stretch; flex-direction:column; }.staff-primary-btn { width:100%; }.staff-summary { grid-template-columns:1fr; }.staff-form-grid { grid-template-columns:1fr; }.staff-form-grid label.full { grid-column:auto; }.staff-modal-actions { flex-direction:column-reverse; }.staff-modal-actions button { width:100%; } }
   body { padding-top: 0 !important; margin-top: 0 !important; overflow-x: hidden; background: var(--wb-surface); }
   html { overflow-x: hidden; }
 
@@ -3109,7 +3157,7 @@ async function demoteUser(id: string) {
 }
 
 // ── MODAL BACKDROP CLOSE ──────────────────────────────────────────────────────
-['rescheduleModal', 'contractSigningScheduleModal', 'venueModal', 'packageModal'].forEach(function(id) {
+['rescheduleModal', 'contractSigningScheduleModal', 'venueModal', 'packageModal', 'staffModal'].forEach(function(id) {
   document.getElementById(id)?.addEventListener('click', function(e) {
     if (e.target === document.getElementById(id)) document.getElementById(id)?.classList.add('hidden');
   });
@@ -3161,6 +3209,74 @@ function addActionBtn(container: HTMLElement, label: string, color: string, fn: 
     : 'background:' + color + ';color:white;';
   btn.addEventListener('click', fn);
   container.appendChild(btn);
+}
+
+function openStaffModal(staff?: any) {
+  const editing = Boolean(staff?.id);
+  (document.getElementById('staffId') as HTMLInputElement).value = staff?.id ?? '';
+  (document.getElementById('staffFirstName') as HTMLInputElement).value = staff?.first_name ?? '';
+  (document.getElementById('staffLastName') as HTMLInputElement).value = staff?.last_name ?? '';
+  const email = document.getElementById('staffEmail') as HTMLInputElement;
+  email.value = staff?.email ?? '';
+  email.disabled = editing;
+  email.required = !editing;
+  (document.getElementById('staffPhone') as HTMLInputElement).value = staff?.phone ?? '';
+  (document.getElementById('staffPosition') as HTMLInputElement).value = staff?.position ?? 'Staff';
+  const password = document.getElementById('staffPassword') as HTMLInputElement;
+  password.value = '';
+  password.required = !editing;
+  document.getElementById('staffPasswordField')?.classList.toggle('hidden', editing);
+  document.getElementById('staffFormError')?.classList.add('hidden');
+  document.getElementById('staffModalTitle')!.textContent = editing ? 'Edit staff details' : 'Add staff account';
+  document.getElementById('staffSubmitButton')!.textContent = editing ? 'Save changes' : 'Create account';
+  document.getElementById('staffModal')?.classList.remove('hidden');
+}
+
+function closeStaffModal() { document.getElementById('staffModal')?.classList.add('hidden'); }
+
+async function staffRequest(payload: Record<string, unknown>) {
+  const response = await fetch('/api/admin/staff', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Staff account request failed');
+  return result;
+}
+
+document.getElementById('staffForm')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const staffId = (document.getElementById('staffId') as HTMLInputElement).value;
+  const submit = document.getElementById('staffSubmitButton') as HTMLButtonElement;
+  const errorBox = document.getElementById('staffFormError')!;
+  submit.disabled = true;
+  errorBox.classList.add('hidden');
+  try {
+    await staffRequest({
+      action: staffId ? 'update' : 'create', staffId: staffId || undefined,
+      email: (document.getElementById('staffEmail') as HTMLInputElement).value,
+      password: (document.getElementById('staffPassword') as HTMLInputElement).value,
+      firstName: (document.getElementById('staffFirstName') as HTMLInputElement).value,
+      lastName: (document.getElementById('staffLastName') as HTMLInputElement).value,
+      phone: (document.getElementById('staffPhone') as HTMLInputElement).value,
+      position: (document.getElementById('staffPosition') as HTMLInputElement).value,
+    });
+    toast(staffId ? 'Staff details updated' : 'Staff account created');
+    location.reload();
+  } catch (err) {
+    errorBox.textContent = err instanceof Error ? err.message : 'Staff account request failed';
+    errorBox.classList.remove('hidden');
+  } finally { submit.disabled = false; }
+});
+
+async function setStaffStatus(staffId: string, action: 'activate' | 'deactivate') {
+  const confirmed = await showConfirm({
+    title: action === 'activate' ? 'Activate staff account' : 'Deactivate staff account',
+    message: action === 'activate' ? 'This staff member will regain access to the staff booking workspace.' : 'This staff member will immediately lose staff workspace access.',
+    okLabel: action === 'activate' ? 'Activate' : 'Deactivate', okColor: action === 'activate' ? '#4a7c3f' : '#9a4a36', icon: 'ST',
+  });
+  if (!confirmed) return;
+  try { await staffRequest({ action, staffId }); toast(`Staff account ${action}d`); location.reload(); }
+  catch (err) { toast(err instanceof Error ? err.message : 'Could not update staff access', false); }
 }
 
 function canTransitionBookingStatus(fromStatus: string, toStatus: string): boolean {
@@ -3771,6 +3887,9 @@ switchReport('weekly');
 (window as any).demoteUser        = demoteUser;
 (window as any).promoteStaff      = promoteStaff;
 (window as any).demoteStaff       = demoteStaff;
+(window as any).openStaffModal    = openStaffModal;
+(window as any).closeStaffModal   = closeStaffModal;
+(window as any).setStaffStatus    = setStaffStatus;
 (window as any).openBookingDetail = openBookingDetail;
 (window as any).closeBookingDetail = closeBookingDetail;
 (window as any).openPaymentModal = openPaymentModal;

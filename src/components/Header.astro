@@ -1,18 +1,15 @@
 ---
 import CalendarPreview from './calendarComps/calendarPreview.astro';
 import Theme from './ThemeButton.astro';
-import { getUser } from '../lib/auth';
-import { getUserRole } from '../lib/adminGuard';
+import { getDashboardPathForRole, getUserRole } from '../lib/adminGuard';
 
-const user = await getUser(Astro.cookies);
 const pathname = Astro.url.pathname;
-const roleInfo = user ? await getUserRole(Astro.cookies) : null;
-const dashboardHref = roleInfo?.role === 'admin' || roleInfo?.role === 'staff'
-  ? '/admin'
-  : '/dashboard';
-const dashboardLabel = roleInfo?.role === 'admin'
+const roleInfo = await getUserRole(Astro.cookies);
+const user = roleInfo.role === 'none' ? null : roleInfo.user;
+const dashboardHref = getDashboardPathForRole(roleInfo.role);
+const dashboardLabel = roleInfo.role === 'admin'
   ? 'Admin Dashboard'
-  : roleInfo?.role === 'staff'
+  : roleInfo.role === 'staff'
     ? 'Staff Dashboard'
     : 'Dashboard';
 

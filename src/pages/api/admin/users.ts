@@ -48,7 +48,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (action === "promote_staff") {
     const { data: customer } = await db
       .from("customers")
-      .select("id, email, first_name, last_name")
+      .select("id, email, first_name, last_name, phone")
       .eq("id", userId)
       .single();
 
@@ -59,8 +59,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       email: customer.email,
       first_name: customer.first_name,
       last_name: customer.last_name,
+      phone: customer.phone,
       position: "Staff",
       is_active: true,
+      created_by: guard.user.id,
     });
     if (insertErr) return error(insertErr.message, 500);
 
@@ -71,7 +73,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (action === "demote_staff") {
     const { data: employee } = await db
       .from("employees")
-      .select("id, email, first_name, last_name")
+      .select("id, email, first_name, last_name, phone")
       .eq("id", userId)
       .single();
 
@@ -82,6 +84,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       email: employee.email,
       first_name: employee.first_name,
       last_name: employee.last_name,
+      phone: employee.phone,
     });
     if (insertErr) return error(insertErr.message, 500);
 

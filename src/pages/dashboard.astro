@@ -1,11 +1,16 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { requireAuth, isEmailVerified } from '../lib/auth';
+import { isEmailVerified } from '../lib/auth';
+import { customerGuard } from '../lib/adminGuard';
 import { supabaseAdmin, supabase } from '../lib/supabase';
 import { normalizeBookingStatus } from '../lib/bookingStatus';
 
-const user = await requireAuth(Astro.cookies);
-if (!user) return Astro.redirect('/signin');
+const guard = await customerGuard(Astro.cookies);
+if (guard instanceof Response) {
+  if (guard.status === 401) return Astro.redirect('/signin');
+  return Astro.redirect('/');
+}
+const user = guard.user;
 const emailVerified = isEmailVerified(user);
 
 const db = supabaseAdmin ?? supabase;
@@ -15,10 +20,6 @@ const { data: profile } = await db
   .select('first_name, last_name, email, phone, email_notifications_enabled, sms_notifications_enabled')
   .eq('id', user.id)
   .single();
-
-const { data: adminRow } = await db
-  .from('admins').select('id').eq('id', user.id).single();
-const isAdmin = !!adminRow;
 
 const { data: bookings } = await db
   .from('bookings')
@@ -134,26 +135,14 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
         </div>
       </div>
 
-      {isAdmin ? (
-        <a href="/admin"
-          class="rounded-2xl p-5 flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-lg"
-          style="background:linear-gradient(135deg,#363537,#5e5c60);color:white;text-decoration:none;">
-          <div class="text-3xl">⚙️</div>
-          <div>
-            <p class="font-bold text-base">Admin Panel</p>
-            <p class="text-xs opacity-75 mt-0.5">Manage bookings & venues</p>
-          </div>
-        </a>
-      ) : (
-        <div class="rounded-2xl p-5 flex items-center gap-4"
-          style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;">
-          <div class="text-3xl">⭐</div>
-          <div>
-            <p class="font-bold text-base">My Reviews</p>
-            <p class="text-xs opacity-75 mt-0.5">{reviewedSet.size} review{reviewedSet.size !== 1 ? 's' : ''} left</p>
-          </div>
+      <div class="rounded-2xl p-5 flex items-center gap-4"
+        style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;">
+        <div class="text-3xl">⭐</div>
+        <div>
+          <p class="font-bold text-base">My Reviews</p>
+          <p class="text-xs opacity-75 mt-0.5">{reviewedSet.size} review{reviewedSet.size !== 1 ? 's' : ''} left</p>
         </div>
-      )}
+      </div>
     </div>
 
     <!-- ── Bookings section ── -->

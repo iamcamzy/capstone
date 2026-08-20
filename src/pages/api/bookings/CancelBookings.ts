@@ -1,4 +1,4 @@
-// POST /api/bookings/CancelBookings - cancel a booking (admin or booking owner)
+// POST /api/bookings/CancelBookings - cancel a booking (staff/admin or booking owner)
 import type { APIRoute } from "astro";
 import { supabaseAdmin, supabase } from "../../../lib/supabase";
 import { getUserRole } from "../../../lib/adminGuard";
@@ -20,7 +20,9 @@ const db = supabaseAdmin ?? supabase;
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const roleInfo = await getUserRole(cookies);
-  if (!roleInfo) return error("Unauthorized - please sign in", 401);
+  if (!roleInfo.user || roleInfo.role === "none") {
+    return error("Unauthorized - please sign in", 401);
+  }
   const user = roleInfo.user;
 
   const body = await parseBody<{
