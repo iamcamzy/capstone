@@ -218,7 +218,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
                       )}
                       {b.payment?.payment_status === 'unpaid' && b.reservation_expires_at && !b.reservation_expired_at && (
                         <p class="text-xs mt-2 font-semibold" style="color:#2d5a27;">
-                          This unpaid reservation is valid until {new Date(b.reservation_expires_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}.
+                          Unpaid reservations are valid for 48 hours only. This reservation is valid until {new Date(b.reservation_expires_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })} and may be automatically cancelled if the required payment is not made in time.
                         </p>
                       )}
                     </div>
@@ -442,7 +442,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
           <div><p class="text-xs text-gray-400 font-semibold">Full Name</p><p id="ubd-name" class="font-semibold mt-1">—</p></div>
           <div><p class="text-xs text-gray-400 font-semibold">Phone</p><p id="ubd-phone" class="font-semibold mt-1">—</p></div>
           <div><p class="text-xs text-gray-400 font-semibold">Email</p><p id="ubd-email" class="font-semibold mt-1">—</p></div>
-          <div><p class="text-xs text-gray-400 font-semibold">Pax</p><p id="ubd-pax" class="font-semibold mt-1">—</p></div>
+          <div><p class="text-xs text-gray-400 font-semibold">Guests</p><p id="ubd-pax" class="font-semibold mt-1">—</p></div>
         </div>
       </div>
 
@@ -461,6 +461,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
           <div><p class="text-xs text-gray-400 font-semibold">Submitted</p><p id="ubd-created" class="font-semibold mt-1">—</p></div>
         </div>
         <p id="ubd-reservation-expiration" class="hidden mt-4 rounded-xl px-4 py-3 text-sm font-semibold" style="background:#e8f2e3;color:#2d5a27;border:1px solid #dde8d4;"></p>
+        <p class="mt-3 text-sm leading-6 text-gray-500">A minimum 50% down payment is required to secure the reservation. The remaining balance is paid later according to Woodberry's process.</p>
       </div>
 
       <div>
@@ -548,7 +549,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
     userBookingSetText('ubd-name', b.full_name ?? '—');
     userBookingSetText('ubd-phone', b.customerPhone ?? b.phone ?? '—');
     userBookingSetText('ubd-email', b.customerEmail ?? '—');
-    userBookingSetText('ubd-pax', b.pax ? b.pax + ' pax' : '—');
+    userBookingSetText('ubd-pax', b.pax ? b.pax + ' guests' : '—');
     userBookingSetText('ubd-venue', b.venueName ?? '—');
     userBookingSetText('ubd-package', b.packageName ?? 'Woodberry Package');
     userBookingSetText('ubd-event-type', b.event_type ?? '—');
@@ -569,7 +570,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
     if (b.payment?.payment_status === 'unpaid' && b.reservation_expires_at && !b.reservation_expired_at) {
       userBookingSetText(
         'ubd-reservation-expiration',
-        'This unpaid reservation is valid until ' + userBookingFmtTs(b.reservation_expires_at) + '.',
+        'Unpaid reservations are valid for 48 hours only. This reservation is valid until ' + userBookingFmtTs(b.reservation_expires_at) + '. If no required payment is made within 48 hours, the reservation may be automatically cancelled and the date may become available to others.',
       );
       reservationExpiration?.classList.remove('hidden');
     } else {

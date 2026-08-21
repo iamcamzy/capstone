@@ -2,9 +2,12 @@ import { z } from "zod";
 import { isOnOrAfterMinimumBookingDate, parseDateOnly } from "../lib/bookingDateRules";
 
 const dateString = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Please enter a valid date.")
-  .refine((v) => !Number.isNaN(parseDateOnly(v).getTime()), "Please enter a valid date.");
+  .string({
+    required_error: "Please choose a valid booking date.",
+    invalid_type_error: "Please choose a valid booking date.",
+  })
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Please choose a valid booking date.")
+  .refine((v) => !Number.isNaN(parseDateOnly(v).getTime()), "Please choose a valid booking date.");
 
 const facilityTimeRangeSchema = z.object({
   key: z.string().max(100),
@@ -20,7 +23,9 @@ const woodberryPackageSchema = z.enum([
   "barkada-staycation",
   "pamilya-staycation",
   "room-rates",
-]);
+], {
+  errorMap: () => ({ message: "Please choose an available Woodberry package." }),
+});
 
 const packageLimits: Record<z.infer<typeof woodberryPackageSchema>, { min: number; max: number }> = {
   "lunch-time": { min: 80, max: 200 },
@@ -51,30 +56,90 @@ const estimateSummarySchema = z.object({
 });
 
 const termsAgreementMessage =
-  "You must agree to the Terms and Conditions before submitting your booking.";
+  "Please confirm that you have read and agree to the Terms and Conditions before submitting your request.";
 
-const notificationPreferenceSchema = z.enum(["email", "sms", "both"]).default("both");
+const notificationPreferenceSchema = z
+  .enum(["email", "sms", "both"], {
+    errorMap: () => ({ message: "Please choose how you would like to receive booking updates." }),
+  })
+  .default("both");
 
 export const createBookingSchema = z
   .object({
-    venueId: z.string().uuid("venueId must be a valid UUID"),
+    venueId: z
+      .string({
+        required_error: "We could not identify the selected venue. Please return to the events page and choose the venue again.",
+        invalid_type_error: "We could not identify the selected venue. Please return to the events page and choose the venue again.",
+      })
+      .uuid("We could not identify the selected venue. Please return to the events page and choose the venue again."),
     startDate: dateString,
     endDate: dateString,
     eventDate: dateString.optional().nullable(),
-    eventType: z.string().max(100).optional().nullable(),
-    packageId: z.string().uuid("packageId must be a valid UUID").optional().nullable(),
+    eventType: z.string().max(100, "Please choose a valid event type.").optional().nullable(),
+    packageId: z.string().uuid("The selected package reference is invalid. Please choose the package again.").optional().nullable(),
     packageType: woodberryPackageSchema,
-    packagePrice: z.number().min(0),
+    packagePrice: z
+      .number({
+        required_error: "The package estimate is missing. Please refresh the page and try again.",
+        invalid_type_error: "The package estimate is invalid. Please refresh the page and try again.",
+      })
+      .min(0, "The package estimate is invalid. Please refresh the page and try again."),
     // Accept both pax and guests from booking forms.
-    pax: z.number().int().min(1, "pax must be at least 1").optional().nullable(),
-    guests: z.number().int().min(1).optional().nullable(),
-    fullName: z.string().trim().min(2, "Please enter the guest's full name.").max(200),
-    email: z.string().trim().email("Please enter a valid email address.").max(254),
-    phone: z.string().trim().min(7, "Please enter a valid mobile number.").max(30),
-    specialRequests: z.string().max(1000).optional().nullable(),
+    pax: z
+      .number({ invalid_type_error: "Please enter the expected number of guests as a whole number." })
+      .int("Please enter the expected number of guests as a whole number.")
+      .min(1, "The expected number of guests must be at least 1.")
+      .optional()
+      .nullable(),
+    guests: z
+      .number({ invalid_type_error: "Please enter the expected number of guests as a whole number." })
+      .int("Please enter the expected number of guests as a whole number.")
+      .min(1, "The expected number of guests must be at least 1.")
+      .optional()
+      .nullable(),
+    fullName: z
+      .string({
+        required_error: "Please enter the primary contact's full name.",
+        invalid_type_error: "Please enter the primary contact's full name.",
+      })
+      .trim()
+      .min(2, "Please enter the primary contact's full name.")
+      .max(200, "Please shorten the primary contact's name to 200 characters or fewer."),
+    email: z
+      .string({
+        required_error: "Please enter the email address for booking updates.",
+        invalid_type_error: "Please enter the email address for booking updates.",
+      })
+      .trim()
+      .email("Please enter a complete email address, such as name@example.com.")
+      .max(254, "Please enter an email address with 254 characters or fewer."),
+    phone: z
+      .string({
+        required_error: "Please enter a mobile number where Woodberry can contact you.",
+        invalid_type_error: "Please enter a mobile number where Woodberry can contact you.",
+      })
+      .trim()
+      .min(7, "Please enter a valid mobile number with at least 7 characters.")
+      .max(30, "Please enter a mobile number with 30 characters or fewer."),
+    specialRequests: z
+      .string()
+      .max(1000, "Please shorten your notes or special requests to 1,000 characters or fewer.")
+      .optional()
+      .nullable(),
     notificationPreference: notificationPreferenceSchema,
-    address: z.string().trim().min(5, "Please enter a complete address.").max(500),
-    caterer: z.string().max(200).optional().nullable(),
+    address: z
+      .string({
+        required_error: "Please enter your complete home or billing address.",
+        invalid_type_error: "Please enter your complete home or billing address.",
+      })
+      .trim()
+      .min(5, "Please enter a more complete address, including your city or municipality.")
+      .max(500, "Please shorten the address to 500 characters or fewer."),
+    caterer: z
+      .string()
+      .max(200, "Please shorten the caterer's name to 200 characters or fewer.")
+      .optional()
+      .nullable(),
     useWoodberryCaterer: z.boolean().optional(),
     packageInclusions: z.array(facilityTimeRangeSchema).optional().nullable(),
     roomsCount: z.number().int().min(0).optional().nullable(),
@@ -123,7 +188,7 @@ export const createBookingSchema = z
       return pax >= limits.min && pax <= limits.max;
     },
     {
-      message: "Guest count must be within the selected package's capacity.",
+      message: "The expected number of guests must fit within the selected package's guest limit.",
       path: ["pax"],
     },
   )

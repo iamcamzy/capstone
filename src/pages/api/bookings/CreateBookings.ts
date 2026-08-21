@@ -179,14 +179,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     .eq("id", venueId)
     .single();
 
-  if (!venue) return error("Venue not found", 404);
-  if (!venue.is_active) return error("This venue is not available for booking", 400);
+  if (!venue) return error("We could not find the selected venue. Please return to the events page and choose it again.", 404);
+  if (!venue.is_active) return error("This venue is not currently available for booking.", 400);
 
   const selectedPackage = WOODBERRY_PACKAGES[packageType];
   if (!selectedPackage) return error("Selected Woodberry package is not available.", 400);
   if (!pax || pax < selectedPackage.minPax || pax > selectedPackage.maxPax) {
     return error(
-      `${selectedPackage.name} allows ${selectedPackage.minPax}-${selectedPackage.maxPax} pax.`,
+      `${selectedPackage.name} allows ${selectedPackage.minPax}-${selectedPackage.maxPax} guests. Please adjust the guest count or choose another package.`,
       400,
     );
   }
@@ -199,6 +199,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const addOnsTotal = sumItems(selectedAddOns);
   const extensionsTotal = sumItems(selectedExtensions);
   const corkageTotal = sumItems(selectedCorkage);
+  // Frontend totals are estimates only. Every unit rate and balance stored below
+  // is recalculated from server-owned package and optional-extra prices.
   const packagePrice = selectedPackage.price;
   const computedTotal = packagePrice + roomsTotal + addOnsTotal + extensionsTotal + corkageTotal;
   const computedMinimumPayment = computedTotal * 0.5;

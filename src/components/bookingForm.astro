@@ -10,8 +10,8 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
     <p class="booking-form__eyebrow">Booking Request</p>
     <h2>Plan Your Woodberry Stay</h2>
     <p>
-      Share the details for your celebration and review the estimated contract
-      signing payment before submitting your request.
+      Share the details for your celebration, choose a package and any optional
+      extras, then review everything before submitting your request.
     </p>
   </div>
 
@@ -22,7 +22,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
       <li>Review your complete booking summary and estimated charges.</li>
       <li>Submit the request for staff review; submission does not confirm the booking.</li>
     </ol>
-    <p><strong>Important:</strong> Please verify your email before booking. Please verify your email before paying. Unpaid reservations stay valid for 48 hours only, and the 50% down payment is the amount needed to secure an approved booking.</p>
+    <p><strong>Important:</strong> Please verify your email before booking or paying. A minimum 50% down payment is required to secure the reservation. The remaining balance is paid later according to Woodberry's process.</p>
     <div class="booking-faqs" aria-label="Booking FAQs">
       <details>
         <summary>What does the 50% down payment mean?</summary>
@@ -56,13 +56,17 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
         <label
           for="fullName"
           class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);">Guest / Contact Full Name *</label
+          style="color: var(--jet-primary);">Primary Contact's Full Name *</label
         >
         <input
           type="text"
           id="fullName"
           name="fullName"
           required
+          autocomplete="name"
+          placeholder="First and last name"
+          minlength="2"
+          maxlength="200"
           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
         />
       </div>
@@ -70,13 +74,16 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
         <label
           for="email"
           class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);">Verified Email Address *</label
+          style="color: var(--jet-primary);">Email Address for Booking Updates *</label
         >
         <input
           type="email"
           id="email"
           name="email"
           required
+          autocomplete="email"
+          placeholder="you@example.com"
+          maxlength="254"
           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
         />
       </div>
@@ -84,13 +91,17 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
         <label
           for="phone"
           class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);">Mobile Number *</label
+          style="color: var(--jet-primary);">Mobile Number for Booking Updates *</label
         >
         <input
           type="tel"
           id="phone"
           name="phone"
           required
+          autocomplete="tel"
+          placeholder="e.g. 0917 123 4567"
+          minlength="7"
+          maxlength="30"
           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
         />
       </div>
@@ -98,13 +109,17 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
         <label
           for="address"
           class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);">Complete Address *</label
+          style="color: var(--jet-primary);">Home or Billing Address *</label
         >
         <input
           type="text"
           id="address"
           name="address"
           required
+          autocomplete="street-address"
+          placeholder="House number, street, barangay, city, and province"
+          minlength="5"
+          maxlength="500"
           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
         />
       </div>
@@ -166,7 +181,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
           <label
             for="checkIn"
             class="block text-sm font-medium mb-2"
-            style="color: var(--jet-primary);">Check-in Date *</label
+            style="color: var(--jet-primary);">Stay Check-in Date *</label
           >
           <input
             type="date"
@@ -180,7 +195,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
           <label
             for="checkOut"
             class="block text-sm font-medium mb-2"
-            style="color: var(--jet-primary);">Check-out Date *</label
+            style="color: var(--jet-primary);">Stay Check-out Date *</label
           >
           <input
             type="date"
@@ -195,7 +210,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
         <label
           for="eventDate"
           class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);">Event Date *</label
+          style="color: var(--jet-primary);">Main Event Date *</label
         >
         <input
           type="date"
@@ -209,7 +224,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
         <label
           for="guests"
           class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);">Number of Guests *</label
+          style="color: var(--jet-primary);">Expected Number of Guests *</label
         >
         <input
           type="number"
@@ -217,26 +232,30 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
           name="guests"
           min="1"
           required
+          inputmode="numeric"
+          placeholder="Enter the expected total"
           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
         />
       </div>
       <div class="space-y-4 pt-4 border-t border-gray-100">
         <h4 class="text-base font-semibold" style="color: var(--lion-primary);">
-          Woodberry Package *
+          Booking Package *
         </h4>
         <p class="text-sm text-gray-600">
-          Choose one pamphlet package. The guest count must fit the package limit.
+          Choose one package that fits your group. Each card shows its base
+          price, duration, guest limit, schedule, and included facilities.
         </p>
         <div id="packageOptions" class="woodberry-package-grid"></div>
         <p id="packageLimitNotice" class="hidden rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"></p>
       </div>
       <div class="space-y-4 pt-4 border-t border-gray-100">
         <h4 class="text-base font-semibold" style="color: var(--lion-primary);">
-          Package Inclusions / Facilities
+          Included Facilities and Use Times
         </h4>
         <p class="text-sm text-gray-600">
-          These are filled from the selected package. Pavilion, pool, and sound
-          system usage start at the same time.
+          These facilities are filled in from your package. Add the requested use
+          times where applicable. Pavilion, pool, and sound system use begin at
+          the same time.
         </p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label
@@ -252,7 +271,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
               data-facility="pavillion"
               class="h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400"
             />
-            <span>Pavillion</span>
+            <span>Pavilion</span>
           </label>
           <label
             for="facility-pool"
@@ -289,7 +308,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
               <label
                 for="roomsCount"
                 class="block text-xs font-medium mb-1"
-                style="color: var(--jet-primary);">Number of rooms</label
+                style="color: var(--jet-primary);">Rooms included with this package</label
               >
               <input
                 type="number"
@@ -334,66 +353,66 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
         </div>
         <div id="facilityTimeRanges" class="space-y-3">
           <div class="hidden rounded-lg border border-gray-200 p-3" data-time-range="pavillion">
-            <p class="text-sm font-semibold mb-3" style="color: var(--jet-primary);">Pavillion</p>
+            <p class="text-sm font-semibold mb-3" style="color: var(--jet-primary);">Pavilion requested use time</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label for="pavillionFrom" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">From</label>
+                <label for="pavillionFrom" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">Starts at</label>
                 <input type="datetime-local" id="pavillionFrom" data-facility-from="pavillion" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
               </div>
               <div>
-                <label for="pavillionTo" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">To</label>
+                <label for="pavillionTo" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">Ends at</label>
                 <input type="datetime-local" id="pavillionTo" data-facility-to="pavillion" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
               </div>
             </div>
           </div>
           <div class="hidden rounded-lg border border-gray-200 p-3" data-time-range="pool">
-            <p class="text-sm font-semibold mb-3" style="color: var(--jet-primary);">Pool</p>
+            <p class="text-sm font-semibold mb-3" style="color: var(--jet-primary);">Pool requested use time</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label for="poolFrom" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">From</label>
+                <label for="poolFrom" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">Starts at</label>
                 <input type="datetime-local" id="poolFrom" data-facility-from="pool" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
               </div>
               <div>
-                <label for="poolTo" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">To</label>
+                <label for="poolTo" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">Ends at</label>
                 <input type="datetime-local" id="poolTo" data-facility-to="pool" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
               </div>
             </div>
           </div>
           <div class="hidden rounded-lg border border-gray-200 p-3" data-time-range="rooms">
-            <p class="text-sm font-semibold mb-3" style="color: var(--jet-primary);">Rooms</p>
+            <p class="text-sm font-semibold mb-3" style="color: var(--jet-primary);">Room use time</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label for="roomsFrom" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">From</label>
+                <label for="roomsFrom" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">Check-in time</label>
                 <input type="datetime-local" id="roomsFrom" data-facility-from="rooms" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
               </div>
               <div>
-                <label for="roomsTo" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">To</label>
+                <label for="roomsTo" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">Check-out time</label>
                 <input type="datetime-local" id="roomsTo" data-facility-to="rooms" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
               </div>
             </div>
           </div>
           <div class="hidden rounded-lg border border-gray-200 p-3" data-time-range="sound-system">
-            <p class="text-sm font-semibold mb-3" style="color: var(--jet-primary);">Sound System</p>
+            <p class="text-sm font-semibold mb-3" style="color: var(--jet-primary);">Sound system use time</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label for="soundSystemFrom" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">From</label>
+                <label for="soundSystemFrom" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">Starts at</label>
                 <input type="datetime-local" id="soundSystemFrom" data-facility-from="sound-system" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
               </div>
               <div>
-                <label for="soundSystemTo" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">To</label>
+                <label for="soundSystemTo" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">Ends at</label>
                 <input type="datetime-local" id="soundSystemTo" data-facility-to="sound-system" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
               </div>
             </div>
           </div>
           <div class="hidden rounded-lg border border-gray-200 p-3" data-time-range="videoke">
-            <p class="text-sm font-semibold mb-3" style="color: var(--jet-primary);">Videoke</p>
+            <p class="text-sm font-semibold mb-3" style="color: var(--jet-primary);">Videoke use time</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label for="videokeFrom" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">From</label>
+                <label for="videokeFrom" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">Starts at</label>
                 <input type="datetime-local" id="videokeFrom" data-facility-from="videoke" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
               </div>
               <div>
-                <label for="videokeTo" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">To</label>
+                <label for="videokeTo" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">Ends at</label>
                 <input type="datetime-local" id="videokeTo" data-facility-to="videoke" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
               </div>
             </div>
@@ -404,7 +423,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
         <label
           for="eventType"
           class="block text-sm font-medium mb-2"
-          style="color: var(--jet-primary);">Event Type *</label
+          style="color: var(--jet-primary);">Type of Celebration or Event *</label
         >
         <select
           id="eventType"
@@ -415,6 +434,10 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
           <option value="">Select event type</option>
           <option value="wedding">Wedding</option>
           <option value="birthday">Birthday Party</option>
+          <option value="reunion">Reunion</option>
+          <option value="family-gathering">Family Gathering</option>
+          <option value="staycation">Staycation</option>
+          <option value="private-event">Private Event</option>
           <option value="corporate">Corporate Event</option>
           <option value="conference">Conference</option>
           <option value="debut">Debut</option>
@@ -426,13 +449,14 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
           for="caterer"
           class="block text-sm font-medium mb-2"
           style="color: var(--jet-primary);"
-          >Caterer <span class="text-gray-400 font-normal">(optional)</span
+          >Outside Caterer <span class="text-gray-400 font-normal">(optional)</span
           ></label
         >
         <input
           type="text"
           id="caterer"
           name="caterer"
+          maxlength="200"
           placeholder="Enter caterer name, if applicable"
           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all disabled:bg-gray-100 disabled:text-gray-500"
         />
@@ -447,7 +471,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
             name="useWoodberryCaterer"
             class="h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400"
           />
-          <span>Use Woodberry's Caterer</span>
+          <span>I would like to use Woodberry's caterer</span>
         </label>
       </div>
       <div>
@@ -455,7 +479,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
           for="specialRequests"
           class="block text-sm font-medium mb-2"
           style="color: var(--jet-primary);"
-          >Special Requests <span class="text-gray-400 font-normal"
+          >Notes or Special Requests <span class="text-gray-400 font-normal"
             >(optional)</span
           ></label
         >
@@ -463,44 +487,48 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
           id="specialRequests"
           name="specialRequests"
           rows="4"
-          placeholder="Any special requests or requirements..."
+          maxlength="1000"
+          placeholder="Tell us about accessibility needs, setup requests, or other important details"
           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all resize-none"
         ></textarea>
       </div>
     </div>
 
-    <!-- Additionals -->
+    <!-- Optional extras -->
     <div class="space-y-4 pt-6 border-t border-gray-200">
       <h3 class="text-lg font-semibold" style="color: var(--lion-primary);">
-        Additionals
+        Optional Rooms and Extras
       </h3>
       <div class="space-y-4">
         <div>
-          <h4 class="text-sm font-bold mb-2" style="color: var(--jet-primary);">Room Rates</h4>
-          <p class="text-xs text-gray-500 mb-3">Room accommodation does not include pool use. Room extension is &#8369;200/hr.</p>
+          <h4 class="text-sm font-bold mb-2" style="color: var(--jet-primary);">Extra Room Selections</h4>
+          <p class="text-xs text-gray-500 mb-3">Select any rooms needed in addition to those included in your package. Room-only accommodation does not include pool use. Extra room time costs &#8369;200 per hour.</p>
           <div id="roomRateOptions" class="booking-option-grid"></div>
           <div class="mt-3">
-            <label for="roomExtensionHours" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">Room extension hours</label>
+            <label for="roomExtensionHours" class="block text-xs font-medium mb-1" style="color: var(--jet-primary);">Extra room hours requested</label>
             <input id="roomExtensionHours" type="number" min="0" step="1" value="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all" />
           </div>
         </div>
         <div>
-          <h4 class="text-sm font-bold mb-2" style="color: var(--jet-primary);">Optional add-ons</h4>
+          <h4 class="text-sm font-bold mb-2" style="color: var(--jet-primary);">Equipment and Entertainment Add-ons</h4>
+          <p class="text-xs text-gray-500 mb-3">Optional equipment or entertainment added to the package estimate.</p>
           <div id="addOnOptions" class="booking-option-grid"></div>
         </div>
         <div>
-          <h4 class="text-sm font-bold mb-2" style="color: var(--jet-primary);">Extension charges</h4>
+          <h4 class="text-sm font-bold mb-2" style="color: var(--jet-primary);">Extra Time and Guest Capacity</h4>
+          <p class="text-xs text-gray-500 mb-3">Choose an item and enter the number of extra hours or guest-capacity blocks requested.</p>
           <div id="extensionOptions" class="booking-option-grid"></div>
         </div>
         <div>
-          <h4 class="text-sm font-bold mb-2" style="color: var(--jet-primary);">Corkage</h4>
-          <p class="text-xs text-gray-500 mb-3">No corkage fee on food or drinks.</p>
+          <h4 class="text-sm font-bold mb-2" style="color: var(--jet-primary);">Outside Equipment Corkage Charges</h4>
+          <p class="text-xs text-gray-500 mb-3">These charges apply when bringing the listed outside equipment. There is no corkage fee for food or drinks.</p>
           <div id="corkageOptions" class="booking-option-grid"></div>
         </div>
         <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
           <p class="text-sm text-gray-600">
-            Caterers and stylists get 4 hours prep time; beyond allowed prep time is &#8369;500.
-            Parking attendant/security is provided during the event.
+            Caterers and stylists receive 4 hours of preparation time. Extra
+            preparation time costs &#8369;500. A parking attendant or security
+            support is provided during the event.
           </p>
         </div>
       </div>
@@ -508,7 +536,12 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
 
     <!-- Price Breakdown -->
     <div class="pt-6 border-t border-gray-200">
-      <div class="booking-payment-card">
+      <div class="booking-payment-card" aria-labelledby="booking-estimate-title">
+        <div>
+          <p class="booking-payment-card__eyebrow">Price estimate</p>
+          <h3 id="booking-estimate-title">Review your estimated cost</h3>
+          <p class="booking-payment-card__intro">The amount shown is an estimate. Woodberry staff will review your selections and confirm the final price.</p>
+        </div>
         <div class="flex justify-between text-sm">
           <span class="text-gray-600">Selected package base</span>
           <span
@@ -530,7 +563,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
         </div>
         <div class="flex justify-between text-sm pt-2">
           <span class="text-gray-600">
-            Minimum payment for face-to-face contract signing (50%)
+            Estimated minimum 50% down payment
           </span>
           <span
             id="minimumPayment"
@@ -543,8 +576,10 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
           <span id="remainingBalance" class="font-semibold">&#8369;0.00</span>
         </div>
         <p class="text-xs text-gray-500 pt-1">
-          The 50% down payment is half of the current estimate. It secures your approved reservation; the remaining balance is based on the final contract and any approved additions.
+          <strong>A minimum 50% down payment is required to secure the reservation.</strong>
+          The remaining balance is paid later according to Woodberry's process.
         </p>
+        <p class="booking-payment-card__authority">For your protection, the final price is recalculated from Woodberry's current package and extra rates when you submit. The estimate shown here is not accepted as the final price by the booking system.</p>
       </div>
     </div>
 
@@ -564,6 +599,9 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
   id="termsModal"
   class="hidden fixed inset-0 z-50 flex items-center justify-center"
   style="background:rgba(0,0,0,0.6);"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="terms-modal-title"
 >
   <div
     class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden max-h-[92vh] flex flex-col"
@@ -576,7 +614,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
         >
           Terms
         </div>
-        <h3 class="text-xl font-black" style="color:var(--jet-primary);">
+        <h3 id="terms-modal-title" class="text-xl font-black" style="color:var(--jet-primary);">
           Terms and Conditions
         </h3>
       </div>
@@ -676,12 +714,15 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
   id="bookingConfirmModal"
   class="hidden fixed inset-0 z-50 flex items-center justify-center"
   style="background:rgba(0,0,0,0.6);"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="booking-review-title"
 >
   <div class="booking-confirmation-modal">
     <div class="booking-confirmation__header">
       <div>
         <p class="booking-confirmation__eyebrow">Booking request review</p>
-        <h3>Review your Woodberry request</h3>
+        <h3 id="booking-review-title">Review your Woodberry request</h3>
         <p>
           Confirm the details our staff will use to prepare your face-to-face
           contract signing.
@@ -810,7 +851,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
       <section class="confirmation-section confirmation-section--split">
         <div>
           <div class="confirmation-section__header">
-            <p class="confirmation-section__eyebrow">Additionals</p>
+            <p class="confirmation-section__eyebrow">Optional Extras</p>
             <h4>Selected items</h4>
           </div>
           <div id="conf-additionals" class="confirmation-inclusions"></div>
@@ -831,22 +872,28 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
           <div>
             <p class="confirmation-section__eyebrow">Payment Estimate</p>
             <h4>Estimated total</h4>
-            <p>Subject to final confirmation by Woodberry staff.</p>
+            <p>This displayed price is an estimate until reviewed and confirmed by Woodberry staff.</p>
           </div>
           <p id="conf-total" class="confirmation-payment-card__total"></p>
         </div>
         <div class="confirmation-payment-card__breakdown">
           <div>
-            <span>50% minimum payment</span>
+            <span>Estimated minimum 50% down payment</span>
             <strong id="conf-minimum-payment"></strong>
-            <p>Settled face-to-face during contract signing.</p>
+            <p>A minimum 50% down payment is required to secure the reservation.</p>
           </div>
           <div>
             <span>Remaining estimated balance</span>
             <strong id="conf-remaining-balance"></strong>
-            <p>Due based on the final contract and any approved additionals.</p>
+            <p>Paid later according to Woodberry's process and the final confirmed contract.</p>
           </div>
         </div>
+      </section>
+
+      <section class="confirmation-validity-reminder" role="note" aria-labelledby="reservation-validity-title">
+        <p class="confirmation-section__eyebrow">Reservation validity</p>
+        <h4 id="reservation-validity-title">Your unpaid reservation has a 48-hour validity period</h4>
+        <p><strong>Unpaid reservations are valid for 48 hours only.</strong> If no required payment is made within 48 hours, the reservation may be automatically cancelled and the date may become available to others.</p>
       </section>
 
       <section class="confirmation-next-steps">
@@ -854,7 +901,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
         <ol>
           <li>Submit this booking request for staff review.</li>
           <li>Woodberry staff will confirm details with you.</li>
-          <li>Contract signing and minimum payment happen face-to-face.</li>
+          <li>Complete Woodberry's payment process. A minimum 50% down payment secures the reservation.</li>
         </ol>
       </section>
     </div>
@@ -876,6 +923,9 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
   id="bookingSuccessScreen"
   class="hidden fixed inset-0 z-50 flex items-center justify-center"
   style="background:rgba(0,0,0,0.6);"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="booking-success-title"
 >
   <div class="booking-success-card">
     <div class="booking-success-card__mark" aria-hidden="true">
@@ -885,7 +935,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
       </svg>
     </div>
     <p class="booking-success-card__eyebrow">Booking request received</p>
-    <h3>We have your Woodberry request</h3>
+    <h3 id="booking-success-title">We have your Woodberry request</h3>
     <p class="booking-success-card__intro">
       Thank you. Our staff will review your details and coordinate the next
       steps for face-to-face contract signing.
@@ -899,6 +949,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
       <small id="success-dates"></small>
     </div>
     <p id="success-reservation-expiration" class="booking-success-card__intro"></p>
+    <p class="booking-success-card__validity"><strong>Unpaid reservations are valid for 48 hours only.</strong> If no required payment is made within 48 hours, the reservation may be automatically cancelled and the date may become available to others.</p>
 
     <div class="booking-success-card__steps">
       <div>
@@ -907,7 +958,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
       </div>
       <div>
         <span>2</span>
-        <p>Contract signing and 50% minimum payment happen face-to-face.</p>
+        <p>A minimum 50% down payment is required to secure the reservation. The remaining balance is paid later according to Woodberry's process.</p>
       </div>
       <div>
         <span>3</span>
@@ -1022,12 +1073,12 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
     },
   ];
   var roomRates = [
-    { key: "room-1", label: "Room 1", price: 999, detail: "12 hrs / 4 pax" },
-    { key: "room-2", label: "Room 2", price: 999, detail: "12 hrs / 4 pax" },
-    { key: "room-3", label: "Room 3", price: 999, detail: "12 hrs / 4 pax" },
-    { key: "room-4", label: "Room 4", price: 999, detail: "12 hrs / 4 pax" },
-    { key: "room-5", label: "Room 5", price: 1499, detail: "12 hrs / 2 pax" },
-    { key: "room-6", label: "Room 6", price: 1999, detail: "12 hrs / 2 pax" },
+    { key: "room-1", label: "Room 1", price: 999, detail: "12 hours / up to 4 guests" },
+    { key: "room-2", label: "Room 2", price: 999, detail: "12 hours / up to 4 guests" },
+    { key: "room-3", label: "Room 3", price: 999, detail: "12 hours / up to 4 guests" },
+    { key: "room-4", label: "Room 4", price: 999, detail: "12 hours / up to 4 guests" },
+    { key: "room-5", label: "Room 5", price: 1499, detail: "12 hours / up to 2 guests" },
+    { key: "room-6", label: "Room 6", price: 1999, detail: "12 hours / up to 2 guests" },
   ];
   var addOnOptions = [
     { key: "lights", label: "Lights", price: 3500 },
@@ -1040,7 +1091,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
   var extensionOptions = [
     { key: "pavilion-pool", label: "Pavilion + Pool", price: 500, unit: "hr" },
     { key: "sound-system", label: "Sound system", price: 400, unit: "hr" },
-    { key: "over-200-guests", label: "Add 50 guests over 200 pax", price: 1000, unit: "block" },
+    { key: "over-200-guests", label: "Add capacity for 50 guests over 200", price: 1000, unit: "block" },
     { key: "parking-attendant", label: "Parking attendant", price: 200, unit: "hr" },
   ];
   var corkageOptions = [
@@ -1052,7 +1103,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
     { key: "electric-instrument", label: "Electric instrument", price: 300 },
   ];
   var facilityOptions = [
-    { key: "pavillion", label: "Pavillion" },
+    { key: "pavillion", label: "Pavilion" },
     { key: "pool", label: "Pool" },
     { key: "rooms", label: "Rooms" },
     { key: "sound-system", label: "Sound System" },
@@ -1084,10 +1135,11 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
           '<label class="woodberry-package-card" for="package-' + pkg.type + '">' +
           '<input id="package-' + pkg.type + '" type="radio" name="packageType" value="' + pkg.type + '" required />' +
           '<span class="woodberry-package-card__body">' +
-          '<span class="woodberry-package-card__top"><strong>' + pkg.name + '</strong><em>' + formatCurrency(pkg.price) + '</em></span>' +
-          '<span>' + pkg.duration + ' · ' + pkg.schedule + '</span>' +
-          '<span>' + pkg.minPax + '-' + pkg.maxPax + ' pax</span>' +
-          '<small>' + pkg.inclusions.join(", ") + '</small>' +
+          '<span class="woodberry-package-card__top"><strong>' + pkg.name + '</strong><em>Base: ' + formatCurrency(pkg.price) + '</em></span>' +
+          '<span><b>Duration:</b> ' + pkg.duration + '</span>' +
+          '<span><b>Schedule:</b> ' + pkg.schedule + '</span>' +
+          '<span><b>Guest limit:</b> ' + pkg.minPax + '-' + pkg.maxPax + ' guests</span>' +
+          '<small><b>Includes:</b> ' + pkg.inclusions.join(", ") + '</small>' +
           '</span>' +
           '</label>'
         );
@@ -1097,6 +1149,9 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
     packageOptionsWrap.querySelectorAll('input[name="packageType"]').forEach(function (input) {
       input.addEventListener("change", function () {
         selectedPackageType = input.value;
+        packageOptionsWrap.querySelectorAll('input[name="packageType"]').forEach(function (packageInput) {
+          packageInput.setCustomValidity("");
+        });
         applySelectedPackage();
         calculateNights();
       });
@@ -1109,7 +1164,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
       .map(function (item) {
         var detail = item.detail || (usesHours ? formatCurrency(item.price) + "/" + item.unit : formatCurrency(item.price));
         var hoursInput = usesHours
-          ? '<input type="number" min="0" step="1" value="0" data-option-hours="' + groupName + '" data-key="' + item.key + '" class="booking-option-card__hours" aria-label="' + item.label + ' quantity" />'
+          ? '<input type="number" min="0" step="1" value="0" data-option-hours="' + groupName + '" data-key="' + item.key + '" class="booking-option-card__hours" aria-label="Number of ' + item.unit + ' units for ' + item.label + '" />'
           : "";
         return (
           '<label class="booking-option-card">' +
@@ -1156,6 +1211,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
           price: item.price,
           quantity: usesHours ? undefined : 1,
           hours: usesHours ? hours : undefined,
+          unit: usesHours ? item.unit : undefined,
           amount: amount,
         };
       })
@@ -1260,6 +1316,51 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
     noticeEl.textContent = (type === "success" ? "Success: " : "Error: ") + msg;
     noticeEl.classList.remove("hidden");
     noticeEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  var friendlyRequiredMessages = {
+    fullName: "Please enter the primary contact's full name.",
+    email: "Please enter the email address where you want to receive booking updates.",
+    phone: "Please enter a mobile number where Woodberry can contact you.",
+    address: "Please enter your complete home or billing address.",
+    checkIn: "Please choose your stay check-in date.",
+    checkOut: "Please choose your stay check-out date.",
+    eventDate: "Please choose the date of your main event.",
+    guests: "Please enter the expected number of guests.",
+    eventType: "Please choose the type of celebration or event.",
+    packageType: "Please choose a booking package.",
+  };
+
+  function getFriendlyFieldMessage(input) {
+    if (input.validity.typeMismatch && input.type === "email") {
+      return "Please enter a complete email address, such as name@example.com.";
+    }
+    if (input.validity.tooShort) {
+      if (input.id === "phone") return "Please enter a valid mobile number with at least 7 characters.";
+      if (input.id === "address") return "Please enter a more complete address, including your city or municipality.";
+      return "Please provide a complete value for this field.";
+    }
+    if (input.validity.rangeUnderflow && input.id === "guests") {
+      return "The expected number of guests must be at least 1.";
+    }
+    if (input.validity.badInput && input.id === "guests") {
+      return "Please enter the expected number of guests as a whole number.";
+    }
+    return friendlyRequiredMessages[input.name] || "Please review this field and enter a valid value.";
+  }
+
+  function attachFriendlyValidation() {
+    form.querySelectorAll("input, select, textarea").forEach(function (input) {
+      input.addEventListener("invalid", function () {
+        if (input.hasAttribute("data-availability-invalid")) return;
+        input.setCustomValidity(getFriendlyFieldMessage(input));
+      });
+      ["input", "change"].forEach(function (eventName) {
+        input.addEventListener(eventName, function () {
+          if (!input.hasAttribute("data-availability-invalid")) input.setCustomValidity("");
+        });
+      });
+    });
   }
 
   function hideAvailabilityNoticeIfCurrent(message) {
@@ -1533,7 +1634,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
           selectedPackage.minPax +
           "-" +
           selectedPackage.maxPax +
-          " pax. Please adjust the guest count or choose another package.";
+          " guests. Please adjust the guest count or choose another package.";
       }
     }
     if (!valid && showMessage) {
@@ -1546,7 +1647,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
             selectedPackage.minPax +
             "-" +
             selectedPackage.maxPax +
-            " pax.",
+            " guests. Please adjust the guest count or choose another package.",
           "error",
         );
       }
@@ -1613,7 +1714,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
       var toDate = parseDateTimeLocal(inclusion.to);
 
       if (fromDate && toDate && toDate <= fromDate) {
-        showNotice("Facility time range To must be after From.", "error");
+        showNotice("Choose an end time after the start time for " + inclusion.label + ".", "error");
         return false;
       }
 
@@ -1622,7 +1723,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
         (toDate && !isDateTimeWithinBookingDates(toDate))
       ) {
         showNotice(
-          "Facility time ranges must fall within the selected booking dates.",
+          inclusion.label + " use times must fall within your selected stay or event dates.",
           "error",
         );
         return false;
@@ -1717,13 +1818,14 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
       card.className = "booking-summary-card";
       var title = document.createElement("p");
       title.className = "font-semibold";
-      title.textContent = item.label;
+      title.textContent = (item.category ? item.category + ": " : "") + item.label;
       card.appendChild(title);
       var meta = document.createElement("p");
       meta.className = "booking-summary-card__meta";
-      meta.textContent =
-        (item.hours ? item.hours + " hr(s) · " : "") +
-        formatCurrency(item.amount ?? item.price);
+      var requestedUnits = item.hours
+        ? item.hours + (item.unit === "block" ? " guest-capacity block" : " extra hour") + (item.hours === 1 ? "" : "s") + " · "
+        : "";
+      meta.textContent = requestedUnits + formatCurrency(item.amount ?? item.price);
       card.appendChild(meta);
       wrap.appendChild(card);
     });
@@ -1759,9 +1861,18 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
     setDateAvailabilityValidity("");
     if (noticeEl) noticeEl.classList.add("hidden");
 
+    form.querySelectorAll("input, select, textarea").forEach(function (input) {
+      if (!input.hasAttribute("data-availability-invalid")) input.setCustomValidity("");
+    });
+
     if (!form.checkValidity()) {
-      showNotice("Please complete all required booking details.", "error");
+      var firstInvalidField = form.querySelector(":invalid");
+      showNotice(
+        firstInvalidField?.validationMessage || "Please complete all required booking details.",
+        "error",
+      );
       form.reportValidity();
+      firstInvalidField?.focus();
       return false;
     }
 
@@ -1834,7 +1945,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
     document.getElementById("conf-package-schedule").textContent =
       selectedPackage?.schedule || "N/A";
     document.getElementById("conf-package-capacity").textContent = selectedPackage
-      ? selectedPackage.minPax + "-" + selectedPackage.maxPax + " pax"
+      ? selectedPackage.minPax + "-" + selectedPackage.maxPax + " guests"
       : "N/A";
     document.getElementById("conf-package-included").textContent =
       selectedPackage?.inclusions.join(", ") || "N/A";
@@ -1847,10 +1958,10 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
     );
     populateInclusionSummary(inclusions);
     populateOptionSummary(
-      totals.selectedRooms
-        .concat(totals.selectedAddOns)
-        .concat(totals.selectedExtensions)
-        .concat(totals.selectedCorkage),
+      totals.selectedRooms.map(function (item) { return Object.assign({}, item, { category: "Room" }); })
+        .concat(totals.selectedAddOns.map(function (item) { return Object.assign({}, item, { category: "Add-on" }); }))
+        .concat(totals.selectedExtensions.map(function (item) { return Object.assign({}, item, { category: "Extension" }); }))
+        .concat(totals.selectedCorkage.map(function (item) { return Object.assign({}, item, { category: "Corkage" }); })),
     );
 
     var requests = document.getElementById("specialRequests").value;
@@ -1893,7 +2004,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
 
     if (!termsAcceptedInput.checked) {
       showNotice(
-        "You must agree to the Terms and Conditions before submitting your booking.",
+        "Please check the box to confirm that you have read and agree to the Terms and Conditions.",
         "error",
       );
       termsAcceptedInput.focus();
@@ -1925,7 +2036,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
     if (confirmationError) confirmationError.classList.add("hidden");
     if (!termsAcceptedInput.checked) {
       showNotice(
-        "You must agree to the Terms and Conditions before submitting your booking.",
+        "Please check the box to confirm that you have read and agree to the Terms and Conditions.",
         "error",
       );
       confirmModal.classList.add("hidden");
@@ -2086,6 +2197,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
 
   renderPackageOptions();
   renderRateOptions();
+  attachFriendlyValidation();
   syncCaterer();
   syncAllFacilities();
   calculateNights();
@@ -2443,6 +2555,30 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
       linear-gradient(135deg, rgba(251, 235, 217, 0.88), rgba(247, 249, 244, 0.95)),
       var(--wb-surface-soft);
     padding: clamp(1rem, 2.4vw, 1.35rem);
+  }
+
+  .booking-payment-card__eyebrow {
+    margin: 0;
+    color: var(--wb-green) !important;
+    font-size: 0.7rem;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .booking-payment-card__intro {
+    margin: 0.35rem 0 0 !important;
+    color: var(--wb-muted) !important;
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+
+  .booking-payment-card__authority {
+    border-top: 1px solid rgba(170, 143, 102, 0.24);
+    padding-top: 0.75rem;
+    color: var(--wb-muted) !important;
+    font-size: 0.78rem;
+    line-height: 1.5;
   }
 
   .booking-payment-card > div {
@@ -2944,6 +3080,26 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
     padding: 1rem;
   }
 
+  .confirmation-validity-reminder {
+    border: 1px solid rgba(154, 74, 54, 0.3);
+    background: linear-gradient(135deg, rgba(251, 231, 223, 0.88), rgba(247, 249, 244, 0.96));
+    padding: 1rem;
+  }
+
+  .confirmation-validity-reminder h4 {
+    margin: 0.25rem 0 0;
+    color: var(--wb-green-dark);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.08rem;
+  }
+
+  .confirmation-validity-reminder > p:last-child {
+    margin: 0.5rem 0 0;
+    color: #713c2f !important;
+    font-size: 0.86rem;
+    line-height: 1.55;
+  }
+
   .confirmation-next-steps ol {
     display: grid;
     gap: 0.45rem;
@@ -3085,6 +3241,18 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
     line-height: 1.45;
   }
 
+  .booking-success-card__validity {
+    margin: 0;
+    border: 1px solid rgba(154, 74, 54, 0.3);
+    border-radius: var(--wb-radius-md);
+    background: rgba(251, 231, 223, 0.72);
+    color: #713c2f !important;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    padding: 0.85rem;
+    text-align: left;
+  }
+
   :global(.booking-summary-card) {
     border: 1px solid var(--wb-border);
     border-radius: var(--wb-radius-md);
@@ -3187,6 +3355,11 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
     font-size: 0.78rem;
   }
 
+  .woodberry-package-card b {
+    color: var(--wb-green-dark);
+    font-weight: 900;
+  }
+
   .booking-option-card__hours {
     width: 4.5rem;
     flex: 0 0 auto;
@@ -3269,6 +3442,37 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
     .confirmation-button {
       width: 100%;
     }
+
+    #termsModal,
+    #bookingConfirmModal,
+    #bookingSuccessScreen {
+      padding: 0.65rem;
+    }
+
+    .booking-success-card {
+      max-height: calc(100vh - 1.3rem);
+      overflow-y: auto;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .woodberry-package-card__top {
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .woodberry-package-card em {
+      white-space: normal;
+    }
+
+    .booking-option-card {
+      flex-wrap: wrap;
+    }
+
+    .booking-option-card__hours {
+      width: calc(100% - 1.75rem);
+      margin-left: 1.75rem;
+    }
   }
 
   :global(html.dark) #bookingForm input:not([type="checkbox"]):not([type="radio"]),
@@ -3295,9 +3499,20 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
   :global(html.dark) .confirmation-section,
   :global(html.dark) .confirmation-payment-card,
   :global(html.dark) .confirmation-next-steps,
+  :global(html.dark) .confirmation-validity-reminder,
   :global(html.dark) .booking-success-card__reference,
   :global(html.dark) .booking-success-card__steps {
     background: var(--wb-surface-soft) !important;
+  }
+
+  :global(html.dark) .confirmation-validity-reminder > p:last-child,
+  :global(html.dark) .booking-success-card__validity {
+    color: var(--wb-earth) !important;
+  }
+
+  :global(html.dark) .booking-success-card__validity {
+    background: rgba(61, 48, 33, 0.62);
+    border-color: rgba(240, 174, 99, 0.35);
   }
 
   :global(html.dark) .confirmation-detail,

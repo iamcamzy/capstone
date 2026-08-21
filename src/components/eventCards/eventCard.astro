@@ -27,7 +27,9 @@ const requiresVerification = authState === 'unverified';
 
     <div class="event-card__details">
       {venue.location && <span>{venue.location}</span>}
-      {venue.capacity && <span>Up to {venue.capacity} guests</span>}
+      <span data-card-capacity hidden={!venue.capacity}>
+        {venue.capacity ? `Up to ${venue.capacity} guests` : ''}
+      </span>
     </div>
 
     {
@@ -38,51 +40,55 @@ const requiresVerification = authState === 'unverified';
       )
     }
 
-    {
-      venuePrice > 0 && (
-        <div class="event-card__price">
-          <p class="event-card__price-label">Starting from</p>
-          <p class="event-card__price-value">
+    <div class="event-card__price" data-card-price hidden={venuePrice <= 0}>
+      <p class="event-card__price-label" data-card-price-label>Starting from</p>
+      <p class="event-card__price-value">
+        <span class="event-card__price-amount" data-card-price-amount>
             {new Intl.NumberFormat('en-PH', {
               style: 'currency',
               currency: 'PHP',
               maximumFractionDigits: 0,
             }).format(venuePrice)}
-            <span>/night</span>
-          </p>
-        </div>
-      )
-    }
-
-    {
-      authState === 'verified' ? (
-        <a
-          href={bookingUrl}
-          class="event-card__book-button"
-        >
-          Book Now
-        </a>
-      ) : (
-        <button
-          type="button"
-          class="event-card__book-button"
-          data-auth-required-trigger
-          data-auth-required-reason={requiresVerification ? 'unverified' : 'guest'}
-          data-auth-email={authEmail}
-          data-venue-id={venue.id}
-          data-venue-name={venueName}
-          data-booking-url={bookingUrl}
-        >
-          {requiresVerification ? 'Verify Email to Book' : 'Book Now'}
-        </button>
-      )
-    }
+        </span>
+        <span class="event-card__price-unit" data-card-price-unit>/night</span>
+      </p>
+    </div>
 
     {packageSummary && (
-      <p class="event-card__packages">
+      <p
+        class="event-card__packages"
+        data-card-package-summary
+        data-default-text={`Packages: ${packageSummary}`}
+      >
         Packages: {packageSummary}
       </p>
     )}
+
+    <div class="event-card__actions">
+      <a href={bookingUrl} class="event-card__details-button">
+        View Details
+      </a>
+      {
+        authState === 'verified' ? (
+          <a href={bookingUrl} class="event-card__book-button">
+            Book Now
+          </a>
+        ) : (
+          <button
+            type="button"
+            class="event-card__book-button"
+            data-auth-required-trigger
+            data-auth-required-reason={requiresVerification ? 'unverified' : 'guest'}
+            data-auth-email={authEmail}
+            data-venue-id={venue.id}
+            data-venue-name={venueName}
+            data-booking-url={bookingUrl}
+          >
+            {requiresVerification ? 'Verify Email to Book' : 'Book Now'}
+          </button>
+        )
+      }
+    </div>
   </div>
 </div>
 
@@ -158,7 +164,13 @@ const requiresVerification = authState === 'unverified';
     line-height: 1.1;
   }
 
-  .event-card__price-value span {
+  .event-card__price-amount {
+    color: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+  }
+
+  .event-card__price-unit {
     color: var(--wb-muted);
     font-size: 0.9rem;
     font-weight: 700;
@@ -171,17 +183,21 @@ const requiresVerification = authState === 'unverified';
     line-height: 1.45;
   }
 
-  .event-card__book-button {
+  .event-card__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin-top: auto;
+  }
+
+  .event-card__book-button,
+  .event-card__details-button {
     display: inline-flex;
     min-height: 2.75rem;
     align-items: center;
     justify-content: center;
-    margin-top: auto;
-    border: 0;
+    border: 1px solid var(--wb-green);
     border-radius: var(--wb-radius-sm);
-    background: var(--wb-green);
-    box-shadow: 0 12px 22px rgba(74, 124, 63, 0.16);
-    color: #ffffff;
     cursor: pointer;
     font-size: 0.86rem;
     font-weight: 900;
@@ -195,9 +211,26 @@ const requiresVerification = authState === 'unverified';
       transform 0.2s ease;
   }
 
+  .event-card__book-button {
+    background: var(--wb-green);
+    box-shadow: 0 12px 22px rgba(74, 124, 63, 0.16);
+    color: #ffffff;
+  }
+
+  .event-card__details-button {
+    background: transparent;
+    color: var(--wb-green-mid);
+  }
+
   .event-card__book-button:hover {
     background: var(--wb-green-mid);
     box-shadow: var(--wb-shadow-md);
+    transform: translateY(-1px);
+  }
+
+  .event-card__details-button:hover {
+    background: var(--wb-green-soft);
+    color: var(--wb-green-dark);
     transform: translateY(-1px);
   }
 
@@ -208,5 +241,15 @@ const requiresVerification = authState === 'unverified';
 
   :global(html.dark) .event-card__book-button:hover {
     background: #d5efc9;
+  }
+
+  :global(html.dark) .event-card__details-button {
+    color: var(--wb-green-mid);
+  }
+
+  @media (max-width: 420px) {
+    .event-card__actions {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

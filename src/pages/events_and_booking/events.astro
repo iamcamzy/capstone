@@ -15,23 +15,31 @@ const { data: venues } = await getAllVenues();
 const venuesToDisplay = venues || [];
 
 const packageOptions = [
-  { value: 'lunch-time', label: 'Lunch Time Package', price: 12000, minGuests: 80, maxGuests: 200, eventTypes: ['wedding', 'birthday', 'corporate', 'conference', 'debut', 'other'] },
-  { value: 'dinner-time', label: 'Dinner Time Package', price: 13000, minGuests: 80, maxGuests: 200, eventTypes: ['wedding', 'birthday', 'corporate', 'conference', 'debut', 'other'] },
-  { value: 'barkada-staycation', label: 'Barkada Staycation', price: 14500, minGuests: 10, maxGuests: 15, eventTypes: ['birthday', 'other'] },
-  { value: 'pamilya-staycation', label: 'Pamilya Staycation', price: 20500, minGuests: 20, maxGuests: 30, eventTypes: ['birthday', 'debut', 'other'] },
-  { value: 'room-rates', label: 'Room Rates', price: 999, minGuests: 1, maxGuests: 24, eventTypes: ['other'] },
+  { value: 'lunch-time', label: 'Lunch Time Package', price: 12000, minGuests: 80, maxGuests: 200, eventTypes: ['wedding', 'birthday', 'reunion', 'family-gathering', 'corporate', 'conference', 'debut', 'private-event', 'other'] },
+  { value: 'dinner-time', label: 'Dinner Time Package', price: 13000, minGuests: 80, maxGuests: 200, eventTypes: ['wedding', 'birthday', 'reunion', 'family-gathering', 'corporate', 'conference', 'debut', 'private-event', 'other'] },
+  { value: 'barkada-staycation', label: 'Barkada Staycation', price: 14500, minGuests: 10, maxGuests: 15, eventTypes: ['birthday', 'reunion', 'family-gathering', 'staycation', 'private-event', 'other'] },
+  { value: 'pamilya-staycation', label: 'Pamilya Staycation', price: 20500, minGuests: 20, maxGuests: 30, eventTypes: ['birthday', 'reunion', 'family-gathering', 'staycation', 'private-event', 'other'] },
+  { value: 'room-rates', label: 'Room Rates', price: 999, minGuests: 1, maxGuests: 24, eventTypes: ['staycation', 'private-event', 'other'] },
 ];
 
 const eventTypeOptions = [
   ['wedding', 'Wedding'],
   ['birthday', 'Birthday Party'],
+  ['reunion', 'Reunion'],
+  ['family-gathering', 'Family Gathering'],
+  ['staycation', 'Staycation'],
+  ['private-event', 'Private Event'],
   ['corporate', 'Corporate Event'],
   ['conference', 'Conference'],
   ['debut', 'Debut'],
   ['other', 'Other'],
 ];
 
-const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue.price_per_night) || 0));
+const maxBrowsePrice = Math.max(
+  0,
+  ...venuesToDisplay.map((venue) => Number(venue.price_per_night) || 0),
+  ...packageOptions.map((pkg) => pkg.price),
+);
 ---
 
 <Layout>
@@ -72,8 +80,8 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
                 <h2 id="events-filter-title">Find your best fit</h2>
               </div>
               <p class="events-results" aria-live="polite">
-                <strong data-result-count>{venuesToDisplay.length}</strong>
-                <span data-result-label>{venuesToDisplay.length === 1 ? ' matching venue' : ' matching venues'}</span>
+                Showing <strong data-result-count>{venuesToDisplay.length}</strong>
+                <span data-result-label>{venuesToDisplay.length === 1 ? ' matching result' : ' matching results'}</span>
               </p>
             </div>
 
@@ -86,7 +94,7 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
                 </select>
               </label>
               <label>
-                <span>Package</span>
+                <span>Package type</span>
                 <select name="package">
                   <option value="">All packages</option>
                   {packageOptions.map((pkg) => <option value={pkg.value}>{pkg.label}</option>)}
@@ -100,16 +108,16 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
                 </select>
               </label>
               <label>
-                <span>Guest capacity</span>
-                <input name="guests" type="number" min="1" inputmode="numeric" placeholder="Number of guests" />
+                <span>Expected guests</span>
+                <input name="guests" type="number" min="1" step="1" inputmode="numeric" placeholder="How many guests?" />
               </label>
               <label>
-                <span>Minimum price</span>
-                <input name="minPrice" type="number" min="0" inputmode="decimal" placeholder="₱0" />
+                <span>Minimum base price</span>
+                <input name="minPrice" type="number" min="0" step="1" inputmode="decimal" placeholder="₱0" />
               </label>
               <label>
-                <span>Maximum price</span>
-                <input name="maxPrice" type="number" min="0" inputmode="decimal" placeholder={maxVenuePrice ? `₱${maxVenuePrice.toLocaleString('en-PH')}` : 'Any price'} />
+                <span>Maximum base price</span>
+                <input name="maxPrice" type="number" min="0" step="1" inputmode="decimal" placeholder={maxBrowsePrice ? `₱${maxBrowsePrice.toLocaleString('en-PH')}` : 'Any price'} />
               </label>
               <label>
                 <span>Sort by</span>
@@ -123,9 +131,11 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
                 </select>
               </label>
               <div class="events-filter-form__actions">
-                <button type="button" class="events-filter-button events-filter-button--secondary" data-clear-filters>Clear filters</button>
-                <button type="reset" class="events-filter-button">Reset filters</button>
+                <button type="reset" class="events-filter-button events-filter-button--secondary" data-clear-filters>Clear Filters</button>
               </div>
+              <p class="events-filter-form__note">
+                Prices are base estimates. Add-ons and final arrangements may change the total.
+              </p>
             </form>
           </section>
         )}
@@ -136,7 +146,6 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
               <div class="events-grid" data-events-grid>
                 {venuesToDisplay.map((venue) => {
                   const compatiblePackages = packageOptions.filter((pkg) => !venue.capacity || venue.capacity >= pkg.minGuests);
-                  const supportedEvents = [...new Set(compatiblePackages.flatMap((pkg) => pkg.eventTypes))];
                   const packageSummary = compatiblePackages
                     .slice(0, 3)
                     .map((pkg) => pkg.label.replace(' Package', ''))
@@ -149,10 +158,7 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
                       data-name={venue.name || ''}
                       data-price={Number(venue.price_per_night) || 0}
                       data-capacity={Number(venue.capacity) || 0}
-                      data-packages={compatiblePackages.map((pkg) => pkg.value).join(',')}
-                      data-package-prices={compatiblePackages.map((pkg) => `${pkg.value}:${pkg.price}`).join(',')}
-                      data-package-ranges={compatiblePackages.map((pkg) => `${pkg.value}:${pkg.minGuests}:${pkg.maxGuests}`).join(',')}
-                      data-event-types={supportedEvents.join(',')}
+                      data-package-options={JSON.stringify(compatiblePackages)}
                     >
                       <EventCard
                         venue={venue}
@@ -166,8 +172,9 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
               </div>
               <div class="wb-empty-state events-no-results" data-no-results hidden>
                 <div class="wb-empty-state__icon" aria-hidden="true">WB</div>
-                <h2 class="wb-empty-state__title">No venues match those filters</h2>
-                <p class="wb-empty-state__text">Try widening your price or guest range, or clear the filters to see every venue.</p>
+                <h2 class="wb-empty-state__title">No matching results</h2>
+                <p class="wb-empty-state__text">No venues or packages match your filters. Try adjusting your search.</p>
+                <button type="button" class="events-filter-button events-empty-reset" data-clear-filters>Clear Filters</button>
               </div>
             </>
           ) : (
@@ -190,6 +197,15 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
 </Layout>
 
 <script>
+  type BrowsePackage = {
+    value: string;
+    label: string;
+    price: number;
+    minGuests: number;
+    maxGuests: number;
+    eventTypes: string[];
+  };
+
   const form = document.querySelector<HTMLFormElement>('[data-events-filter-form]');
   const grid = document.querySelector<HTMLElement>('[data-events-grid]');
   const noResults = document.querySelector<HTMLElement>('[data-no-results]');
@@ -199,52 +215,89 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
   if (form && grid) {
     const items = Array.from(grid.querySelectorAll<HTMLElement>('[data-event-item]'));
     const value = (name: string) => (form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null)?.value ?? '';
-    const getPackagePrices = (item: HTMLElement) => new Map(
-      (item.dataset.packagePrices ?? '')
-        .split(',')
-        .filter(Boolean)
-        .map((entry) => {
-          const [key, price] = entry.split(':');
-          return [key, Number(price) || 0] as const;
-        }),
-    );
-    const getPackageRanges = (item: HTMLElement) => new Map(
-      (item.dataset.packageRanges ?? '')
-        .split(',')
-        .filter(Boolean)
-        .map((entry) => {
-          const [key, min, max] = entry.split(':');
-          return [key, { min: Number(min) || 0, max: Number(max) || Number.POSITIVE_INFINITY }] as const;
-        }),
-    );
+    const formatCurrency = (amount: number) => new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      maximumFractionDigits: 0,
+    }).format(amount);
+    const getPackages = (item: HTMLElement): BrowsePackage[] => {
+      try {
+        return JSON.parse(item.dataset.packageOptions ?? '[]') as BrowsePackage[];
+      } catch {
+        return [];
+      }
+    };
+    const getSelectedPackage = (item: HTMLElement, packageValue: string) =>
+      getPackages(item).find((pkg) => pkg.value === packageValue);
+
+    const updateCardDetails = (item: HTMLElement, packageValue: string) => {
+      const venuePrice = Number(item.dataset.price) || 0;
+      const venueCapacity = Number(item.dataset.capacity) || 0;
+      const selectedPackage = packageValue ? getSelectedPackage(item, packageValue) : undefined;
+      const priceBlock = item.querySelector<HTMLElement>('[data-card-price]');
+      const priceLabel = item.querySelector<HTMLElement>('[data-card-price-label]');
+      const priceAmount = item.querySelector<HTMLElement>('[data-card-price-amount]');
+      const priceUnit = item.querySelector<HTMLElement>('[data-card-price-unit]');
+      const capacity = item.querySelector<HTMLElement>('[data-card-capacity]');
+      const packageSummary = item.querySelector<HTMLElement>('[data-card-package-summary]');
+
+      if (selectedPackage) {
+        if (priceBlock) priceBlock.hidden = false;
+        if (priceLabel) priceLabel.textContent = `${selectedPackage.label} base price`;
+        if (priceAmount) priceAmount.textContent = formatCurrency(selectedPackage.price);
+        if (priceUnit) priceUnit.textContent = '';
+        if (capacity) {
+          const packageCapacity = venueCapacity
+            ? Math.min(venueCapacity, selectedPackage.maxGuests)
+            : selectedPackage.maxGuests;
+          capacity.hidden = false;
+          capacity.textContent = selectedPackage.minGuests === packageCapacity
+            ? `For ${packageCapacity} guests`
+            : `For ${selectedPackage.minGuests}–${packageCapacity} guests`;
+        }
+        if (packageSummary) packageSummary.textContent = `Selected package: ${selectedPackage.label}`;
+        return;
+      }
+
+      if (priceBlock) priceBlock.hidden = venuePrice <= 0;
+      if (priceLabel) priceLabel.textContent = 'Starting from';
+      if (priceAmount) priceAmount.textContent = formatCurrency(venuePrice);
+      if (priceUnit) priceUnit.textContent = '/night';
+      if (capacity) {
+        capacity.hidden = venueCapacity <= 0;
+        capacity.textContent = venueCapacity ? `Up to ${venueCapacity} guests` : '';
+      }
+      if (packageSummary) packageSummary.textContent = packageSummary.dataset.defaultText ?? '';
+    };
 
     const updateResults = () => {
       const venue = value('venue');
-      const selectedPackage = value('package');
+      const packageValue = value('package');
       const eventType = value('eventType');
-      const guests = Number(value('guests')) || 0;
-      const minPrice = value('minPrice') === '' ? 0 : Number(value('minPrice'));
-      const maxPrice = value('maxPrice') === '' ? Number.POSITIVE_INFINITY : Number(value('maxPrice'));
+      const guests = Math.max(0, Math.floor(Number(value('guests')) || 0));
+      const minPrice = value('minPrice') === '' ? 0 : Math.max(0, Number(value('minPrice')) || 0);
+      const maxPrice = value('maxPrice') === '' ? Number.POSITIVE_INFINITY : Math.max(0, Number(value('maxPrice')) || 0);
       const [sortField, sortDirection] = value('sort').split('-');
 
       const matching = items.filter((item) => {
         const venuePrice = Number(item.dataset.price) || 0;
         const capacity = Number(item.dataset.capacity) || 0;
-        const packages = (item.dataset.packages ?? '').split(',');
-        const packagePrices = getPackagePrices(item);
-        const packageRanges = getPackageRanges(item);
-        const eventTypes = (item.dataset.eventTypes ?? '').split(',');
-        const selectedPackagePrice = selectedPackage ? packagePrices.get(selectedPackage) : null;
-        const price = selectedPackagePrice ?? venuePrice;
-        const packageRange = selectedPackage ? packageRanges.get(selectedPackage) : null;
-        const packageCanFitGuests = !guests
-          || !packageRange
-          || (guests >= packageRange.min && guests <= packageRange.max);
+        const packages = getPackages(item);
+        const relevantPackages = packageValue
+          ? packages.filter((pkg) => pkg.value === packageValue)
+          : packages;
+        const hasCompatiblePackage = relevantPackages.some((pkg) =>
+          (!eventType || pkg.eventTypes.includes(eventType))
+          && (!guests || (guests >= pkg.minGuests && guests <= pkg.maxGuests)),
+        );
+        const selectedPackage = packageValue
+          ? relevantPackages[0]
+          : undefined;
+        const price = selectedPackage?.price ?? venuePrice;
+
         return (!venue || item.dataset.id === venue)
-          && (!selectedPackage || packages.includes(selectedPackage))
-          && (!eventType || eventTypes.includes(eventType))
+          && hasCompatiblePackage
           && (!guests || capacity >= guests)
-          && packageCanFitGuests
           && price >= minPrice
           && price <= maxPrice;
       });
@@ -252,29 +305,37 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
       items.sort((a, b) => {
         const direction = sortDirection === 'desc' ? -1 : 1;
         if (sortField === 'name') return (a.dataset.name ?? '').localeCompare(b.dataset.name ?? '') * direction;
-        if (sortField === 'price' && selectedPackage) {
-          const aPrice = getPackagePrices(a).get(selectedPackage) ?? (Number(a.dataset.price) || 0);
-          const bPrice = getPackagePrices(b).get(selectedPackage) ?? (Number(b.dataset.price) || 0);
+        if (sortField === 'price') {
+          const aPrice = (packageValue ? getSelectedPackage(a, packageValue)?.price : undefined) ?? (Number(a.dataset.price) || 0);
+          const bPrice = (packageValue ? getSelectedPackage(b, packageValue)?.price : undefined) ?? (Number(b.dataset.price) || 0);
           return (aPrice - bPrice) * direction;
+        }
+        if (sortField === 'capacity' && packageValue) {
+          const aPackageCapacity = getSelectedPackage(a, packageValue)?.maxGuests ?? 0;
+          const bPackageCapacity = getSelectedPackage(b, packageValue)?.maxGuests ?? 0;
+          const aCapacity = Math.min(Number(a.dataset.capacity) || aPackageCapacity, aPackageCapacity);
+          const bCapacity = Math.min(Number(b.dataset.capacity) || bPackageCapacity, bPackageCapacity);
+          return (aCapacity - bCapacity) * direction;
         }
         return ((Number(a.dataset[sortField]) || 0) - (Number(b.dataset[sortField]) || 0)) * direction;
       }).forEach((item) => grid.append(item));
 
-      items.forEach((item) => { item.hidden = !matching.includes(item); });
+      items.forEach((item) => {
+        item.hidden = !matching.includes(item);
+        updateCardDetails(item, packageValue);
+      });
       if (count) count.textContent = String(matching.length);
-      if (countLabel) countLabel.textContent = matching.length === 1 ? ' matching venue' : ' matching venues';
+      if (countLabel) countLabel.textContent = matching.length === 1 ? ' matching result' : ' matching results';
       if (noResults) noResults.hidden = matching.length !== 0;
       grid.hidden = matching.length === 0;
     };
 
     form.addEventListener('input', updateResults);
+    form.addEventListener('submit', (event) => event.preventDefault());
     form.addEventListener('reset', () => requestAnimationFrame(updateResults));
-    form.querySelector('[data-clear-filters]')?.addEventListener('click', () => {
-      ['venue', 'package', 'eventType', 'guests', 'minPrice', 'maxPrice'].forEach((name) => {
-        const control = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null;
-        if (control) control.value = '';
-      });
-      updateResults();
+    document.querySelectorAll<HTMLButtonElement>('[data-clear-filters]').forEach((button) => {
+      if (button.type === 'reset') return;
+      button.addEventListener('click', () => form.reset());
     });
     updateResults();
   }
@@ -420,6 +481,14 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
     gap: 0.6rem;
   }
 
+  .events-filter-form__note {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--wb-muted);
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+
   .events-filter-button {
     min-height: 2.75rem;
     flex: 1;
@@ -435,6 +504,21 @@ const maxVenuePrice = Math.max(0, ...venuesToDisplay.map((venue) => Number(venue
   .events-filter-button--secondary {
     background: transparent;
     color: var(--wb-green-mid);
+  }
+
+  .events-filter-button:hover {
+    background: var(--wb-green-mid);
+  }
+
+  .events-filter-button--secondary:hover {
+    background: var(--wb-green-soft);
+    color: var(--wb-green-dark);
+  }
+
+  .events-empty-reset {
+    width: min(100%, 12rem);
+    flex: none;
+    margin-top: 0.35rem;
   }
 
   .events-no-results {
