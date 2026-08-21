@@ -204,6 +204,8 @@ const bookingAccessMessage = user && !emailVerified
 </Layout>
 
 <script>
+  import { startResendCooldown } from '../../../lib/resendVerification';
+
   const resendVenueVerification = document.getElementById('resendVenueVerification') as HTMLButtonElement | null;
   const venueVerificationNotice = document.getElementById('venueVerificationNotice');
 
@@ -219,6 +221,7 @@ const bookingAccessMessage = user && !emailVerified
     const email = resendVenueVerification.dataset.email ?? '';
     if (!email) return showVenueVerificationNotice('Enter your email on the sign-in page to resend verification.', false);
     resendVenueVerification.disabled = true;
+    let cooldownStarted = false;
     try {
       const response = await fetch('/api/auth/resend-verification', {
         method: 'POST',
@@ -227,10 +230,14 @@ const bookingAccessMessage = user && !emailVerified
       });
       const data = await response.json().catch(() => ({}));
       showVenueVerificationNotice(data.message ?? data.error ?? 'Unable to resend verification email.', response.ok);
+      if (response.ok) {
+        startResendCooldown(resendVenueVerification);
+        cooldownStarted = true;
+      }
     } catch {
       showVenueVerificationNotice('Unable to resend verification email. Please try again.', false);
     } finally {
-      resendVenueVerification.disabled = false;
+      if (!cooldownStarted) resendVenueVerification.disabled = false;
     }
   });
 </script>

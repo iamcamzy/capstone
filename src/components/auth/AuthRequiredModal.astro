@@ -19,6 +19,8 @@
 </div>
 
 <script>
+  import { startResendCooldown } from '../../lib/resendVerification';
+
   const modal = document.querySelector<HTMLElement>('[data-auth-required-modal]');
   const dialog = modal?.querySelector<HTMLElement>('[data-auth-required-dialog]');
   const title = modal?.querySelector<HTMLElement>('#auth-required-title');
@@ -101,6 +103,7 @@
       return;
     }
     resendButton.disabled = true;
+    let cooldownStarted = false;
     try {
       const response = await fetch('/api/auth/resend-verification', {
         method: 'POST',
@@ -113,6 +116,10 @@
         verificationNotice.dataset.success = String(response.ok);
         verificationNotice.hidden = false;
       }
+      if (response.ok) {
+        startResendCooldown(resendButton);
+        cooldownStarted = true;
+      }
     } catch {
       if (verificationNotice) {
         verificationNotice.textContent = 'Unable to resend verification email. Please try again.';
@@ -120,7 +127,7 @@
         verificationNotice.hidden = false;
       }
     } finally {
-      resendButton.disabled = false;
+      if (!cooldownStarted) resendButton.disabled = false;
     }
   });
 

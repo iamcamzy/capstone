@@ -21,7 +21,7 @@ const redirectPath = getSafeInternalRedirect(Astro.url.searchParams.get('redirec
         >
       </div>
 
-      <form id="register-form" novalidate class="px-5 py-10">
+      <form id="register-form" data-redirect={redirectPath} novalidate class="px-5 py-10">
         <div
           class="signup-grid w-full h-auto grid grid-cols-12 grid-rows-4 items-center gap-5"
         >
@@ -90,8 +90,9 @@ const redirectPath = getSafeInternalRedirect(Astro.url.searchParams.get('redirec
             items-center"
         >
           <button
+            id="registerSubmit"
             type="submit"
-            class="auth-submit max-w-[20ch] text-[2em] text-white font-bold rounded-2xl py-2 px-5 hover:cursor-pointer"
+            class="auth-submit max-w-[20ch] text-[2em] text-white font-bold rounded-2xl py-2 px-5 hover:cursor-pointer disabled:cursor-wait disabled:opacity-60"
             >REGISTER</button
           >
         </div>
@@ -114,7 +115,10 @@ const redirectPath = getSafeInternalRedirect(Astro.url.searchParams.get('redirec
   </div>
 </Layout>
 <script>
+  import { startResendCooldown } from '../lib/resendVerification';
+
   const form = document.getElementById('register-form') as HTMLFormElement | null;
+  const registerSubmit = document.getElementById('registerSubmit') as HTMLButtonElement | null;
   const noticeEl = document.getElementById('signupNotice');
   const verificationActions = document.getElementById('verificationActions');
   const resendButton = document.getElementById('resendVerification') as HTMLButtonElement | null;
@@ -130,6 +134,7 @@ const redirectPath = getSafeInternalRedirect(Astro.url.searchParams.get('redirec
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (registerSubmit?.disabled) return;
     if (noticeEl) noticeEl.classList.add('hidden');
 
     const formData = new FormData(form);
@@ -143,6 +148,11 @@ const redirectPath = getSafeInternalRedirect(Astro.url.searchParams.get('redirec
       return;
     }
 
+    if (registerSubmit) {
+      registerSubmit.disabled = true;
+      registerSubmit.textContent = 'CREATING ACCOUNT...';
+    }
+
     try {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
@@ -153,26 +163,33 @@ const redirectPath = getSafeInternalRedirect(Astro.url.searchParams.get('redirec
 
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (data.requiresEmailVerification === false) {
+          window.location.href = form.dataset.redirect || '/dashboard';
+          return;
+        }
+
         registeredEmail = email;
         form.reset();
         showNotice(data.message ?? 'Account created. Please verify your email before signing in.', 'success');
-        if (data.requiresEmailVerification !== false) {
-          verificationActions?.classList.remove('hidden');
-        } else {
-          verificationActions?.classList.add('hidden');
-        }
+        verificationActions?.classList.remove('hidden');
       } else {
         const data = await res.json().catch(() => ({}));
         showNotice('Signup failed: ' + (data.error ?? 'Please try again.'), 'error');
       }
     } catch {
       showNotice('Something went wrong. Please try again.', 'error');
+    } finally {
+      if (registerSubmit) {
+        registerSubmit.disabled = false;
+        registerSubmit.textContent = 'REGISTER';
+      }
     }
   });
 
   resendButton?.addEventListener('click', async () => {
     if (!registeredEmail) return;
     resendButton.disabled = true;
+    let cooldownStarted = false;
     try {
       const res = await fetch('/api/auth/resend-verification', {
         method: 'POST',
@@ -181,10 +198,14 @@ const redirectPath = getSafeInternalRedirect(Astro.url.searchParams.get('redirec
       });
       const data = await res.json().catch(() => ({}));
       showNotice(data.message ?? data.error ?? 'Unable to resend verification email.', res.ok ? 'success' : 'error');
+      if (res.ok) {
+        startResendCooldown(resendButton);
+        cooldownStarted = true;
+      }
     } catch {
       showNotice('Unable to resend verification email. Please try again.', 'error');
     } finally {
-      resendButton.disabled = false;
+      if (!cooldownStarted) resendButton.disabled = false;
     }
   });
 </script>

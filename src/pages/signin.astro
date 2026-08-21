@@ -74,6 +74,8 @@ const unverifiedEmail = url.searchParams.get('email') ?? '';
 </Layout>
 
 <script>
+  import { startResendCooldown } from '../lib/resendVerification';
+
   const resendButton = document.getElementById('resendVerification') as HTMLButtonElement | null;
   const emailInput = document.getElementById('email') as HTMLInputElement | null;
   const resendNotice = document.getElementById('resendNotice');
@@ -93,6 +95,7 @@ const unverifiedEmail = url.searchParams.get('email') ?? '';
     }
 
     resendButton.disabled = true;
+    let cooldownStarted = false;
     try {
       const response = await fetch('/api/auth/resend-verification', {
         method: 'POST',
@@ -101,10 +104,14 @@ const unverifiedEmail = url.searchParams.get('email') ?? '';
       });
       const data = await response.json().catch(() => ({}));
       showResendNotice(data.message ?? data.error ?? 'Unable to resend verification email.', response.ok);
+      if (response.ok) {
+        startResendCooldown(resendButton);
+        cooldownStarted = true;
+      }
     } catch {
       showResendNotice('Unable to resend verification email. Please try again.', false);
     } finally {
-      resendButton.disabled = false;
+      if (!cooldownStarted) resendButton.disabled = false;
     }
   });
 </script>

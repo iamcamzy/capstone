@@ -488,6 +488,8 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
 </div>
 
 <script>
+  import { startResendCooldown } from '../lib/resendVerification';
+
   let currentUserBookingId: string | null = null;
   let paymentProcessing = false;
   const dashboardResendVerification = document.getElementById('dashboardResendVerification') as HTMLButtonElement | null;
@@ -640,6 +642,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
     const email = dashboardResendVerification.dataset.email ?? '';
     if (!email || !dashboardVerificationNotice) return;
     dashboardResendVerification.disabled = true;
+    let cooldownStarted = false;
     try {
       const response = await fetch('/api/auth/resend-verification', {
         method: 'POST',
@@ -650,12 +653,16 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
       dashboardVerificationNotice.textContent = data.message ?? data.error ?? 'Unable to resend verification email.';
       dashboardVerificationNotice.classList.remove('hidden', 'text-green-700', 'text-red-600');
       dashboardVerificationNotice.classList.add(response.ok ? 'text-green-700' : 'text-red-600');
+      if (response.ok) {
+        startResendCooldown(dashboardResendVerification);
+        cooldownStarted = true;
+      }
     } catch {
       dashboardVerificationNotice.textContent = 'Unable to resend verification email. Please try again.';
       dashboardVerificationNotice.classList.remove('hidden', 'text-green-700');
       dashboardVerificationNotice.classList.add('text-red-600');
     } finally {
-      dashboardResendVerification.disabled = false;
+      if (!cooldownStarted) dashboardResendVerification.disabled = false;
     }
   });
 

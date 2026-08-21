@@ -2004,6 +2004,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
       termsAccepted: termsAcceptedInput.checked,
     };
 
+    var submissionSucceeded = false;
     try {
       var response = await fetch("/api/bookings/CreateBookings", {
         method: "POST",
@@ -2016,6 +2017,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
       });
 
       if (response.ok) {
+        submissionSucceeded = true;
         confirmModal.classList.add("hidden");
         var submittedPreference = formData.notificationPreference;
         var refId = result.bookingId
@@ -2073,10 +2075,12 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
         confirmationError.classList.remove("hidden");
       }
     } finally {
-      isSubmitting = false;
-      confSubmitBtn.disabled = false;
-      confBackBtn.disabled = false;
-      confSubmitBtn.textContent = "Submit Booking Request";
+      if (!submissionSucceeded) {
+        isSubmitting = false;
+        confSubmitBtn.disabled = false;
+        confBackBtn.disabled = false;
+        confSubmitBtn.textContent = "Submit Booking Request";
+      }
     }
   });
 

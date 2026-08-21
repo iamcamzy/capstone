@@ -4,10 +4,11 @@ import { supabase } from "../../../lib/supabase";
 import { signUpSchema } from "../../../validation/user";
 import { created, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
+import { setSessionCookies } from "../../../lib/auth";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, cookies }) => {
   const body = await parseBody(request);
   if (!body.ok) return body.response;
 
@@ -26,10 +27,19 @@ export const POST: APIRoute = async ({ request }) => {
 
   if (authError) return error(authError.message, 400);
 
-  // Some Supabase projects return a session when email confirmation is disabled.
-  // Discard it so signup never authenticates the customer implicitly.
-  if (signUpData.session) await supabase.auth.signOut();
-  const requiresEmailVerification = !signUpData.session && !signUpData.user?.email_confirmed_at;
+  // Supabase returns no session when email confirmation is required. Preserve
+  // the normal immediate sign-in behavior only for projects where it is disabled.
+  const requiresEmailVerification =
+    !signUpData.session || !signUpData.user?.email_confirmed_at;
+  if (signUpData.session && !requiresEmailVerification) {
+    setSessionCookies(
+      cookies,
+      signUpData.session.access_token,
+      signUpData.session.refresh_token,
+    );
+  } else if (signUpData.session) {
+    await supabase.auth.signOut();
+  }
 
   return created({
     message: requiresEmailVerification

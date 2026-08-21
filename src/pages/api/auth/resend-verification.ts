@@ -18,7 +18,15 @@ export const POST: APIRoute = async ({ request }) => {
     email: parsed.data.email,
   });
 
-  if (resendError) return error(resendError.message, 400);
+  if (resendError) {
+    const isRateLimited = resendError.status === 429;
+    return error(
+      isRateLimited
+        ? "Please wait before requesting another verification email."
+        : resendError.message,
+      isRateLimited ? 429 : 400,
+    );
+  }
 
   return ok({
     message: "Verification email sent. Please check your inbox and spam folder.",
