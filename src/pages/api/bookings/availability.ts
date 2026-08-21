@@ -43,7 +43,7 @@ export const GET: APIRoute = async ({ url }) => {
     }
 
     return ok({
-        bookings: availability.bookings.map((booking) => ({
+        bookings: availability.bookings.map((booking: { status: string; [key: string]: unknown }) => ({
             ...booking,
             status: normalizeBookingStatus(booking.status),
         })),

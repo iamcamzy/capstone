@@ -10,6 +10,7 @@ import {
   normalizeBookingStatus,
   type BookingStatus,
 } from '../../lib/bookingStatus';
+import { getReservationDeadlineState } from '../../lib/reservationValidity';
 
 export const prerender = false;
 
@@ -236,23 +237,7 @@ const formatContractSigningSchedule = (date?: string | null, time?: string | nul
 const canTransitionBookingTo = (status: BookingStatus, nextStatus: BookingStatus) =>
   getAllowedNextBookingStatuses(status).includes(nextStatus);
 
-const reservationState = (booking: any) => {
-  const paymentStatus = booking.payment?.payment_status ?? 'unpaid';
-  const expiresAt = booking.reservation_expires_at ? new Date(booking.reservation_expires_at).getTime() : null;
-  const remainingMs = expiresAt === null ? null : expiresAt - Date.now();
-  const expirationCancelled = isExpiredReservationCancellation(booking);
-
-  if (paymentStatus === 'paid' || booking.status === 'booked' || booking.status === 'completed') {
-    return { label: 'Paid / secured', className: 'reservation-secured', warning: false };
-  }
-  if (expirationCancelled || (remainingMs !== null && remainingMs <= 0)) {
-    return { label: 'Expired / cancelled', className: 'reservation-expired', warning: false };
-  }
-  if (paymentStatus === 'unpaid' && remainingMs !== null && remainingMs <= 24 * 60 * 60 * 1000) {
-    return { label: 'Expiring soon', className: 'reservation-warning', warning: true };
-  }
-  return { label: 'Active unpaid reservation', className: 'reservation-active', warning: false };
-};
+const reservationState = (booking: any) => getReservationDeadlineState(booking);
 ---
 
 <Layout title={isStaff ? "Staff Booking Management" : "Admin Dashboard"}>
@@ -494,8 +479,7 @@ const reservationState = (booking: any) => {
                           <div
                             class={`reservation-countdown mt-1 text-xs font-bold ${reservation.warning ? 'text-amber-700' : 'text-gray-500'}`}
                             data-reservation-expires={b.reservation_expires_at ?? ''}
-                            data-reservation-secured={reservation.className === 'reservation-secured' ? 'true' : 'false'}
-                            data-reservation-cancelled={reservation.className === 'reservation-expired' ? 'true' : 'false'}
+                            data-reservation-state={reservation.kind}
                           ></div>
                         </td>
 
@@ -2491,6 +2475,8 @@ const reservationState = (booking: any) => {
 </script>
 
 <script>
+import { getReservationDeadlineState, type ReservationDeadlineStateKind } from '../../lib/reservationValidity';
+
 const BOOKING_STATUS_LABELS: Record<string, string> = {
   contract_signing: 'Contract Signing',
   booked: 'Booked',
@@ -2627,7 +2613,7 @@ function showConfirm(opts: ConfirmOptions): Promise<boolean> {
     const icon    = document.getElementById('confirmDialogIcon')!;
     const title   = document.getElementById('confirmDialogTitle')!;
     const message = document.getElementById('confirmDialogMessage')!;
-    const okBtn   = document.getElementById('confirmDialogOk')!;
+    const okBtn   = document.getElementById('confirmDialogOk') as HTMLButtonElement;
     const cancelBtn = document.getElementById('confirmDialogCancel')!;
     const reasonWrap = document.getElementById('confirmDialogReasonWrap')!;
     const reasonLabel = document.getElementById('confirmDialogReasonLabel')!;
@@ -2670,7 +2656,7 @@ function showReasonConfirm(opts: ConfirmOptions): Promise<string | null> {
     const icon    = document.getElementById('confirmDialogIcon')!;
     const title   = document.getElementById('confirmDialogTitle')!;
     const message = document.getElementById('confirmDialogMessage')!;
-    const okBtn   = document.getElementById('confirmDialogOk')!;
+    const okBtn   = document.getElementById('confirmDialogOk') as HTMLButtonElement;
     const cancelBtn = document.getElementById('confirmDialogCancel')!;
     const reasonWrap = document.getElementById('confirmDialogReasonWrap')!;
     const reasonLabel = document.getElementById('confirmDialogReasonLabel')!;
@@ -2755,9 +2741,12 @@ function formatContractSigningScheduleForAdmin(date: string | null, time: string
   } as any);
 }
 
-function reservationRemainingText(expiresAt: string | null, secured = false, cancelled = false): string {
-  if (secured) return 'Reservation secured';
-  if (cancelled) return 'Expired';
+function reservationRemainingText(expiresAt: string | null, state: ReservationDeadlineStateKind): string {
+  if (state === 'paid_secured') return 'Reservation secured';
+  if (state === 'expired_cancelled') return 'Expired and cancelled';
+  if (state === 'deadline_passed') return 'Deadline passed; cancellation pending';
+  if (state === 'cancelled') return 'Cancelled';
+  if (state === 'not_applicable') return 'Not applicable';
   if (!expiresAt) return 'Expiration not set';
   const remaining = new Date(expiresAt).getTime() - Date.now();
   if (!Number.isFinite(remaining) || remaining <= 0) return 'Expired';
@@ -2774,8 +2763,7 @@ function refreshReservationCountdowns() {
   document.querySelectorAll<HTMLElement>('.reservation-countdown').forEach((element) => {
     element.textContent = reservationRemainingText(
       element.dataset.reservationExpires || null,
-      element.dataset.reservationSecured === 'true',
-      element.dataset.reservationCancelled === 'true',
+      (element.dataset.reservationState || 'active_unpaid') as ReservationDeadlineStateKind,
     );
   });
 }
@@ -3343,27 +3331,18 @@ function updatePaymentCalculations() {
 function openPaymentModal(jsonStr: string) {
   const booking = JSON.parse(jsonStr);
   const payment = booking.payment ?? {};
-  const expirationCancelled = booking.status === 'cancelled'
-    && !!booking.reservation_expired_at
-    && booking.cancellation_source === 'system';
-  const expiresInMs = booking.reservation_expires_at
-    ? new Date(booking.reservation_expires_at).getTime() - Date.now()
-    : null;
-  const secured = payment.payment_status === 'paid' || booking.status === 'booked' || booking.status === 'completed';
-  const expired = expirationCancelled || (expiresInMs !== null && expiresInMs <= 0);
-  const expiringSoon = !secured && !expired && payment.payment_status === 'unpaid'
-    && expiresInMs !== null && expiresInMs <= 24 * 60 * 60 * 1000;
+  const reservation = getReservationDeadlineState(booking);
   const badge = document.getElementById('paymentReservationBadge')!;
-  badge.textContent = secured ? 'Paid / secured' : expired ? 'Expired / cancelled' : expiringSoon ? 'Expiring soon' : 'Active unpaid reservation';
-  badge.className = `reservation-badge ${secured ? 'reservation-secured' : expired ? 'reservation-expired' : expiringSoon ? 'reservation-warning' : 'reservation-active'}`;
-  setText('paymentReservationRemaining', reservationRemainingText(booking.reservation_expires_at ?? null, secured, expired));
+  badge.textContent = reservation.label;
+  badge.className = `reservation-badge ${reservation.className}`;
+  setText('paymentReservationRemaining', reservationRemainingText(booking.reservation_expires_at ?? null, reservation.kind));
   setText(
     'paymentReservationExpiration',
     booking.reservation_expires_at
       ? `Reservation expires ${new Date(booking.reservation_expires_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' } as any)}`
       : 'Reservation expiration is not set',
   );
-  document.getElementById('paymentReservationNotice')?.classList.toggle('reservation-warning-cell', expiringSoon);
+  document.getElementById('paymentReservationNotice')?.classList.toggle('reservation-warning-cell', reservation.warning);
   (document.getElementById('paymentBookingId') as HTMLInputElement).value = booking.id;
   setText('paymentGuest', booking.full_name ?? 'Booking payment');
   (document.getElementById('paymentTotal') as HTMLInputElement).value = String(payment.total_booking_amount ?? booking.total_price ?? 0);
@@ -3455,40 +3434,20 @@ function openBookingDetail(jsonStr: string) {
   setText('bd-payment-method', b.payment?.payment_method ?? '—');
   setText('bd-payment-date', fmtTs(b.payment?.payment_recorded_at ?? null));
   setText('bd-payment-notes', b.payment?.payment_notes ?? '—');
-  const paymentStatus = b.payment?.payment_status ?? 'unpaid';
-  const expirationCancelled = b.status === 'cancelled'
-    && !!b.reservation_expired_at
-    && b.cancellation_source === 'system';
-  const expiresInMs = b.reservation_expires_at
-    ? new Date(b.reservation_expires_at).getTime() - Date.now()
-    : null;
-  const secured = paymentStatus === 'paid' || b.status === 'booked' || b.status === 'completed';
-  const expired = expirationCancelled || (expiresInMs !== null && expiresInMs <= 0);
-  const expiringSoon = !secured && !expired && paymentStatus === 'unpaid'
-    && expiresInMs !== null && expiresInMs <= 24 * 60 * 60 * 1000;
-  const reservationLabel = secured
-    ? 'Paid / secured'
-    : expired
-      ? 'Expired / cancelled'
-      : expiringSoon
-        ? 'Expiring soon'
-        : 'Active unpaid reservation';
-  const reservationClass = secured
-    ? 'reservation-secured'
-    : expired
-      ? 'reservation-expired'
-      : expiringSoon
-        ? 'reservation-warning'
-        : 'reservation-active';
+  const reservation = getReservationDeadlineState(b);
   const reservationBadge = document.getElementById('bd-reservation-badge')!;
-  reservationBadge.textContent = reservationLabel;
-  reservationBadge.className = `reservation-badge ${reservationClass}`;
-  document.getElementById('bd-reservation-panel')?.classList.toggle('reservation-warning-cell', expiringSoon);
+  reservationBadge.textContent = reservation.label;
+  reservationBadge.className = `reservation-badge ${reservation.className}`;
+  document.getElementById('bd-reservation-panel')?.classList.toggle('reservation-warning-cell', reservation.warning);
   setText('bd-reservation-created', fmtTs(b.reservation_created_at ?? null));
   setText('bd-reservation-expires', fmtTs(b.reservation_expires_at ?? null));
-  setText('bd-reservation-remaining', reservationRemainingText(b.reservation_expires_at ?? null, secured, expired));
-  toggleEl('bd-cancellation-reason-wrap', expirationCancelled);
-  if (expirationCancelled) setText('bd-cancellation-reason', b.cancellation_reason ?? 'Cancelled automatically because the unpaid reservation expired.');
+  setText('bd-reservation-remaining', reservationRemainingText(b.reservation_expires_at ?? null, reservation.kind));
+  const showCancellationReason = b.status === 'cancelled'
+    && Boolean(b.cancellation_reason || reservation.kind === 'expired_cancelled');
+  toggleEl('bd-cancellation-reason-wrap', showCancellationReason);
+  if (showCancellationReason) {
+    setText('bd-cancellation-reason', b.cancellation_reason ?? 'Reservation expired after 48 hours without payment');
+  }
   setText('bd-inclusions', formatInclusions(b.package_inclusions));
   setText('bd-rooms', formatBookingItems(b.selected_rooms ?? b.additionals?.rooms));
   setText('bd-addons', formatBookingItems(b.add_ons ?? b.additionals?.addOns));
@@ -3582,7 +3541,7 @@ function openBookingDetail(jsonStr: string) {
     manualActions.appendChild(manualLabel);
     addActionBtn(manualActions, 'Reopen as booked', '#9a4a36', function() {
       closeBookingDetail();
-      manuallyReopenCancelledBooking(b.id, expirationCancelled);
+      manuallyReopenCancelledBooking(b.id, reservation.kind === 'expired_cancelled');
     });
     actions.appendChild(manualActions);
   }

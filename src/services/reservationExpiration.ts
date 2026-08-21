@@ -7,6 +7,7 @@ import {
   sendExpirationReminder,
 } from "./notifications";
 import { logBookingAudit } from "./bookingAudit";
+import { isUnpaidPayment } from "../lib/reservationValidity";
 
 type DbClient = SupabaseClient<Database>;
 
@@ -34,12 +35,17 @@ async function findUnpaidBookingIds(client: DbClient, bookingIds: string[]): Pro
   if (bookingIds.length === 0) return new Set();
   const { data, error } = await client
     .from("booking_payments")
-    .select("booking_id")
-    .in("booking_id", bookingIds)
-    .or("payment_status.eq.unpaid,amount_paid.eq.0");
+    .select("booking_id, payment_status, amount_paid")
+    .in("booking_id", bookingIds);
 
   if (error) throw new Error(`Could not verify reservation payments: ${error.message}`);
-  return new Set((data ?? []).map((payment) => payment.booking_id));
+  const paymentByBookingId = new Map(
+    (data ?? []).map((payment) => [payment.booking_id, payment]),
+  );
+
+  return new Set(
+    bookingIds.filter((bookingId) => isUnpaidPayment(paymentByBookingId.get(bookingId))),
+  );
 }
 
 async function sendDueExpirationReminders(

@@ -173,11 +173,14 @@ Set the server-only `RESERVATION_CRON_SECRET` to a long random value and send it
 #### Reservation validity testing checklist
 
 - [ ] A new unpaid booking gets `reservation_expires_at = now + 48 hours`.
-- [ ] An unpaid booking shows its deadline to the customer.
+- [ ] An unpaid expired reservation is automatically changed to `cancelled` with the system expiration timestamps and reason.
+- [ ] A cancelled expired reservation releases its dates in `/api/bookings/availability` while active overlaps remain blocked.
+- [ ] A `partial` or `paid` booking, and any booking with `amount_paid > 0`, does not expire.
+- [ ] The customer dashboard shows the active deadline, expiring-soon warning, and expired-cancellation explanation correctly.
+- [ ] Admin booking details and the shared staff booking view show the created time, deadline, remaining time, payment state, and cancellation reason.
 - [ ] The expiration reminder sends only once.
-- [ ] An expired unpaid booking becomes `cancelled`.
-- [ ] A cancelled expired booking releases its dates for availability.
-- [ ] Paid and partially paid bookings do not expire.
+- [ ] The expiration cancellation notice sends only once.
+- [ ] `/api/reservations/expire` rejects requests without a valid cron secret or authenticated admin session.
 
 ---
 

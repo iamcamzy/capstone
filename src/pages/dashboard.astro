@@ -4,6 +4,7 @@ import { isEmailVerified } from '../lib/auth';
 import { customerGuard } from '../lib/adminGuard';
 import { supabaseAdmin, supabase } from '../lib/supabase';
 import { normalizeBookingStatus } from '../lib/bookingStatus';
+import { getReservationDeadlineState } from '../lib/reservationValidity';
 
 const guard = await customerGuard(Astro.cookies);
 if (guard instanceof Response) {
@@ -23,7 +24,7 @@ const { data: profile } = await db
 
 const { data: bookings } = await db
   .from('bookings')
-  .select('id, full_name, phone, pax, start_date, end_date, event_type, status, total_price, venue_id, event_date, special_requests, created_at, updated_at, package_type, package_price, package_inclusions, selected_rooms, add_ons, extension_selections, corkage_selections, additionals, estimate_summary, minimum_payment_amount, remaining_balance_amount, reservation_created_at, reservation_expires_at, reservation_expired_at')
+  .select('id, full_name, phone, pax, start_date, end_date, event_type, status, total_price, venue_id, event_date, special_requests, created_at, updated_at, package_type, package_price, package_inclusions, selected_rooms, add_ons, extension_selections, corkage_selections, additionals, estimate_summary, minimum_payment_amount, remaining_balance_amount, reservation_created_at, reservation_expires_at, reservation_expired_at, cancellation_reason, cancellation_source')
   .eq('user_id', user.id)
   .order('created_at', { ascending: false })
   .limit(20);
@@ -37,7 +38,7 @@ const paymentMap = Object.fromEntries((bookingPayments ?? []).map(payment => [pa
 const normalizedBookings = (bookings ?? []).map((booking) => ({
   ...booking,
   status: normalizeBookingStatus(booking.status),
-  payment: paymentMap[booking.id] ?? null,
+  payment: paymentMap[booking.id] ?? { payment_status: 'unpaid', amount_paid: 0 },
 }));
 
 const venueIds = [...new Set(normalizedBookings.map(b => b.venue_id))];
@@ -183,6 +184,10 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
           const packageName = b.package_type ? (woodberryPackageNames[b.package_type] ?? b.package_type) : 'Woodberry Package';
           const cfg       = statusConfig[b.status] ?? statusConfig.contract_signing;
           const isCompleted = b.status === 'completed' || (b.status === 'booked' && endDate < todayD);
+          const reservation = getReservationDeadlineState(b);
+          const reservationDeadline = b.reservation_expires_at
+            ? new Date(b.reservation_expires_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
+            : null;
 
           return (
             <div
@@ -216,9 +221,24 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
                           Event: {fmtDate(b.event_date)}
                         </p>
                       )}
-                      {b.payment?.payment_status === 'unpaid' && b.reservation_expires_at && !b.reservation_expired_at && (
-                        <p class="text-xs mt-2 font-semibold" style="color:#2d5a27;">
-                          Unpaid reservations are valid for 48 hours only. This reservation is valid until {new Date(b.reservation_expires_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })} and may be automatically cancelled if the required payment is not made in time.
+                      {reservation.kind === 'expired_cancelled' && (
+                        <p class="text-xs mt-2 font-semibold rounded-lg px-3 py-2" style="color:#8f2f20;background:#fbe7df;border:1px solid #e8b9aa;">
+                          This reservation expired because the required payment was not completed within 48 hours.
+                        </p>
+                      )}
+                      {reservation.kind === 'deadline_passed' && (
+                        <p class="text-xs mt-2 font-semibold rounded-lg px-3 py-2" style="color:#8f2f20;background:#fbe7df;border:1px solid #e8b9aa;">
+                          This unpaid reservation has passed its payment deadline and is awaiting automatic cancellation.
+                        </p>
+                      )}
+                      {(reservation.kind === 'active_unpaid' || reservation.kind === 'expiring_soon') && reservationDeadline && (
+                        <p
+                          class="text-xs mt-2 font-semibold rounded-lg px-3 py-2"
+                          style={reservation.warning
+                            ? 'color:#8a4d08;background:#fff2d8;border:1px solid #edc77e;'
+                            : 'color:#2d5a27;background:#e8f2e3;border:1px solid #dde8d4;'}
+                        >
+                          {reservation.warning ? 'Expiring soon: ' : ''}This unpaid reservation is valid until {reservationDeadline}.
                         </p>
                       )}
                     </div>
@@ -490,6 +510,7 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
 
 <script>
   import { startResendCooldown } from '../lib/resendVerification';
+  import { getReservationDeadlineState, isUnpaidPayment } from '../lib/reservationValidity';
 
   let currentUserBookingId: string | null = null;
   let paymentProcessing = false;
@@ -567,10 +588,32 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
     userBookingSetText('ubd-created', userBookingFmtTs(b.created_at));
 
     const reservationExpiration = document.getElementById('ubd-reservation-expiration');
-    if (b.payment?.payment_status === 'unpaid' && b.reservation_expires_at && !b.reservation_expired_at) {
+    const reservation = getReservationDeadlineState(b);
+    if (reservation.kind === 'expired_cancelled') {
       userBookingSetText(
         'ubd-reservation-expiration',
-        'Unpaid reservations are valid for 48 hours only. This reservation is valid until ' + userBookingFmtTs(b.reservation_expires_at) + '. If no required payment is made within 48 hours, the reservation may be automatically cancelled and the date may become available to others.',
+        'This reservation expired because the required payment was not completed within 48 hours.',
+      );
+      reservationExpiration?.setAttribute('style', 'background:#fbe7df;color:#8f2f20;border:1px solid #e8b9aa;');
+      reservationExpiration?.classList.remove('hidden');
+    } else if (reservation.kind === 'deadline_passed') {
+      userBookingSetText(
+        'ubd-reservation-expiration',
+        'This unpaid reservation has passed its payment deadline and is awaiting automatic cancellation.',
+      );
+      reservationExpiration?.setAttribute('style', 'background:#fbe7df;color:#8f2f20;border:1px solid #e8b9aa;');
+      reservationExpiration?.classList.remove('hidden');
+    } else if ((reservation.kind === 'active_unpaid' || reservation.kind === 'expiring_soon') && b.reservation_expires_at) {
+      userBookingSetText(
+        'ubd-reservation-expiration',
+        (reservation.kind === 'expiring_soon' ? 'Expiring soon: ' : '')
+          + 'This unpaid reservation is valid until ' + userBookingFmtTs(b.reservation_expires_at) + '.',
+      );
+      reservationExpiration?.setAttribute(
+        'style',
+        reservation.kind === 'expiring_soon'
+          ? 'background:#fff2d8;color:#8a4d08;border:1px solid #edc77e;'
+          : 'background:#e8f2e3;color:#2d5a27;border:1px solid #dde8d4;',
       );
       reservationExpiration?.classList.remove('hidden');
     } else {
@@ -580,8 +623,8 @@ const smsNotificationsEnabled = profile?.sms_notifications_enabled ?? true;
     const payButton = document.getElementById('ubd-pay-button') as HTMLButtonElement | null;
     if (payButton) {
       const paymentStatus = b.payment?.payment_status ?? 'unpaid';
-      const reservationValid = !b.reservation_expired_at && (!b.reservation_expires_at || new Date(b.reservation_expires_at).getTime() > Date.now());
-      const canPay = !['cancelled', 'completed'].includes(b.status) && !['paid', 'partial'].includes(paymentStatus) && reservationValid;
+      const reservationValid = reservation.kind === 'active_unpaid' || reservation.kind === 'expiring_soon';
+      const canPay = b.status === 'contract_signing' && isUnpaidPayment(b.payment) && reservationValid;
       payButton.classList.toggle('hidden', !canPay);
       payButton.disabled = false;
       payButton.textContent = paymentStatus === 'pending' ? 'Continue PayMongo Payment' : 'Pay 50% Down Payment';

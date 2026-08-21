@@ -265,7 +265,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       use_woodberry_caterer: parsed.data.useWoodberryCaterer ?? false,
       package_inclusions: {
         packageName: selectedPackage.name,
-        included: selectedPackage.inclusions,
+        included: [...selectedPackage.inclusions],
         requestedFacilities: parsed.data.packageInclusions ?? [],
       },
       rooms_count: parsed.data.roomsCount ?? null,
