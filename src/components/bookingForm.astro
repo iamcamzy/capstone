@@ -125,7 +125,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
       </div>
       <fieldset class="notification-preference">
         <legend>Notification preference</legend>
-        <p>Choose how you want to receive booking updates.</p>
+        <p>Choose where we should send confirmations, schedules, reminders, and important booking updates.</p>
         <div class="notification-preference__options" role="radiogroup" aria-label="Notification preference">
           <label class="notification-preference__option">
             <input
@@ -136,7 +136,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
             />
             <span class="notification-preference__body">
               <strong>Email</strong>
-              <span>Receive updates by email.</span>
+              <span>Send booking updates to your email address only.</span>
             </span>
           </label>
           <label class="notification-preference__option">
@@ -148,7 +148,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
             />
             <span class="notification-preference__body">
               <strong>SMS</strong>
-              <span>Receive updates by text message.</span>
+              <span>Send booking updates to your mobile number only.</span>
             </span>
           </label>
           <label class="notification-preference__option">
@@ -161,7 +161,7 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
             />
             <span class="notification-preference__body">
               <strong>Both</strong>
-              <span>Use both notification methods.</span>
+              <span>Send every booking update by email and SMS.</span>
             </span>
           </label>
         </div>
@@ -1752,12 +1752,12 @@ const initialMinimumBookingDateValue = getMinimumBookingDateValue();
 
   function getSuccessNotificationMessage(preference) {
     if (preference === "email") {
-      return "You will receive an email notification once the admin has decided a date for contract signing.";
+      return "We will send booking updates and your contract-signing schedule to your email address.";
     }
     if (preference === "sms") {
-      return "You will receive an SMS notification once the admin has decided a date for contract signing.";
+      return "We will send booking updates and your contract-signing schedule to your mobile number by SMS.";
     }
-    return "You will receive an email and SMS notification once the admin has decided a date for contract signing.";
+    return "We will send booking updates and your contract-signing schedule by both email and SMS.";
   }
 
   function populateInclusionSummary(inclusions) {

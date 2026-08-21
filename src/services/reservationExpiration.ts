@@ -24,11 +24,12 @@ const EXPIRATION_REASON = "Reservation expired after 48 hours without payment";
 const REMINDER_LEAD_TIME_MS = 24 * 60 * 60 * 1000;
 
 function notificationError(result: Awaited<ReturnType<typeof sendExpirationReminder>>): string {
-  return [result.email, result.sms]
+  const failures = [result.email, result.sms]
     .filter((channel) => channel && !channel.ok)
     .map((channel) => (channel && !channel.ok ? channel.error : ""))
     .filter(Boolean)
     .join("; ");
+  return failures || "No enabled notification channel was delivered";
 }
 
 async function findUnpaidBookingIds(client: DbClient, bookingIds: string[]): Promise<Set<string>> {
@@ -75,7 +76,11 @@ async function sendDueExpirationReminders(
       const result = await sendExpirationReminder(bookingId, client);
       if (!notificationSucceeded(result)) {
         const message = notificationError(result);
-        if (message) failures.push({ bookingId, kind: "reminder", error: message });
+        console.warn("[ReservationExpiration] Reminder was not delivered", {
+          bookingId,
+          error: message,
+        });
+        failures.push({ bookingId, kind: "reminder", error: message });
         continue;
       }
       const { error: updateError } = await client
@@ -85,11 +90,16 @@ async function sendDueExpirationReminders(
         .is("expiration_reminder_sent_at", null);
       if (updateError) throw updateError;
       sent.push(bookingId);
+      console.info("[ReservationExpiration] Reminder sent and tracked", { bookingId });
     } catch (error) {
+      console.error("[ReservationExpiration] Reminder processing failed", {
+        bookingId,
+        error: error instanceof Error ? error.message : "Expiration reminder failed",
+      });
       failures.push({
         bookingId,
         kind: "reminder",
-        error: error instanceof Error ? error.message : "Expiration reminder failed",
+        error: "Expiration reminder processing failed",
       });
     }
   }
@@ -116,7 +126,11 @@ async function sendUnsentCancellationNotices(
       const result = await sendExpirationCancellationNotice(booking.id, client);
       if (!notificationSucceeded(result)) {
         const message = notificationError(result);
-        if (message) failures.push({ bookingId: booking.id, kind: "cancellation", error: message });
+        console.warn("[ReservationExpiration] Cancellation notice was not delivered", {
+          bookingId: booking.id,
+          error: message,
+        });
+        failures.push({ bookingId: booking.id, kind: "cancellation", error: message });
         continue;
       }
       const { error: updateError } = await client
@@ -126,11 +140,18 @@ async function sendUnsentCancellationNotices(
         .is("expiration_cancel_notice_sent_at", null);
       if (updateError) throw updateError;
       sent.push(booking.id);
+      console.info("[ReservationExpiration] Cancellation notice sent and tracked", {
+        bookingId: booking.id,
+      });
     } catch (error) {
+      console.error("[ReservationExpiration] Cancellation notice processing failed", {
+        bookingId: booking.id,
+        error: error instanceof Error ? error.message : "Expiration cancellation notice failed",
+      });
       failures.push({
         bookingId: booking.id,
         kind: "cancellation",
-        error: error instanceof Error ? error.message : "Expiration cancellation notice failed",
+        error: "Expiration cancellation notice processing failed",
       });
     }
   }

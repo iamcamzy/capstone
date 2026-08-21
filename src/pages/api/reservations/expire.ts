@@ -42,11 +42,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       notificationFailures: result.notificationFailures,
     });
   } catch (expirationError) {
-    const message =
+    const technicalMessage =
       expirationError instanceof Error
         ? expirationError.message
         : "Reservation expiration failed";
-    console.error("[ReservationExpiration]", message);
-    return error(message, 500);
+    console.error("[ReservationExpiration]", technicalMessage);
+    return error("Reservation expiration could not be completed", 500);
   }
 };

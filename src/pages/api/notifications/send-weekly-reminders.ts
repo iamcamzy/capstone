@@ -13,6 +13,28 @@ export const prerender = false;
 
 const db = supabaseAdmin ?? supabase;
 
+type ReminderChannelOutcome = "sent" | "already_sent" | "disabled" | "failed" | "unavailable";
+
+type ReminderBookingResult = {
+  bookingId: string;
+  email: ReminderChannelOutcome;
+  sms: ReminderChannelOutcome;
+  complete: boolean;
+};
+
+function channelOutcome(
+  enabled: boolean,
+  previouslySentAt: string | null,
+  succeeded: boolean,
+  failed: boolean,
+): ReminderChannelOutcome {
+  if (!enabled) return "disabled";
+  if (previouslySentAt) return "already_sent";
+  if (succeeded) return "sent";
+  if (failed) return "failed";
+  return "unavailable";
+}
+
 function dateSevenDaysFromToday(): string {
   const date = new Date();
   date.setDate(date.getDate() + 7);
@@ -49,16 +71,27 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   if (fetchError) {
     console.error("[WeeklyReminders]", fetchError.message);
-    return error(fetchError.message, 500);
+    return error("Could not load bookings for weekly reminders", 500);
   }
 
   const sent: string[] = [];
   const skipped: string[] = [];
   const failed: Array<{ bookingId: string; error: string }> = [];
+  const channelResults: ReminderBookingResult[] = [];
 
   for (const booking of bookings ?? []) {
     try {
       const result = await sendOneWeekReminder(booking.id, db);
+      if (!result.bookingLoaded) {
+        console.error("[WeeklyReminders] Booking notification details could not be loaded", {
+          bookingId: booking.id,
+        });
+        failed.push({
+          bookingId: booking.id,
+          error: "Booking notification details could not be loaded",
+        });
+        continue;
+      }
       const emailSucceeded = notificationChannelSucceeded(result.email);
       const smsSucceeded = notificationChannelSucceeded(result.sms);
       const emailFailed = result.email && !result.email.ok ? result.email.error : null;
@@ -86,22 +119,58 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           .eq("id", booking.id);
 
         if (updateError) {
-          failed.push({ bookingId: booking.id, error: updateError.message });
+          console.error("[WeeklyReminders] Reminder tracking update failed", {
+            bookingId: booking.id,
+            error: updateError.message,
+          });
+          failed.push({
+            bookingId: booking.id,
+            error: "Reminder tracking could not be saved",
+          });
           continue;
         }
       }
+
+      const emailOutcome = channelOutcome(
+        result.enabledChannels.email,
+        result.sentAt.email,
+        emailSucceeded,
+        Boolean(emailFailed),
+      );
+      const smsOutcome = channelOutcome(
+        result.enabledChannels.sms,
+        result.sentAt.sms,
+        smsSucceeded,
+        Boolean(smsFailed),
+      );
+      channelResults.push({
+        bookingId: booking.id,
+        email: emailOutcome,
+        sms: smsOutcome,
+        complete: emailSent && smsSent,
+      });
+      console.info("[WeeklyReminders] Booking processed", {
+        bookingId: booking.id,
+        email: emailOutcome,
+        sms: smsOutcome,
+        complete: emailSent && smsSent,
+      });
 
       if (notificationSucceeded(result)) sent.push(booking.id);
       if (failureMessage) failed.push({ bookingId: booking.id, error: failureMessage });
       if (!notificationSucceeded(result) && !failureMessage) skipped.push(booking.id);
     } catch (reminderError) {
-      failed.push({
+      console.error("[WeeklyReminders] Booking reminder failed", {
         bookingId: booking.id,
         error: reminderError instanceof Error ? reminderError.message : "Reminder failed",
+      });
+      failed.push({
+        bookingId: booking.id,
+        error: "Reminder processing failed",
       });
     }
   }
 
-  return ok({ targetDate, sent, skipped, failed });
+  return ok({ targetDate, sent, skipped, failed, channelResults });
 };
 

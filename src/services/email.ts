@@ -45,9 +45,13 @@ export async function sendTransactionalEmail(input: SendEmailInput): Promise<Ema
 
   if (!response.ok) {
     const details = await response.text().catch(() => "");
+    console.error("[Email] Brevo request failed", {
+      status: response.status,
+      details: details || undefined,
+    });
     return {
       ok: false,
-      error: `Brevo email request failed with ${response.status}${details ? `: ${details}` : ""}`,
+      error: "Email notification could not be sent",
     };
   }
 

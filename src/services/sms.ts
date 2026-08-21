@@ -62,21 +62,26 @@ export async function sendSmsNotification(input: SendSmsInput): Promise<SmsSendR
 
     if (!response.ok) {
       const details = await response.text().catch(() => "");
+      console.error("[SMS] Termux request failed", {
+        status: response.status,
+        details: details || undefined,
+      });
       return {
         ok: false,
-        error: `Termux SMS request failed with ${response.status}${details ? `: ${details}` : ""}`,
+        error: "SMS notification could not be sent",
       };
     }
 
     return { ok: true };
   } catch (smsError) {
-    const message =
+    const technicalMessage =
       smsError instanceof Error && smsError.name === "AbortError"
         ? "Termux SMS request timed out"
         : smsError instanceof Error
           ? smsError.message
           : "Termux SMS request failed";
-    return { ok: false, error: message };
+    console.error("[SMS] Termux request failed", technicalMessage);
+    return { ok: false, error: "SMS notification could not be sent" };
   } finally {
     clearTimeout(timeout);
   }

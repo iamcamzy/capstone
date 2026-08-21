@@ -7,6 +7,7 @@ import { createBookingSchema } from "../../../validation/booking";
 import { created, error } from "../../../lib/response";
 import { parseBody } from "../../../lib/parseBody";
 import { findAvailabilityOverlaps } from "../../../services/bookingAvailability";
+import { notifyBookingSubmitted } from "../../../services/notifications";
 
 export const prerender = false;
 
@@ -169,7 +170,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       .upsert(profileUpdate, { onConflict: "id" });
 
     if (profileError) {
-      console.warn("[CreateBookings] Customer contact update failed", profileError.message);
+      console.error("[CreateBookings] Customer contact and preference update failed", {
+        userId: user.id,
+        error: profileError.message,
+      });
+      return error(
+        "We could not save your contact and notification preferences. Please try again.",
+        500,
+      );
     }
   }
 
@@ -290,13 +298,26 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   if (insertError) {
     console.error("[CreateBookings]", insertError.message);
-    return error(insertError.message, 500);
+    return error("We could not submit your booking request. Please try again.", 500);
+  }
+
+  try {
+    await notifyBookingSubmitted(newBooking.id, db);
+  } catch (notificationError) {
+    console.error("[CreateBookings] Submission notification failed", {
+      bookingId: newBooking.id,
+      error:
+        notificationError instanceof Error
+          ? notificationError.message
+          : "Submission notification failed",
+    });
   }
 
   return created({
     bookingId: newBooking.id,
     totalPrice: computedTotal,
     reservationExpiresAt: newBooking.reservation_expires_at,
-    message: "Booking submitted successfully. Our staff will coordinate contract signing details.",
+    message:
+      "Your booking request was submitted. Our team will review it and contact you about contract signing.",
   });
 };

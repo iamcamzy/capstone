@@ -148,6 +148,19 @@ Call `POST /api/notifications/send-weekly-reminders` once per day from your sche
 
 One-week reminders are tracked per channel with `bookings.one_week_email_sent_at` and `bookings.one_week_sms_sent_at`. Email-only, SMS-only, and both-channel preferences are supported; a failed channel stays null so a later cron run can retry it without resending channels that already succeeded. The legacy `one_week_notice_sent_at` is filled only after all enabled channels are sent.
 
+Booking submission confirmations, contract-signing schedules, status changes, reschedules, cancellations, and reminders use the customer's saved `email_notifications_enabled` and `sms_notifications_enabled` settings. When both are enabled, email and SMS are attempted independently so one provider failure does not prevent the other channel from sending. Notification failures are logged with the booking ID and channel; customer-facing API responses do not include provider error details.
+
+#### Notification testing checklist
+
+- [ ] Choose email only, submit a booking, and confirm that booking and later reminder notifications send by email only.
+- [ ] Choose SMS only, submit a booking, and confirm that booking and later reminder notifications send by SMS only.
+- [ ] Choose both and confirm that email and SMS are both attempted, including when one channel is unavailable.
+- [ ] Force an email failure during a one-week reminder; confirm `one_week_email_sent_at` stays null and email retries on the next run without resending a successful SMS.
+- [ ] Force an SMS failure during a one-week reminder; confirm `one_week_sms_sent_at` stays null and SMS retries on the next run without resending a successful email.
+- [ ] Run the one-week reminder endpoint again and confirm channels with existing per-channel timestamps are not resent; confirm `one_week_notice_sent_at` is set only after all enabled channels are sent.
+- [ ] Run the expiration job more than once in the final 24 hours and confirm `expiration_reminder_sent_at` prevents a second successful reminder.
+- [ ] Run the expiration job more than once after automatic cancellation and confirm `expiration_cancel_notice_sent_at` prevents a second successful cancellation notice.
+
 ### Reservation Validity
 
 New bookings begin as unpaid `contract_signing` reservations and are held for 48 hours. The booking API sets `reservation_created_at` to the creation time and `reservation_expires_at` to exactly 48 hours later, returns the deadline as `reservationExpiresAt`, and the customer dashboard and booking confirmation show that deadline.

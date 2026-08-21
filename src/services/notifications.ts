@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "../lib/database.types";
 import {
-  BOOKING_STATUS_LABELS,
   bookingStatusTransitionErrorMessage,
   type BookingStatus,
   type NotifiableBookingStatus,
@@ -45,6 +44,7 @@ export type NotificationResult = {
 };
 
 export type OneWeekReminderResult = NotificationResult & {
+  bookingLoaded: boolean;
   enabledChannels: {
     email: boolean;
     sms: boolean;
@@ -82,21 +82,20 @@ export class BookingStatusTransitionError extends Error {
   }
 }
 
-const STATUS_MESSAGES: Record<NotifiableBookingStatus, string> = {
-  contract_signing:
-    "Your booking is ready for contract signing. Please coordinate with the resort team for the next steps.",
-  booked: "Your booking has been officially booked.",
-  rescheduled: "Your booking has been rescheduled. Please review the updated event details.",
-  cancelled: "Your booking has been cancelled.",
-  completed: "Thank you for choosing us. Your event has been marked completed.",
-};
-
 type BookingNotificationKind =
   | NotifiableBookingStatus
+  | "booking_submitted"
   | "reminder"
   | "contract_signing_schedule"
   | "expiration_reminder"
   | "expiration_cancel_notice";
+
+type NotificationContent = {
+  subject: string;
+  textContent: string;
+  htmlContent: string;
+  smsMessage: string;
+};
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "No event date provided";
@@ -150,6 +149,10 @@ function formatContractSigningSchedule(booking: NotificationBooking): string {
   return time ? `${date} at ${time}` : date;
 }
 
+function formatBookingDates(booking: NotificationBooking): string {
+  return `${formatDate(booking.startDate)} to ${formatDate(booking.endDate)}`;
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -161,42 +164,82 @@ function escapeHtml(value: string): string {
 function buildEmailContent(
   booking: NotificationBooking,
   status: BookingNotificationKind,
-): { subject: string; textContent: string; htmlContent: string } {
-  const isScheduleNotification = status === "contract_signing_schedule";
-  const isExpirationReminder = status === "expiration_reminder";
-  const isExpirationCancelNotice = status === "expiration_cancel_notice";
+): NotificationContent {
   const contractSigningSchedule = formatContractSigningSchedule(booking);
   const expirationDeadline = formatDateTime(booking.reservationExpiresAt);
-  const label =
-    status === "reminder"
-      ? "1-Week Reminder"
-      : isExpirationReminder
-        ? "Reservation Expiration Reminder"
-        : isExpirationCancelNotice
-          ? "Reservation Cancelled"
-      : isScheduleNotification
-        ? "Contract Signing Schedule"
-        : BOOKING_STATUS_LABELS[status];
-  const statusLine =
-    status === "reminder"
-      ? "Your event is scheduled one week from now."
-      : isExpirationReminder
-        ? `Your unpaid reservation will expire on ${expirationDeadline}.`
-        : isExpirationCancelNotice
-          ? `Your unpaid reservation expired on ${expirationDeadline} and has been automatically cancelled.`
-      : isScheduleNotification
-        ? `Your contract signing is scheduled for ${contractSigningSchedule}.`
-        : `Your booking status has been updated to: ${label}.`;
-  const statusMessage =
-    status === "reminder"
-      ? "Your event is scheduled one week from now. Please coordinate any remaining details with Woodberry Resorts and Events Place."
-      : isExpirationReminder
-        ? "Please arrange the required payment before the deadline to keep your reservation."
-        : isExpirationCancelNotice
-          ? "If you still wish to proceed or need assistance, please contact Woodberry or an administrator."
-      : isScheduleNotification
-        ? `Please visit Woodberry Resorts and Events Place for contract signing on ${contractSigningSchedule}.`
-      : STATUS_MESSAGES[status];
+  let subject: string;
+  let statusLine: string;
+  let statusMessage: string;
+
+  switch (status) {
+    case "booking_submitted":
+      subject = "We received your Woodberry booking request";
+      statusLine = "Thank you—your booking request has been received.";
+      statusMessage =
+        `Our team will review your details and contact you to arrange contract signing. ` +
+        `Please complete the required payment by ${expirationDeadline} to keep this reservation active.`;
+      break;
+    case "reminder":
+      subject = "Your Woodberry event is one week away";
+      statusLine = `A friendly reminder that your event is scheduled for ${formatDate(booking.eventDate)}.`;
+      statusMessage =
+        "Please review your booking details and contact the Woodberry team if you have any final questions or updates.";
+      break;
+    case "contract_signing_schedule":
+      subject = "Your Woodberry contract-signing schedule";
+      statusLine = `Your contract signing is scheduled for ${contractSigningSchedule}.`;
+      statusMessage =
+        "Please come to Woodberry Resorts and Events Place at the scheduled time. Contact our team as soon as possible if you need help or cannot attend.";
+      break;
+    case "expiration_reminder":
+      subject = "Action needed: your Woodberry reservation is expiring";
+      statusLine = `Your unpaid reservation is being held until ${expirationDeadline}.`;
+      statusMessage =
+        "Please arrange the required payment before the deadline to keep your dates reserved. Contact the Woodberry team if you need assistance.";
+      break;
+    case "expiration_cancel_notice":
+      subject = "Your Woodberry reservation has expired";
+      statusLine = `Your unpaid reservation reached its deadline on ${expirationDeadline} and has been cancelled.`;
+      statusMessage =
+        "Your dates are no longer being held. If you would still like to book, please contact the Woodberry team so we can help you check availability and submit a new request.";
+      break;
+    case "contract_signing":
+      subject = "Your Woodberry booking is ready for contract signing";
+      statusLine = "Your booking request is ready for the contract-signing step.";
+      statusMessage =
+        "Our team will confirm your contract-signing schedule. Please contact Woodberry if you have not yet received the date and time or if you need assistance.";
+      break;
+    case "booked":
+      subject = "Your Woodberry booking is confirmed";
+      statusLine = "Your booking is confirmed and your event dates are reserved.";
+      statusMessage =
+        "Please review the details below and contact the Woodberry team if any information needs to be updated.";
+      break;
+    case "rescheduled":
+      subject = "Your Woodberry booking schedule was updated";
+      statusLine = `Your booking has been moved to ${formatBookingDates(booking)}.`;
+      statusMessage =
+        "Please review the updated dates below and contact the Woodberry team promptly if you have any questions.";
+      break;
+    case "cancelled":
+      subject = "Your Woodberry booking was cancelled";
+      statusLine = "Your booking has been cancelled and its dates are no longer being held.";
+      statusMessage =
+        "If this was unexpected or you would like help making a new booking, please contact the Woodberry team.";
+      break;
+    case "completed":
+      subject = "Thank you for celebrating with Woodberry";
+      statusLine = "Your Woodberry booking is now complete.";
+      statusMessage =
+        "Thank you for choosing Woodberry Resorts and Events Place. We hope to welcome you again.";
+      break;
+  }
+
+  const includeContractSchedule = status === "contract_signing_schedule";
+  const includeExpirationDeadline =
+    status === "booking_submitted" ||
+    status === "expiration_reminder" ||
+    status === "expiration_cancel_notice";
 
   const lines = [
     `Hello ${booking.fullName},`,
@@ -205,11 +248,12 @@ function buildEmailContent(
     "",
     "Booking Details:",
     `Venue: ${booking.venueName}`,
-    `Event Date: ${formatDate(booking.eventDate)}`,
-    ...(isScheduleNotification ? [`Contract Signing: ${contractSigningSchedule}`] : []),
     `Package: ${booking.packageName}`,
+    `Event Date: ${formatDate(booking.eventDate)}`,
+    `Booking Dates: ${formatBookingDates(booking)}`,
+    ...(includeContractSchedule ? [`Contract Signing: ${contractSigningSchedule}`] : []),
     `Reference ID: ${booking.id}`,
-    ...(isExpirationReminder || isExpirationCancelNotice
+    ...(includeExpirationDeadline
       ? [`Expiration Deadline: ${expirationDeadline}`]
       : []),
     "",
@@ -224,11 +268,22 @@ function buildEmailContent(
   const htmlLines = lines.map((line) => (line ? escapeHtml(line) : ""));
 
   return {
-    subject: `Booking Update: ${label}`,
+    subject,
     textContent: lines.join("\n"),
     htmlContent: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#1f2937;">${htmlLines
       .map((line) => (line ? `<p>${line}</p>` : "<br>"))
       .join("")}</div>`,
+    smsMessage: [
+      `Hello ${booking.fullName},`,
+      statusLine,
+      `${booking.venueName} — ${booking.packageName}.`,
+      `Event: ${formatDate(booking.eventDate)}. Booking dates: ${formatBookingDates(booking)}.`,
+      ...(includeContractSchedule ? [`Contract signing: ${contractSigningSchedule}.`] : []),
+      ...(includeExpirationDeadline ? [`Deadline: ${expirationDeadline}.`] : []),
+      statusMessage,
+      `Reference: ${booking.id}.`,
+      "— Woodberry Resorts and Events Place",
+    ].join(" "),
   };
 }
 
@@ -245,11 +300,14 @@ async function fetchNotificationBooking(
     .single();
 
   if (bookingError || !booking) {
-    console.error("[Notifications] Booking fetch failed", bookingError?.message);
+    console.error("[Notifications] Booking fetch failed", {
+      bookingId,
+      error: bookingError?.message ?? "Booking not found",
+    });
     return null;
   }
 
-  const [{ data: customer }, { data: venue }, { data: pkg }] = await Promise.all([
+  const [customerResult, venueResult, packageResult] = await Promise.all([
     client
       .from("customers")
       .select("email, first_name, last_name, phone, email_notifications_enabled, sms_notifications_enabled")
@@ -260,6 +318,18 @@ async function fetchNotificationBooking(
       ? client.from("packages").select("name").eq("id", booking.package_id).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
+
+  if (customerResult.error || !customerResult.data) {
+    console.error("[Notifications] Customer preference fetch failed", {
+      bookingId,
+      error: customerResult.error?.message ?? "Customer profile not found",
+    });
+    return null;
+  }
+
+  const customer = customerResult.data;
+  const venue = venueResult.data;
+  const pkg = packageResult.data;
 
   const profileName = [customer?.first_name, customer?.last_name].filter(Boolean).join(" ").trim();
 
@@ -300,6 +370,16 @@ export async function notifyBookingStatusChange(
   return sendBookingNotification(booking, status);
 }
 
+export async function notifyBookingSubmitted(
+  bookingId: string,
+  client: DbClient = db,
+): Promise<NotificationResult> {
+  const booking = await fetchNotificationBooking(bookingId, client);
+  if (!booking) return {};
+
+  return sendBookingNotification(booking, "booking_submitted");
+}
+
 async function sendBookingNotification(
   booking: NotificationBooking,
   status: BookingNotificationKind,
@@ -324,7 +404,9 @@ async function sendBookingNotification(
       promise: sendTransactionalEmail({
         toEmail: booking.email,
         toName: booking.fullName,
-        ...content,
+        subject: content.subject,
+        textContent: content.textContent,
+        htmlContent: content.htmlContent,
       }),
     });
   }
@@ -338,23 +420,37 @@ async function sendBookingNotification(
       channel: "sms",
       promise: sendSmsNotification({
         to: booking.phone ?? "",
-        message: content.textContent,
+        message: content.smsMessage,
       }),
     });
   }
 
+  console.info("[Notifications] Delivery attempt", {
+    bookingId: booking.id,
+    kind: status,
+    channels: tasks.map((task) => task.channel),
+  });
+
   const settled = await Promise.allSettled(tasks.map((task) => task.promise));
   settled.forEach((settledResult, index) => {
     const channel = tasks[index].channel;
+    if (settledResult.status === "rejected") {
+      console.error("[Notifications] Channel request threw an error", {
+        bookingId: booking.id,
+        kind: status,
+        channel,
+        error:
+          settledResult.reason instanceof Error
+            ? settledResult.reason.message
+            : `${channel.toUpperCase()} notification failed`,
+      });
+    }
     const value =
       settledResult.status === "fulfilled"
         ? settledResult.value
         : {
             ok: false as const,
-            error:
-              settledResult.reason instanceof Error
-                ? settledResult.reason.message
-                : `${channel.toUpperCase()} notification failed`,
+            error: `${channel === "email" ? "Email" : "SMS"} notification could not be sent`,
           };
 
     if (channel === "email") {
@@ -364,6 +460,32 @@ async function sendBookingNotification(
     }
   });
 
+  for (const channel of ["email", "sms"] as const) {
+    const channelResult = result[channel];
+    if (!channelResult) continue;
+    if (delivered(channelResult)) {
+      console.info("[Notifications] Channel succeeded", {
+        bookingId: booking.id,
+        kind: status,
+        channel,
+      });
+    } else if (channelResult.ok) {
+      console.info("[Notifications] Channel skipped", {
+        bookingId: booking.id,
+        kind: status,
+        channel,
+        reason: "reason" in channelResult ? channelResult.reason : "Not delivered",
+      });
+    } else {
+      console.error("[Notifications] Channel failed", {
+        bookingId: booking.id,
+        kind: status,
+        channel,
+        error: channelResult.error,
+      });
+    }
+  }
+
   return result;
 }
 
@@ -371,24 +493,23 @@ function delivered(result: EmailSendResult | SmsSendResult | undefined): boolean
   return Boolean(result?.ok && (!("skipped" in result) || !result.skipped));
 }
 
-function skippedReason(result: EmailSendResult | SmsSendResult | undefined): string | null {
-  if (result?.ok && "skipped" in result && result.skipped) return result.reason;
-  return null;
-}
-
 function notificationWarning(result: NotificationResult): string | undefined {
-  const emailFailed = result.email && !result.email.ok ? result.email.error : null;
-  const smsFailed = result.sms && !result.sms.ok ? result.sms.error : null;
-  if (emailFailed && smsFailed) return `${emailFailed}; ${smsFailed}`;
-  if (emailFailed) return emailFailed;
-  if (smsFailed) return smsFailed;
+  const unavailableChannels = (["email", "sms"] as const).filter((channel) => {
+    const channelResult = result[channel];
+    if (!channelResult) return false;
+    if (!channelResult.ok) return true;
+    if (!("skipped" in channelResult) || !channelResult.skipped) return false;
+    return !(
+      channelResult.reason.includes("disabled for this customer") ||
+      channelResult.reason.includes("already sent")
+    );
+  });
 
-  if (delivered(result.email) || delivered(result.sms)) return undefined;
-
-  const emailSkipped = skippedReason(result.email);
-  const smsSkipped = skippedReason(result.sms);
-  if (emailSkipped && smsSkipped) return `${emailSkipped}; ${smsSkipped}`;
-  return emailSkipped ?? smsSkipped ?? undefined;
+  if (unavailableChannels.length === 0) return undefined;
+  if (unavailableChannels.length === 2) {
+    return "The booking was updated, but email and SMS notifications could not be sent.";
+  }
+  return `The booking was updated, but the ${unavailableChannels[0]} notification could not be sent.`;
 }
 
 export async function sendOneWeekReminder(
@@ -398,6 +519,7 @@ export async function sendOneWeekReminder(
   const booking = await fetchNotificationBooking(bookingId, client);
   if (!booking) {
     return {
+      bookingLoaded: false,
       enabledChannels: { email: false, sms: false },
       sentAt: { email: null, sms: null },
     };
@@ -406,6 +528,7 @@ export async function sendOneWeekReminder(
   const result = await sendBookingNotification(booking, "reminder");
   return {
     ...result,
+    bookingLoaded: true,
     enabledChannels: {
       email: booking.emailNotificationsEnabled,
       sms: booking.smsNotificationsEnabled,
@@ -579,13 +702,21 @@ export async function updateBookingStatusAndNotify(
     const warning = notificationWarning(result.notification);
     if (warning) {
       result.warning = warning;
-      console.warn("[Notifications]", warning);
+      console.warn("[Notifications] Status notification incomplete", {
+        bookingId,
+        kind: normalizedStatus,
+        warning,
+      });
     }
   } catch (notificationError) {
     const message =
       notificationError instanceof Error ? notificationError.message : "Notification failed";
-    result.warning = message;
-    console.error("[Notifications]", message);
+    result.warning = "The booking was updated, but its notification could not be sent.";
+    console.error("[Notifications] Status notification failed", {
+      bookingId,
+      kind: normalizedStatus,
+      error: message,
+    });
   }
 
   return result;
@@ -678,13 +809,21 @@ export async function updateContractSigningScheduleAndNotify(
     const warning = notificationWarning(result.notification);
     if (warning) {
       result.warning = warning;
-      console.warn("[Notifications]", warning);
+      console.warn("[Notifications] Contract-signing notification incomplete", {
+        bookingId,
+        kind: "contract_signing_schedule",
+        warning,
+      });
     }
   } catch (notificationError) {
     const message =
       notificationError instanceof Error ? notificationError.message : "Notification failed";
-    result.warning = message;
-    console.error("[Notifications]", message);
+    result.warning = "The schedule was updated, but its notification could not be sent.";
+    console.error("[Notifications] Contract-signing notification failed", {
+      bookingId,
+      kind: "contract_signing_schedule",
+      error: message,
+    });
   }
 
   return result;
